@@ -12,5 +12,5 @@ dependencies = []
 [project.scripts]
 nymph = "nymph:main"
 
-[tool.hatchling.build.targets.wheel]
-include = ["nymph.py"]
+[tool.hatchling.build]
+packages = ["nymph"]

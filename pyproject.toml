@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nymph"
+version = "0.1.0"
+description = "Markdown review tool with hot reload and inline commenting"
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+nymph = "nymph:main"
+
+[tool.hatchling.build]
+packages = ["nymph"]

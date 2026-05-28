@@ -1,11 +1,11 @@
-# mdreview
+# nymph
 
 > リポジトリ名: **nymph** (`fillu87gyc/nymph`)
 
 AI が生成した Markdown・Mermaid をレビューするための軽量ツール。
 
 ```bash
-mdreview output.md
+nymph output.md
 ```
 
 ブラウザが開き、ファイルを監視して自動再レンダリングします。
@@ -33,7 +33,7 @@ pip install .
 
 インストール不要で使う場合：
 ```bash
-python3 mdreview.py output.md
+python3 nymph.py output.md
 ```
 
 ---
@@ -41,7 +41,7 @@ python3 mdreview.py output.md
 ## 使い方
 
 ```bash
-mdreview output.md
+nymph output.md
 # MD Review  http://localhost:6276
 # 監視中     /path/to/output.md
 # Ctrl+C で停止

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nymph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@700&family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <header id="toolbar">
+    <span class="brand">nymph</span>
+    <div class="watch-badge">
+      <span class="watch-dot" id="watch-dot"></span>
+      <span id="watch-name">—</span>
+    </div>
+    <span class="update-time" id="update-time"></span>
+    <span class="sep"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="btn-comments" title="コメントパネル">
+      コメント <span id="comment-count"></span>
+    </button>
+    <button class="btn primary" id="btn-copy">レビューをコピー</button>
+    <span class="sep"></span>
+    <button class="btn icon" id="btn-theme" title="テーマ切替">◐</button>
+  </header>
+
+  <div id="main">
+    <div id="content">
+      <div id="welcome">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <rect x="6" y="4" width="28" height="32" rx="3" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M12 13h16M12 19h16M12 25h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <p>ファイルを読み込んでいます…</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="comments-panel">
+    <div class="cpanel-head">
+      <span class="cpanel-title">レビューコメント</span>
+      <span class="spacer"></span>
+      <button class="btn icon" id="btn-close-panel">✕</button>
+    </div>
+    <ul id="comments-list">
+      <li id="no-comments">コメントはまだありません。ブロックにカーソルを合わせて ＋ をクリック。</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- Comment input modal -->
+<div id="comment-modal">
+  <div id="modal-backdrop"></div>
+  <div id="modal-box">
+    <div class="modal-head" id="modal-line">コメントを追加</div>
+    <div class="modal-ctx" id="modal-ctx"></div>
+    <textarea id="comment-ta" placeholder="コメントを入力… (Cmd+Enter で追加)" rows="4"></textarea>
+    <div class="modal-foot">
+      <button class="btn" id="btn-cancel">キャンセル</button>
+      <button class="btn primary" id="btn-submit">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- draw.io export modal -->
+<div id="drawio-modal">
+  <div id="drawio-box">
+    <div class="dbox-head">
+      <span class="dbox-title">draw.io エクスポート</span>
+      <button class="btn icon" id="btn-close-drawio">✕</button>
+    </div>
+    <div class="dbox-hint">
+      <strong>.drawio ファイルをダウンロード</strong>して draw.io で開くか、
+      コードをコピーして draw.io の <code>挿入 › Mermaid</code> にペースト。
+    </div>
+    <div class="dbox-code" id="drawio-code"></div>
+    <div class="dbox-foot">
+      <button class="btn primary" id="btn-dl-drawio">⬇ .drawio ダウンロード</button>
+      <button class="btn" id="btn-copy-mermaid">コードをコピー</button>
+      <span class="spacer"></span>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  source: '',
+  comments: [],
+  nextId: 1,
+  pending: null,
+  mermaidPending: null,
+};
+
+// ── Mermaid init ──────────────────────────────────────────────────────────────
+let mermaidSeq = 0;
+
+function initMermaid() {
+  const dark = document.documentElement.dataset.theme !== 'light';
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: dark ? 'dark' : 'default',
+    securityLevel: 'loose',
+    fontFamily: '"JetBrains Mono", monospace',
+  });
+}
+initMermaid();
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function assignLines(src, tokens) {
+  let from = 0;
+  for (const t of tokens) {
+    if (!t.raw) continue;
+    const idx = src.indexOf(t.raw, from);
+    if (idx === -1) continue;
+    const before = src.substring(0, idx);
+    t.ls = before.split('\n').length;
+    const raw = t.raw.endsWith('\n') ? t.raw.slice(0, -1) : t.raw;
+    t.le = t.ls + raw.split('\n').length - 1;
+    from = idx + t.raw.length;
+  }
+}
+
+const BLOCK_TYPES = new Set(['paragraph','heading','code','blockquote','list','hr','table','html']);
+
+async function renderSource(src) {
+  const el = document.getElementById('content');
+  const welcome = document.getElementById('welcome');
+
+  if (!src.trim()) {
+    el.innerHTML = '';
+    el.appendChild(welcome);
+    welcome.classList.remove('hidden');
+    return;
+  }
+  welcome.classList.add('hidden');
+
+  const tokens = marked.lexer(src);
+  assignLines(src, tokens);
+
+  const blockTokens = tokens.filter(t => BLOCK_TYPES.has(t.type));
+  let idx = 0;
+
+  const renderer = new marked.Renderer();
+
+  function wrap(inner) {
+    const t = blockTokens[idx++] || {};
+    const ls = t.ls || 1, le = t.le || ls;
+    return `<div class="md-block" data-ls="${ls}" data-le="${le}">` +
+           `<button class="comment-btn" aria-label="コメント">＋</button>` +
+           inner + '</div>';
+  }
+
+  renderer.paragraph = (text) => wrap(`<p>${text}</p>`);
+  renderer.heading    = (text, level) => wrap(`<h${level}>${text}</h${level}>`);
+  renderer.blockquote = (q)    => wrap(`<blockquote>${q}</blockquote>`);
+  renderer.list       = (body, ordered, start) => {
+    const tag = ordered ? `ol${start !== 1 ? ` start="${start}"` : ''}` : 'ul';
+    return wrap(`<${tag}>${body}</${tag}>`);
+  };
+  renderer.hr         = ()     => wrap('<hr>');
+  renderer.table      = (h,b)  => wrap(`<table><thead>${h}</thead><tbody>${b}</tbody></table>`);
+  renderer.html       = (html) => wrap(html);
+
+  renderer.code = (code, lang) => {
+    const t = blockTokens[idx++] || {};
+    const ls = t.ls || 1, le = t.le || ls;
+    if (lang === 'mermaid' || lang === 'mmd') {
+      mermaidSeq++;
+      const mid = `mermaid-${mermaidSeq}`;
+      const enc = encodeURIComponent(code);
+      return `<div class="md-block" data-ls="${ls}" data-le="${le}">` +
+             `<button class="comment-btn">＋</button>` +
+             `<div class="mermaid-wrap">` +
+             `<div class="mermaid-bar">` +
+             `<span class="mermaid-label"><em>Mermaid</em> Diagram</span>` +
+             `<button class="btn-drawio" data-code="${enc}">→ draw.io</button>` +
+             `</div>` +
+             `<div class="mermaid-area"><div class="mermaid" id="${mid}">${esc(code)}</div></div>` +
+             `</div></div>`;
+    }
+    return `<div class="md-block" data-ls="${ls}" data-le="${le}">` +
+           `<button class="comment-btn">＋</button>` +
+           `<pre><code class="language-${esc(lang||'')}">${esc(code)}</code></pre>` +
+           `</div>`;
+  };
+
+  const html = marked.parse(src, { renderer });
+  mermaidSeq = 0;
+  idx = 0;
+
+  el.innerHTML = html;
+  el.appendChild(welcome);
+
+  try {
+    await mermaid.run({ querySelector: '#content .mermaid' });
+  } catch(e) { console.warn('mermaid:', e); }
+
+  restoreIndicators();
+  attachHandlers();
+}
+
+// ── Comment indicators ────────────────────────────────────────────────────────
+function restoreIndicators() {
+  document.querySelectorAll('.md-block').forEach(b => {
+    const ls = +b.dataset.ls, le = +b.dataset.le;
+    b.classList.toggle('has-comment', state.comments.some(c => c.ls <= le && c.le >= ls));
+  });
+}
+
+// ── Block interaction ─────────────────────────────────────────────────────────
+function attachHandlers() {
+  document.querySelectorAll('.comment-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const b = btn.closest('.md-block');
+      const ls = +b.dataset.ls, le = +b.dataset.le;
+      const lines = state.source.split('\n');
+      const ctx = lines.slice(ls - 1, Math.min(ls + 2, le)).join('\n');
+      openCommentModal(ls, le, ctx);
+    });
+  });
+
+  document.querySelectorAll('.btn-drawio').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openDrawioModal(decodeURIComponent(btn.dataset.code));
+    });
+  });
+}
+
+// ── Comment modal ─────────────────────────────────────────────────────────────
+function openCommentModal(ls, le, ctx) {
+  state.pending = { ls, le, ctx };
+  document.getElementById('modal-line').textContent =
+    ls === le ? `L${ls} にコメント追加` : `L${ls}–${le} にコメント追加`;
+  document.getElementById('modal-ctx').textContent = ctx;
+  document.getElementById('comment-ta').value = '';
+  document.getElementById('comment-modal').classList.add('open');
+  document.getElementById('comment-ta').focus();
+}
+function closeCommentModal() {
+  document.getElementById('comment-modal').classList.remove('open');
+  state.pending = null;
+}
+function submitComment() {
+  const text = document.getElementById('comment-ta').value.trim();
+  if (!text || !state.pending) return;
+  const c = { id: state.nextId++, ls: state.pending.ls, le: state.pending.le,
+              ctx: state.pending.ctx, text };
+  state.comments.push(c);
+  state.comments.sort((a,b) => a.ls - b.ls);
+  closeCommentModal();
+  saveComments();
+  updatePanel();
+  restoreIndicators();
+  openPanel();
+  toast('コメントを追加しました');
+}
+
+// ── draw.io modal ─────────────────────────────────────────────────────────────
+function openDrawioModal(code) {
+  state.mermaidPending = code;
+  document.getElementById('drawio-code').textContent = code;
+  document.getElementById('drawio-modal').classList.add('open');
+}
+function closeDrawioModal() {
+  document.getElementById('drawio-modal').classList.remove('open');
+  state.mermaidPending = null;
+}
+function downloadDrawio(code) {
+  const mdata = JSON.stringify({ code, config: {} })
+    .replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="nymph" version="1.0">
+  <diagram id="mermaid-${Date.now()}" name="Mermaid Export">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" page="1"
+      pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <UserObject label="" mermaid_data="${mdata}" id="2">
+          <mxCell style="shape=mxgraph.mermaid.undefined;html=1;whiteSpace=wrap;align=center;"
+            vertex="1" parent="1">
+            <mxGeometry x="80" y="80" width="600" height="400" as="geometry"/>
+          </mxCell>
+        </UserObject>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>`;
+  const blob = new Blob([xml], { type: 'application/xml' });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: `mermaid-${Date.now()}.drawio`
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('.drawio をダウンロードしました');
+}
+
+// ── Comment panel ─────────────────────────────────────────────────────────────
+function openPanel() { document.getElementById('comments-panel').classList.add('open'); }
+function closePanel() { document.getElementById('comments-panel').classList.remove('open'); }
+
+function updatePanel() {
+  const list = document.getElementById('comments-list');
+  const noEl = document.getElementById('no-comments');
+  const cnt  = document.getElementById('comment-count');
+  if (!state.comments.length) {
+    list.innerHTML = '';
+    list.appendChild(noEl);
+    noEl.style.display = '';
+    cnt.classList.remove('visible');
+    return;
+  }
+  noEl.style.display = 'none';
+  cnt.textContent = state.comments.length;
+  cnt.classList.add('visible');
+  list.innerHTML = '';
+  state.comments.forEach(c => {
+    const li = document.createElement('li');
+    li.className = 'comment-item';
+    const range = c.ls === c.le ? `L${c.ls}` : `L${c.ls}–${c.le}`;
+    li.innerHTML = `<span class="c-line">${range}</span>
+      <div class="c-body">
+        <div class="c-text">${esc(c.text)}</div>
+        <div class="c-ctx">${esc(c.ctx.split('\n')[0])}</div>
+      </div>
+      <button class="c-del" title="削除">✕</button>`;
+    li.querySelector('.c-del').addEventListener('click', ev => {
+      ev.stopPropagation();
+      state.comments = state.comments.filter(x => x.id !== c.id);
+      saveComments();
+      updatePanel();
+      restoreIndicators();
+    });
+    li.addEventListener('click', () => scrollToLine(c.ls));
+    list.appendChild(li);
+  });
+}
+
+function scrollToLine(ls) {
+  const b = document.querySelector(`.md-block[data-ls="${ls}"]`);
+  if (!b) return;
+  b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  b.style.outline = '2px solid var(--accent)';
+  b.style.outlineOffset = '4px';
+  setTimeout(() => { b.style.outline = ''; b.style.outlineOffset = ''; }, 1400);
+}
+
+// ── Copy review ───────────────────────────────────────────────────────────────
+function copyReview() {
+  if (!state.comments.length) { toast('コメントがありません'); return; }
+  const lines = state.source.split('\n');
+  const date = new Date().toLocaleDateString('ja-JP');
+  let out = `# nymph Review — ${date}\n\nコメント数: ${state.comments.length}\n\n---\n\n`;
+  state.comments.forEach((c, i) => {
+    const range = c.ls === c.le ? `L${c.ls}` : `L${c.ls}–${c.le}`;
+    const excerpt = lines.slice(c.ls - 1, c.le).join('\n');
+    out += `## [${i+1}] ${range}\n\n`;
+    out += `\`\`\`\n${excerpt}\n\`\`\`\n\n`;
+    out += `**コメント:** ${c.text}\n\n---\n\n`;
+  });
+  navigator.clipboard.writeText(out)
+    .then(() => toast('レビューをコピーしました'))
+    .catch(() => {
+      const ta = Object.assign(document.createElement('textarea'), { value: out });
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      toast('レビューをコピーしました');
+    });
+}
+
+// ── Server API ────────────────────────────────────────────────────────────────
+async function loadContent() {
+  const res = await fetch('/content');
+  const { content, filename } = await res.json();
+  document.getElementById('watch-name').textContent = filename;
+  state.source = content;
+  mermaidSeq = 0;
+  await renderSource(content);
+  const now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('update-time').textContent = `更新: ${now}`;
+}
+
+async function loadComments() {
+  try {
+    const res = await fetch('/comments');
+    const data = await res.json();
+    state.comments = data;
+    state.nextId = data.length ? Math.max(...data.map(c => c.id)) + 1 : 1;
+    updatePanel();
+  } catch(e) {}
+}
+
+function saveComments() {
+  fetch('/comments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(state.comments),
+  }).catch(() => {});
+}
+
+// ── SSE hot reload ────────────────────────────────────────────────────────────
+function connectSSE() {
+  const dot = document.getElementById('watch-dot');
+  const sse = new EventSource('/watch');
+  sse.onopen    = () => dot.classList.remove('error');
+  sse.onerror   = () => dot.classList.add('error');
+  sse.onmessage = async (e) => {
+    if (e.data === 'reload') {
+      await loadContent();
+      toast('ファイルが更新されました');
+    }
+  };
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+document.getElementById('btn-theme').addEventListener('click', () => {
+  const isLight = document.documentElement.dataset.theme === 'light';
+  document.documentElement.dataset.theme = isLight ? 'dark' : 'light';
+  initMermaid();
+  mermaidSeq = 0;
+  renderSource(state.source);
+  localStorage.setItem('nymph-theme', document.documentElement.dataset.theme);
+});
+
+// ── Wire up buttons ───────────────────────────────────────────────────────────
+document.getElementById('btn-comments').addEventListener('click', () =>
+  document.getElementById('comments-panel').classList.toggle('open'));
+document.getElementById('btn-close-panel').addEventListener('click', closePanel);
+document.getElementById('btn-copy').addEventListener('click', copyReview);
+
+document.getElementById('modal-backdrop').addEventListener('click', closeCommentModal);
+document.getElementById('btn-cancel').addEventListener('click', closeCommentModal);
+document.getElementById('btn-submit').addEventListener('click', submitComment);
+document.getElementById('comment-ta').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitComment();
+  if (e.key === 'Escape') closeCommentModal();
+});
+
+document.getElementById('btn-close-drawio').addEventListener('click', closeDrawioModal);
+document.getElementById('drawio-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('drawio-modal')) closeDrawioModal();
+});
+document.getElementById('btn-dl-drawio').addEventListener('click', () =>
+  downloadDrawio(state.mermaidPending));
+document.getElementById('btn-copy-mermaid').addEventListener('click', () => {
+  navigator.clipboard.writeText(state.mermaidPending || '')
+    .then(() => toast('コードをコピーしました'));
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+const savedTheme = localStorage.getItem('nymph-theme');
+if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+
+(async () => {
+  await loadContent();
+  await loadComments();
+  connectSSE();
+})();
+</script>
+</body>
+</html>

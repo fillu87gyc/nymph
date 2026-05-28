@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[test]"
+      - run: pytest tests/unit -v --tb=short
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[test]"
+      - run: playwright install chromium --with-deps
+      - run: pytest tests/e2e/test_ui.py -v --tb=short --screenshot=only-on-failure --tracing=retain-on-failure
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-traces
+          path: test-results/
+          retention-days: 7
+
+  vrt:
+    name: VRT
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[test]"
+      - run: playwright install chromium --with-deps
+
+      - name: Run VRT
+        id: run_vrt
+        run: pytest tests/e2e/test_visual.py -v --tb=short
+        continue-on-error: true
+
+      - name: Update and commit snapshots (main only)
+        if: github.ref == 'refs/heads/main' && steps.run_vrt.outcome == 'failure'
+        run: |
+          VRT_UPDATE=1 pytest tests/e2e/test_visual.py -v
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/snapshots/
+          git diff --staged --quiet && echo "No snapshot changes" || \
+            (git commit -m "chore: update VRT snapshots [skip ci]" && \
+             git pull --rebase origin main && \
+             git push)
+
+      - name: Fail on snapshot diff (PRs)
+        if: github.event_name == 'pull_request' && steps.run_vrt.outcome == 'failure'
+        run: |
+          echo "::error::VRT failed — screenshot differences detected. Run locally:"
+          echo "::error::  VRT_UPDATE=1 pytest tests/e2e/test_visual.py"
+          echo "::error::  git add tests/e2e/snapshots/ && git commit"
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vrt-snapshots-${{ github.run_number }}
+          path: tests/e2e/snapshots/
+          retention-days: 30

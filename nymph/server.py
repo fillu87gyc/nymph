@@ -1,5 +1,5 @@
 import sys, os, json, time, webbrowser, threading, socket
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
@@ -123,7 +123,7 @@ def main():
     Handler.comments_path = fpath + '.comments.json'
 
     port = find_port()
-    server = HTTPServer(('localhost', port), Handler)
+    server = ThreadingHTTPServer(('localhost', port), Handler)
 
     url = f'http://localhost:{port}'
     print(f"nymph   {url}")

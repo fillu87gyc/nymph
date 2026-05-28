@@ -9,8 +9,18 @@ description = "Markdown review tool with hot reload and inline commenting"
 requires-python = ">=3.8"
 dependencies = []
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+    "pytest-playwright>=0.5",
+    "Pillow>=10",
+]
+
 [project.scripts]
 nymph = "nymph:main"
 
 [tool.hatchling.build]
 packages = ["nymph"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

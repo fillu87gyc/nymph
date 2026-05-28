@@ -51,15 +51,13 @@ jobs:
       - run: pip install -e ".[test]"
       - run: playwright install chromium --with-deps
 
-      - name: Run VRT
-        id: run_vrt
-        run: pytest tests/e2e/test_visual.py -v --tb=short
-        continue-on-error: true
+      # First run on this platform: generates baselines and passes.
+      # Subsequent runs: compares against committed baselines.
+      - run: pytest tests/e2e/test_visual.py -v --tb=short
 
-      - name: Update and commit snapshots (main only)
-        if: github.ref == 'refs/heads/main' && steps.run_vrt.outcome == 'failure'
+      - name: Commit new/updated snapshots (main only)
+        if: always() && github.ref == 'refs/heads/main'
         run: |
-          VRT_UPDATE=1 pytest tests/e2e/test_visual.py -v
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add tests/e2e/snapshots/
@@ -67,14 +65,6 @@ jobs:
             (git commit -m "chore: update VRT snapshots [skip ci]" && \
              git pull --rebase origin main && \
              git push)
-
-      - name: Fail on snapshot diff (PRs)
-        if: github.event_name == 'pull_request' && steps.run_vrt.outcome == 'failure'
-        run: |
-          echo "::error::VRT failed — screenshot differences detected. Run locally:"
-          echo "::error::  VRT_UPDATE=1 pytest tests/e2e/test_visual.py"
-          echo "::error::  git add tests/e2e/snapshots/ && git commit"
-          exit 1
 
       - uses: actions/upload-artifact@v4
         if: always()

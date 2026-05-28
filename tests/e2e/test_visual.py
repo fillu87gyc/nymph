@@ -7,13 +7,15 @@ Compare:   pytest tests/e2e/test_visual.py               (compares against basel
 
 import io
 import os
+import platform
 from pathlib import Path
 
 import pytest
 from PIL import Image, ImageChops
 from playwright.sync_api import Page
 
-SNAPSHOTS = Path(__file__).parent / "snapshots"
+# Platform-specific baselines so macOS and Linux don't clobber each other.
+SNAPSHOTS = Path(__file__).parent / "snapshots" / platform.system().lower()
 THRESHOLD = 0.003  # allow 0.3% of pixels to differ (antialiasing etc.)
 
 

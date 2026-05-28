@@ -1,0 +1,29 @@
+name: Update VRT Snapshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Regenerate baselines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[test]"
+      - run: playwright install chromium --with-deps
+      - run: VRT_UPDATE=1 pytest tests/e2e/test_visual.py -v
+
+      - name: Commit updated snapshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/snapshots/
+          git diff --staged --quiet && echo "Snapshots unchanged" || \
+            (git commit -m "chore: update VRT snapshots [skip ci]" && git push)

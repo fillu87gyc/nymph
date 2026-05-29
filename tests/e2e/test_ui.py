@@ -5,28 +5,39 @@ from playwright.sync_api import Page, expect
 
 def _select_word(page, word: str) -> None:
     """#content 内の word をJS で選択し、selection popup が出るまで待つ。"""
+    _select_word_nth(page, word, 0)
+
+
+def _select_word_nth(page, word: str, n: int) -> None:
+    """#content 内の word の n 番目(0-indexed)の出現を選択する。"""
     page.evaluate(
-        """(word) => {
+        """([word, n]) => {
             const all = document.querySelectorAll('#content .md-block *');
-            let textNode = null, idx = -1;
+            let found = 0;
             for (const el of all) {
                 for (const child of el.childNodes) {
-                    if (child.nodeType === 3) {
-                        const i = child.textContent.indexOf(word);
-                        if (i >= 0) { textNode = child; idx = i; break; }
+                    if (child.nodeType !== 3) continue;
+                    let start = 0;
+                    while (true) {
+                        const i = child.textContent.indexOf(word, start);
+                        if (i < 0) break;
+                        if (found === n) {
+                            const range = document.createRange();
+                            range.setStart(child, i);
+                            range.setEnd(child, i + word.length);
+                            window.getSelection().removeAllRanges();
+                            window.getSelection().addRange(range);
+                            document.dispatchEvent(new MouseEvent('mouseup', {bubbles: true}));
+                            return;
+                        }
+                        found++;
+                        start = i + 1;
                     }
                 }
-                if (textNode) break;
             }
-            if (!textNode) throw new Error('word not found: ' + word);
-            const range = document.createRange();
-            range.setStart(textNode, idx);
-            range.setEnd(textNode, idx + word.length);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(range);
-            document.dispatchEvent(new MouseEvent('mouseup', {bubbles: true}));
+            throw new Error(`word '${word}' occurrence ${n} not found`);
         }""",
-        word,
+        [word, n],
     )
     page.wait_for_selector("#selection-popup.visible")
 
@@ -281,16 +292,47 @@ def test_block_comment_panel_click_highlights(page: Page, live_server):
 
 
 def test_selection_comment_panel_click_highlights(page: Page, live_server):
-    """文字指定コメントをパネルでクリックすると対応ブロックがハイライトされる。"""
+    """文字指定コメントをパネルでクリックすると mark.text-highlight が表示される。"""
     page.goto(live_server)
     page.wait_for_selector(".md-block")
     _add_selection_comment(page, "paragraph", "文字選択ハイライト")
 
     page.locator(".comment-item").first.locator(".c-body").click()
-    has_outline = page.evaluate(
-        "() => [...document.querySelectorAll('.md-block')].some(b => b.style.outline !== '')"
+    page.wait_for_selector("mark.text-highlight", timeout=2000)
+    mark = page.locator("mark.text-highlight")
+    expect(mark).to_be_visible()
+    assert mark.text_content() == "paragraph"
+
+
+def test_selection_highlight_correct_occurrence(page: Page, live_server):
+    """同じ文字列が複数ある場合、選択した出現箇所がハイライトされる。
+
+    バグ再現: selection_offset なしでは常に最初の出現がハイライトされていた。
+    SAMPLE_MD のリスト ("item one" / "item two" / "item three") で
+    3番目の "item" を選択してコメントを追加し、パネルクリック時に
+    "item three" の行がハイライトされることを確認する。
+    """
+    page.goto(live_server)
+    page.wait_for_selector(".md-block")
+
+    # 3番目(index=2)の "item" を選択してコメント追加
+    _select_word_nth(page, "item", 2)
+    page.click("#btn-selection-comment")
+    page.fill("#comment-ta", "3番目のitem")
+    page.click("#btn-submit")
+
+    page.locator(".comment-item").first.locator(".c-body").click()
+    page.wait_for_selector("mark.text-highlight", timeout=2000)
+
+    mark = page.locator("mark.text-highlight")
+    expect(mark).to_be_visible()
+    assert mark.text_content() == "item"
+
+    # ハイライトされた mark の親要素が "three" を含む行であること
+    parent_text = mark.evaluate("el => el.parentElement.textContent")
+    assert "three" in parent_text, (
+        f"3番目の 'item' がハイライトされるべきだが、実際の親テキスト: {parent_text!r}"
     )
-    assert has_outline, "パネルクリック後にブロックの outline が設定されていない"
 
 
 # ── Coexistence ───────────────────────────────────────────────────────────────
@@ -315,14 +357,25 @@ def test_block_and_selection_comments_coexist(page: Page, live_server):
     assert "文字指定コメント2" in all_texts
 
     # どのコメントをクリックしてもハイライトが発生する
+    # ブロック指定 → outline、文字指定 → mark.text-highlight のどちらか
     for i in range(3):
         page.locator(".comment-item").nth(i).locator(".c-body").click()
-        has_outline = page.evaluate(
-            "() => [...document.querySelectorAll('.md-block')].some(b => b.style.outline !== '')"
+        has_highlight = page.evaluate(
+            """() =>
+                [...document.querySelectorAll('.md-block')].some(b => b.style.outline !== '')
+                || document.querySelector('mark.text-highlight') !== null
+            """
         )
-        assert has_outline, f"コメント {i + 1} クリック後にハイライトがない"
-        # アニメーション終了前にアウトラインをリセットして次のクリックに備える
+        assert has_highlight, f"コメント {i + 1} クリック後にハイライトがない"
         page.evaluate(
-            "() => document.querySelectorAll('.md-block')"
-            ".forEach(b => { b.style.outline = ''; b.style.outlineOffset = ''; })"
+            """() => {
+                document.querySelectorAll('.md-block')
+                    .forEach(b => { b.style.outline = ''; b.style.outlineOffset = ''; });
+                document.querySelectorAll('mark.text-highlight').forEach(m => {
+                    const p = m.parentNode;
+                    if (!p) return;
+                    while (m.firstChild) p.insertBefore(m.firstChild, m);
+                    p.removeChild(m);
+                });
+            }"""
         )

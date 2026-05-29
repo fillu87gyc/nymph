@@ -43,6 +43,7 @@
   </div>
 
   <div id="comments-panel">
+    <div class="panel-resize-handle" id="panel-resize-handle"></div>
     <div class="cpanel-head">
       <span class="cpanel-title">レビューコメント</span>
       <span class="spacer"></span>
@@ -103,6 +104,7 @@ const state = {
   comments: [],
   nextId: 1,
   pending: null,
+  editingId: null,
   mermaidPending: null,
 };
 
@@ -331,9 +333,24 @@ function openSelectionComment() {
   const le = endBlock   ? +endBlock.dataset.le   : ls;
   const ctx = selected.length > 300 ? selected.slice(0, 300) + '…' : selected;
 
+  // 選択開始位置をブロック内の文字オフセットとして記録（同一文字が複数ある場合の disambig 用）
+  let selectionOffset = null;
+  if (startBlock) {
+    const walker = document.createTreeWalker(startBlock, NodeFilter.SHOW_TEXT);
+    let node, acc = 0;
+    while ((node = walker.nextNode())) {
+      if (node === range.startContainer) {
+        const leadingWS = sel.toString().length - sel.toString().trimStart().length;
+        selectionOffset = acc + range.startOffset + leadingWS;
+        break;
+      }
+      acc += node.textContent.length;
+    }
+  }
+
   hideSelectionPopup();
   sel.removeAllRanges();
-  openCommentModal(ls, le, ctx);
+  openCommentModal(ls, le, ctx, 'selection', ctx, selectionOffset);
 }
 
 document.addEventListener('mouseup', () => {
@@ -351,35 +368,61 @@ document.getElementById('btn-selection-comment').addEventListener('mousedown', e
 document.getElementById('btn-selection-comment').addEventListener('click', openSelectionComment);
 
 // ── Comment modal ─────────────────────────────────────────────────────────────
-function openCommentModal(ls, le, displayCtx, blockType = 'selection', context = displayCtx) {
+function openCommentModal(ls, le, displayCtx, blockType = 'selection', context = displayCtx, selectionOffset = null) {
   hideSelectionPopup();
-  state.pending = { ls, le, blockType, context };
+  state.pending = { ls, le, blockType, context, selectionOffset };
+  state.editingId = null;
   const lineLabel = ls === le ? `L${ls}` : `L${ls}–${le}`;
   const short = displayCtx.length <= 20 ? `「${displayCtx}」` : null;
   document.getElementById('modal-line').textContent =
     short ? `${short} にコメント追加` : `${lineLabel} にコメント追加`;
   document.getElementById('modal-ctx').textContent = displayCtx;
   document.getElementById('comment-ta').value = '';
+  document.getElementById('btn-submit').textContent = '追加';
+  document.getElementById('comment-modal').classList.add('open');
+  document.getElementById('comment-ta').focus();
+}
+function openEditModal(c) {
+  state.pending = { ls: c.ls, le: c.le, blockType: c.block_type, context: c.context, selectionOffset: c.selection_offset ?? null };
+  state.editingId = c.id;
+  const lineLabel = c.ls === c.le ? `L${c.ls}` : `L${c.ls}–${c.le}`;
+  document.getElementById('modal-line').textContent = `${lineLabel} のコメントを編集`;
+  document.getElementById('modal-ctx').textContent = ctxDisplay(c);
+  document.getElementById('comment-ta').value = c.text;
+  document.getElementById('btn-submit').textContent = '更新';
   document.getElementById('comment-modal').classList.add('open');
   document.getElementById('comment-ta').focus();
 }
 function closeCommentModal() {
   document.getElementById('comment-modal').classList.remove('open');
+  document.getElementById('btn-submit').textContent = '追加';
   state.pending = null;
+  state.editingId = null;
 }
 function submitComment() {
   const text = document.getElementById('comment-ta').value.trim();
   if (!text || !state.pending) return;
-  const c = { id: state.nextId++, ls: state.pending.ls, le: state.pending.le,
-              block_type: state.pending.blockType, context: state.pending.context, text };
-  state.comments.push(c);
-  state.comments.sort((a,b) => a.ls - b.ls);
-  closeCommentModal();
-  saveComments();
-  updatePanel();
-  restoreIndicators();
-  openPanel();
-  toast('コメントを追加しました');
+  if (state.editingId !== null) {
+    const c = state.comments.find(x => x.id === state.editingId);
+    if (c) c.text = text;
+    closeCommentModal();
+    saveComments();
+    updatePanel();
+    toast('コメントを更新しました');
+  } else {
+    const c = { id: state.nextId++, ls: state.pending.ls, le: state.pending.le,
+                block_type: state.pending.blockType, context: state.pending.context,
+                ...(state.pending.selectionOffset != null && { selection_offset: state.pending.selectionOffset }),
+                text };
+    state.comments.push(c);
+    state.comments.sort((a,b) => a.ls - b.ls);
+    closeCommentModal();
+    saveComments();
+    updatePanel();
+    restoreIndicators();
+    openPanel();
+    toast('コメントを追加しました');
+  }
 }
 
 // ── draw.io modal ─────────────────────────────────────────────────────────────
@@ -432,8 +475,21 @@ function ctxDisplay(c) {
   if (ctx.code) return ctx.code.split('\n')[0];
   return '';
 }
-function openPanel() { document.getElementById('comments-panel').classList.add('open'); }
-function closePanel() { document.getElementById('comments-panel').classList.remove('open'); }
+
+const PANEL_DEFAULT_H = 210;
+const PANEL_MIN_H = 80;
+
+function openPanel() {
+  const panel = document.getElementById('comments-panel');
+  const saved = parseInt(localStorage.getItem('nymph-panel-height')) || PANEL_DEFAULT_H;
+  panel.style.height = saved + 'px';
+  panel.classList.add('open');
+}
+function closePanel() {
+  const panel = document.getElementById('comments-panel');
+  panel.style.height = '0';
+  panel.classList.remove('open');
+}
 
 function updatePanel() {
   const list = document.getElementById('comments-list');
@@ -459,7 +515,14 @@ function updatePanel() {
         <div class="c-text">${esc(c.text)}</div>
         <div class="c-ctx">${esc(ctxDisplay(c))}</div>
       </div>
-      <button class="c-del" title="削除">✕</button>`;
+      <div class="c-actions">
+        <button class="c-edit" title="編集">✎</button>
+        <button class="c-del" title="削除">✕</button>
+      </div>`;
+    li.querySelector('.c-edit').addEventListener('click', ev => {
+      ev.stopPropagation();
+      openEditModal(c);
+    });
     li.querySelector('.c-del').addEventListener('click', ev => {
       ev.stopPropagation();
       state.comments = state.comments.filter(x => x.id !== c.id);
@@ -467,18 +530,108 @@ function updatePanel() {
       updatePanel();
       restoreIndicators();
     });
-    li.addEventListener('click', () => scrollToLine(c.ls));
+    li.addEventListener('click', () => scrollToLine(c));
     list.appendChild(li);
   });
 }
 
-function scrollToLine(ls) {
+// ── Panel drag resize ─────────────────────────────────────────────────────────
+(function() {
+  const handle = document.getElementById('panel-resize-handle');
+  const panel  = document.getElementById('comments-panel');
+  let startY = 0, startH = 0;
+
+  handle.addEventListener('mousedown', e => {
+    startY = e.clientY;
+    startH = panel.offsetHeight;
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+    e.preventDefault();
+  });
+
+  function onDrag(e) {
+    const maxH = Math.floor(window.innerHeight * 0.8);
+    const h = Math.max(PANEL_MIN_H, Math.min(maxH, startH + (startY - e.clientY)));
+    panel.style.height = h + 'px';
+  }
+
+  function stopDrag() {
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+    localStorage.setItem('nymph-panel-height', panel.offsetHeight);
+  }
+})();
+
+function scrollToLine(c) {
+  const ls = typeof c === 'object' ? c.ls : c;
   const b = document.querySelector(`.md-block[data-ls="${ls}"]`);
   if (!b) return;
   b.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  b.style.outline = '2px solid var(--accent)';
-  b.style.outlineOffset = '4px';
-  setTimeout(() => { b.style.outline = ''; b.style.outlineOffset = ''; }, 1400);
+
+  if (typeof c === 'object' && c.block_type === 'selection' && typeof c.context === 'string') {
+    highlightSelectionText(c.ls, c.le, c.context, c.selection_offset ?? null);
+  } else {
+    b.style.outline = '2px solid var(--accent)';
+    b.style.outlineOffset = '4px';
+    setTimeout(() => { b.style.outline = ''; b.style.outlineOffset = ''; }, 1400);
+  }
+}
+
+function highlightSelectionText(ls, le, searchText, selectionOffset) {
+  if (!searchText) return;
+  const needle = searchText.endsWith('…') ? searchText.slice(0, -1) : searchText;
+
+  const blocks = [...document.querySelectorAll('.md-block')].filter(b => {
+    const bls = +b.dataset.ls, ble = +b.dataset.le;
+    return bls <= le && ble >= ls;
+  });
+
+  for (const block of blocks) {
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let node, accumulated = '';
+    const nodes = [];
+    while ((node = walker.nextNode())) {
+      nodes.push({ node, start: accumulated.length });
+      accumulated += node.textContent;
+    }
+
+    // selectionOffset があれば正確な出現位置を探し、なければ最初のマッチ
+    let idx = selectionOffset != null
+      ? accumulated.indexOf(needle, selectionOffset)
+      : accumulated.indexOf(needle);
+    if (idx === -1 && selectionOffset != null) idx = accumulated.indexOf(needle); // フォールバック
+    if (idx === -1) continue;
+
+    let startNode, startOffset, endNode, endOffset;
+    for (const { node: n, start } of nodes) {
+      const end = start + n.textContent.length;
+      if (startNode == null && idx < end) { startNode = n; startOffset = idx - start; }
+      if (endNode   == null && idx + needle.length <= end) { endNode = n; endOffset = idx + needle.length - start; break; }
+    }
+    if (!startNode || !endNode) continue;
+
+    const range = document.createRange();
+    range.setStart(startNode, startOffset);
+    range.setEnd(endNode, endOffset);
+
+    try {
+      const mark = document.createElement('mark');
+      mark.className = 'text-highlight';
+      range.surroundContents(mark);
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        const p = mark.parentNode;
+        if (p) { while (mark.firstChild) p.insertBefore(mark.firstChild, mark); p.removeChild(mark); }
+      }, 2000);
+    } catch {
+      // 要素境界をまたぐ選択はアウトラインにフォールバック
+      const b = block;
+      b.style.outline = '2px solid var(--accent)';
+      b.style.outlineOffset = '4px';
+      setTimeout(() => { b.style.outline = ''; b.style.outlineOffset = ''; }, 1400);
+    }
+    return;
+  }
 }
 
 // ── Copy review ───────────────────────────────────────────────────────────────
@@ -563,8 +716,10 @@ document.getElementById('btn-theme').addEventListener('click', () => {
 });
 
 // ── Wire up buttons ───────────────────────────────────────────────────────────
-document.getElementById('btn-comments').addEventListener('click', () =>
-  document.getElementById('comments-panel').classList.toggle('open'));
+document.getElementById('btn-comments').addEventListener('click', () => {
+  const panel = document.getElementById('comments-panel');
+  panel.classList.contains('open') ? closePanel() : openPanel();
+});
 document.getElementById('btn-close-panel').addEventListener('click', closePanel);
 document.getElementById('btn-copy').addEventListener('click', copyReview);
 

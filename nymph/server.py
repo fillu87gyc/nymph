@@ -19,6 +19,8 @@ def _read(name: str) -> bytes:
 class Handler(BaseHTTPRequestHandler):
     file_path = None
     comments_path = None
+    _cached_content = None
+    _content_lock = threading.Lock()
 
     def log_message(self, *_):
         pass
@@ -39,8 +41,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, "text/plain", b"Not found")
 
     def do_POST(self):
-        if urlparse(self.path).path == "/comments":
+        path = urlparse(self.path).path
+        if path == "/comments":
             self._save_comments()
+        elif path == "/edit-op":
+            self._handle_edit_op()
         else:
             self._send(404, "text/plain", b"Not found")
 
@@ -55,6 +60,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             with open(Handler.file_path, "r", encoding="utf-8") as f:
                 text = f.read()
+            with Handler._content_lock:
+                Handler._cached_content = text
             data = json.dumps(
                 {
                     "content": text,
@@ -109,6 +116,57 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send(500, "text/plain", str(e).encode())
 
+    def _handle_edit_op(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            op = json.loads(body)
+            ti = op.get("tool_input", op)
+            old_string = ti.get("old_string", "")
+            new_string = ti.get("new_string", "")
+
+            if not old_string:
+                self._send(200, "application/json", b"{}")
+                return
+
+            with Handler._content_lock:
+                if Handler._cached_content is None:
+                    with open(Handler.file_path, "r", encoding="utf-8") as f:
+                        Handler._cached_content = f.read()
+                cached = Handler._cached_content
+                idx = cached.find(old_string)
+                if idx != -1:
+                    start_line = cached[:idx].count("\n") + 1
+                    old_line_count = old_string.count("\n") + 1
+                    new_line_count = new_string.count("\n") + 1
+                    delta = new_line_count - old_line_count
+                    Handler._cached_content = cached.replace(old_string, new_string, 1)
+                    if delta != 0:
+                        self._remap_comments(start_line, old_line_count, delta)
+
+            self._send(200, "application/json", b"{}")
+        except Exception as e:
+            self._send(500, "text/plain", str(e).encode())
+
+    def _remap_comments(self, edit_line, old_line_count, delta):
+        if not os.path.exists(Handler.comments_path):
+            return
+        try:
+            with open(Handler.comments_path, "r", encoding="utf-8") as f:
+                comments = json.load(f)
+            edit_end = edit_line + old_line_count - 1
+            for c in comments:
+                ls, le = c.get("ls", 0), c.get("le", 0)
+                if ls > edit_end:
+                    c["ls"] = ls + delta
+                    c["le"] = le + delta
+                elif le > edit_end:
+                    c["le"] = le + delta
+            with open(Handler.comments_path, "w", encoding="utf-8") as f:
+                json.dump(comments, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
 
 def find_port(start=6276):
     for port in range(start, start + 20):
@@ -134,6 +192,10 @@ def main():
     port = find_port()
     server = ThreadingHTTPServer(("localhost", port), Handler)
 
+    lock_path = fpath + ".nymph-lock"
+    with open(lock_path, "w") as f:
+        f.write(str(port))
+
     url = f"http://localhost:{port}"
     print(f"nymph   {url}")
     print(f"監視中  {fpath}")
@@ -145,3 +207,8 @@ def main():
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n停止しました。")
+    finally:
+        try:
+            os.unlink(lock_path)
+        except OSError:
+            pass

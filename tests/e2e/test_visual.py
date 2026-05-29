@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageChops
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 # Platform-specific baselines so macOS and Linux don't clobber each other.
 SNAPSHOTS = Path(__file__).parent / "snapshots" / platform.system().lower()
@@ -76,14 +77,14 @@ def _stabilize(page: Page) -> None:
     page.wait_for_load_state("load")
     # Mermaid renders asynchronously after .md-block is painted; wait for SVGs.
     try:
-        page.wait_for_selector(".mermaid svg", timeout=10_000)
-    except Exception:
+        page.wait_for_selector(".mermaid svg", timeout=3_000)
+    except PlaywrightTimeoutError:
         pass
     # Scroll the inner container (#main) to bottom so below-the-fold content is rendered,
     # then return to top.  window.scrollTo is a no-op here because body is overflow:hidden.
-    page.evaluate("const m=document.getElementById('main'); m.scrollTo(0,m.scrollHeight)")
+    page.evaluate("const m=document.getElementById('main'); if (m) m.scrollTo(0,m.scrollHeight)")
     page.wait_for_timeout(300)
-    page.evaluate("document.getElementById('main').scrollTo(0, 0)")
+    page.evaluate("const m=document.getElementById('main'); if (m) m.scrollTo(0, 0)")
     # Expand the scroll-constrained app shell so full_page=True captures the full document.
     page.add_style_tag(
         content="""
@@ -92,7 +93,7 @@ def _stabilize(page: Page) -> None:
         #main { flex: none !important; overflow-y: visible !important; }
     """
     )
-    page.wait_for_timeout(100)
+    page.wait_for_timeout(200)
     page.evaluate("document.getElementById('update-time').textContent = '更新: --:--:--'")
 
 
@@ -108,6 +109,11 @@ def test_vrt_light_theme(page: Page, live_server):
     page.wait_for_selector(".md-block")
     _stabilize(page)
     page.click("#btn-theme")
+    # Theme toggle re-runs mermaid.run(); wait for SVGs to re-render before screenshot.
+    try:
+        page.wait_for_selector(".mermaid svg", timeout=3_000)
+    except PlaywrightTimeoutError:
+        pass
     page.evaluate("document.getElementById('update-time').textContent = '更新: --:--:--'")
     _assert_screenshot(page, "light-theme.png")
 

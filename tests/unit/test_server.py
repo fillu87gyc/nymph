@@ -154,3 +154,21 @@ class TestFindPort:
             s.listen(1)
             port = find_port(occupied)
             assert port != occupied
+
+
+class TestDragDrop:
+    def test_switch_file_updates_content(self, server_no_file):
+        # POST /switch-file でコンテンツが切り替わること
+        base = server_no_file
+        _post_json(base + "/switch-file", {"content": "# Hello Drop", "filename": "drop.md"})
+        _, _, body = _get(base + "/content")
+        data = json.loads(body)
+        assert data["filename"] == "drop.md"
+        assert "Hello Drop" in data["content"]
+
+    def test_content_no_file(self, server_no_file):
+        # ファイルなし起動時に filename が null を返すこと
+        base = server_no_file
+        _, _, body = _get(base + "/content")
+        data = json.loads(body)
+        assert data["filename"] is None

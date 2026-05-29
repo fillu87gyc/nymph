@@ -388,6 +388,22 @@ mark.text-highlight {
   color: var(--bg);
 }
 
+/* ── Drop overlay ── */
+#drop-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.55);
+  border: 3px dashed var(--accent);
+  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--accent);
+}
+#drop-overlay.active { display: flex; }
+
 /* ── Toast ── */
 #toast {
   position: fixed; bottom: 22px; right: 22px;

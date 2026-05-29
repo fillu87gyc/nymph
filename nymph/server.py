@@ -23,6 +23,8 @@ class Handler(BaseHTTPRequestHandler):
     _cached_content = None
     _content_lock = threading.Lock()
     checkpoint_content: str | None = None
+    _dropped_content: str | None = None
+    _dropped_name: str | None = None
 
     def log_message(self, *_):
         pass
@@ -52,6 +54,8 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_edit_op()
         elif path == "/checkpoint":
             self._set_checkpoint()
+        elif path == "/switch-file":
+            self._switch_file()
         else:
             self._send(404, "text/plain", b"Not found")
 
@@ -64,17 +68,28 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_content(self):
         try:
-            with open(Handler.file_path, "r", encoding="utf-8") as f:
-                text = f.read()
-            with Handler._content_lock:
-                Handler._cached_content = text
-            data = json.dumps(
-                {
-                    "content": text,
-                    "filename": os.path.basename(Handler.file_path),
-                    "mtime": os.path.getmtime(Handler.file_path),
-                }
-            ).encode()
+            if Handler.file_path is not None:
+                with open(Handler.file_path, "r", encoding="utf-8") as f:
+                    text = f.read()
+                with Handler._content_lock:
+                    Handler._cached_content = text
+                data = json.dumps(
+                    {
+                        "content": text,
+                        "filename": os.path.basename(Handler.file_path),
+                        "mtime": os.path.getmtime(Handler.file_path),
+                    }
+                ).encode()
+            elif Handler._dropped_content is not None:
+                data = json.dumps(
+                    {
+                        "content": Handler._dropped_content,
+                        "filename": Handler._dropped_name,
+                        "mtime": 0,
+                    }
+                ).encode()
+            else:
+                data = json.dumps({"content": "", "filename": None, "mtime": 0}).encode()
             self._send(200, "application/json", data)
         except Exception as e:
             self._send(500, "text/plain", str(e).encode())
@@ -85,6 +100,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
         self.end_headers()
+        if Handler.file_path is None:
+            return
         last = None
         try:
             while True:
@@ -102,6 +119,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_comments(self):
         try:
+            if Handler.comments_path is None:
+                self._send(200, "application/json", b"[]")
+                return
             if os.path.exists(Handler.comments_path):
                 with open(Handler.comments_path, "r", encoding="utf-8") as f:
                     data = f.read().encode()
@@ -113,11 +133,25 @@ class Handler(BaseHTTPRequestHandler):
 
     def _save_comments(self):
         try:
+            if Handler.comments_path is None:
+                self._send(200, "application/json", b"{}")
+                return
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
             parsed = json.loads(body)
             with open(Handler.comments_path, "w", encoding="utf-8") as f:
                 json.dump(parsed, f, ensure_ascii=False, indent=2)
+            self._send(200, "application/json", b"{}")
+        except Exception as e:
+            self._send(500, "text/plain", str(e).encode())
+
+    def _switch_file(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            payload = json.loads(body)
+            Handler._dropped_content = payload.get("content", "")
+            Handler._dropped_name = payload.get("filename")
             self._send(200, "application/json", b"{}")
         except Exception as e:
             self._send(500, "text/plain", str(e).encode())
@@ -131,7 +165,7 @@ class Handler(BaseHTTPRequestHandler):
             old_string = ti.get("old_string", "")
             new_string = ti.get("new_string", "")
 
-            if not old_string:
+            if not old_string or Handler.file_path is None:
                 self._send(200, "application/json", b"{}")
                 return
 
@@ -155,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(500, "text/plain", str(e).encode())
 
     def _remap_comments(self, edit_line, old_line_count, delta):
-        if not os.path.exists(Handler.comments_path):
+        if Handler.comments_path is None or not os.path.exists(Handler.comments_path):
             return
         try:
             with open(Handler.comments_path, "r", encoding="utf-8") as f:
@@ -175,6 +209,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _set_checkpoint(self):
         try:
+            if Handler.file_path is None:
+                data = json.dumps({"ok": True, "lines": 0}).encode()
+                self._send(200, "application/json", data)
+                return
             with open(Handler.file_path, "r", encoding="utf-8") as f:
                 Handler.checkpoint_content = f.read()
             line_count = Handler.checkpoint_content.count("\n") + 1
@@ -185,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_diff(self):
         try:
-            if Handler.checkpoint_content is None:
+            if Handler.checkpoint_content is None or Handler.file_path is None:
                 self._send(200, "application/json", json.dumps({"lines": []}).encode())
                 return
             with open(Handler.file_path, "r", encoding="utf-8") as f:
@@ -225,28 +263,32 @@ def find_port(start=6276):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("使い方: nymph <file.md>")
-        sys.exit(1)
-
-    fpath = os.path.abspath(sys.argv[1])
-    if not os.path.exists(fpath):
-        print(f"エラー: {fpath} が見つかりません")
-        sys.exit(1)
-
-    Handler.file_path = fpath
-    Handler.comments_path = fpath + ".comments.json"
+    if len(sys.argv) >= 2:
+        fpath = os.path.abspath(sys.argv[1])
+        if not os.path.exists(fpath):
+            print(f"エラー: {fpath} が見つかりません")
+            sys.exit(1)
+        Handler.file_path = fpath
+        Handler.comments_path = fpath + ".comments.json"
+    else:
+        Handler.file_path = None
+        Handler.comments_path = None
+        fpath = None
 
     port = find_port()
     server = ThreadingHTTPServer(("localhost", port), Handler)
 
-    lock_path = fpath + ".nymph-lock"
-    with open(lock_path, "w") as f:
-        f.write(str(port))
+    lock_path = (fpath + ".nymph-lock") if fpath else None
+    if lock_path:
+        with open(lock_path, "w") as f:
+            f.write(str(port))
 
     url = f"http://localhost:{port}"
     print(f"nymph   {url}")
-    print(f"監視中  {fpath}")
+    if fpath:
+        print(f"監視中  {fpath}")
+    else:
+        print("ファイルをブラウザにドロップして開始")
     print("Ctrl+C で停止")
 
     threading.Timer(0.3, lambda: webbrowser.open(url)).start()
@@ -256,7 +298,8 @@ def main():
     except KeyboardInterrupt:
         print("\n停止しました。")
     finally:
-        try:
-            os.unlink(lock_path)
-        except OSError:
-            pass
+        if lock_path:
+            try:
+                os.unlink(lock_path)
+            except OSError:
+                pass

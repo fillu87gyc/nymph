@@ -185,6 +185,7 @@ def test_copy_review_no_comments_toast(page: Page, live_server):
 
 # ── Selection popup ───────────────────────────────────────────────────────────
 
+
 def test_selection_popup_appears(page: Page, live_server):
     """テキストをドラッグ選択するとポップアップが表示される。"""
     page.goto(live_server)
@@ -218,6 +219,7 @@ def test_selection_comment_added_to_panel(page: Page, live_server):
 
 # ── Block comment regression ──────────────────────────────────────────────────
 
+
 def test_block_comment_still_works(page: Page, live_server):
     """選択機能追加後も + ボタンによるブロック指定コメントが機能する。"""
     page.goto(live_server)
@@ -229,6 +231,7 @@ def test_block_comment_still_works(page: Page, live_server):
 
 
 # ── Multiple selection comments ───────────────────────────────────────────────
+
 
 def test_multiple_selection_comments_all_listed(page: Page, live_server):
     """複数の文字指定コメントがすべてパネルに一覧表示される。"""
@@ -263,6 +266,7 @@ def test_multiple_selection_comments_each_clickable(page: Page, live_server):
 
 # ── Panel click → block highlight ────────────────────────────────────────────
 
+
 def test_block_comment_panel_click_highlights(page: Page, live_server):
     """ブロック指定コメントをパネルでクリックすると対応ブロックがハイライトされる。"""
     page.goto(live_server)
@@ -290,6 +294,7 @@ def test_selection_comment_panel_click_highlights(page: Page, live_server):
 
 
 # ── Coexistence ───────────────────────────────────────────────────────────────
+
 
 def test_block_and_selection_comments_coexist(page: Page, live_server):
     """ブロック指定コメントと文字指定コメントが混在して正しく動作する。"""

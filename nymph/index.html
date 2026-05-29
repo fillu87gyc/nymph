@@ -89,6 +89,11 @@
   </div>
 </div>
 
+<!-- Selection comment popup -->
+<div id="selection-popup">
+  <button id="btn-selection-comment">＋ コメント</button>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -244,11 +249,85 @@ function attachHandlers() {
   });
 }
 
+// ── Text selection popup ──────────────────────────────────────────────────────
+function hideSelectionPopup() {
+  document.getElementById('selection-popup').classList.remove('visible');
+}
+
+function showSelectionPopup() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) { hideSelectionPopup(); return; }
+
+  const range = sel.getRangeAt(0);
+  const selectedText = sel.toString().trim();
+  if (!selectedText) { hideSelectionPopup(); return; }
+
+  const content = document.getElementById('content');
+  if (!content.contains(range.commonAncestorContainer)) { hideSelectionPopup(); return; }
+
+  const rect = range.getBoundingClientRect();
+  if (!rect.width && !rect.height) { hideSelectionPopup(); return; }
+
+  const popup = document.getElementById('selection-popup');
+  // Temporarily show to measure width
+  popup.style.visibility = 'hidden';
+  popup.classList.add('visible');
+  const pw = popup.offsetWidth;
+  popup.style.visibility = '';
+
+  let left = rect.left + (rect.width - pw) / 2;
+  let top  = rect.bottom + 8;
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+  if (top + 40 > window.innerHeight) top = rect.top - 40;
+
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+
+function openSelectionComment() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+
+  const range    = sel.getRangeAt(0);
+  const selected = sel.toString().trim();
+  if (!selected) return;
+
+  const toBlock = node =>
+    (node.nodeType === 3 ? node.parentElement : node)?.closest?.('.md-block');
+
+  const startBlock = toBlock(range.startContainer);
+  const endBlock   = toBlock(range.endContainer);
+  const ls = startBlock ? +startBlock.dataset.ls : 1;
+  const le = endBlock   ? +endBlock.dataset.le   : ls;
+  const ctx = selected.length > 300 ? selected.slice(0, 300) + '…' : selected;
+
+  hideSelectionPopup();
+  sel.removeAllRanges();
+  openCommentModal(ls, le, ctx);
+}
+
+document.addEventListener('mouseup', () => {
+  // Small delay so the selection is finalised before we check
+  setTimeout(showSelectionPopup, 30);
+});
+document.addEventListener('selectionchange', () => {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) hideSelectionPopup();
+});
+
+document.getElementById('btn-selection-comment').addEventListener('mousedown', e => {
+  e.preventDefault(); // Keep selection alive through click
+});
+document.getElementById('btn-selection-comment').addEventListener('click', openSelectionComment);
+
 // ── Comment modal ─────────────────────────────────────────────────────────────
 function openCommentModal(ls, le, ctx) {
+  hideSelectionPopup();
   state.pending = { ls, le, ctx };
+  const lineLabel = ls === le ? `L${ls}` : `L${ls}–${le}`;
+  const short = ctx.length <= 20 ? `「${ctx}」` : null;
   document.getElementById('modal-line').textContent =
-    ls === le ? `L${ls} にコメント追加` : `L${ls}–${le} にコメント追加`;
+    short ? `${short} にコメント追加` : `${lineLabel} にコメント追加`;
   document.getElementById('modal-ctx').textContent = ctx;
   document.getElementById('comment-ta').value = '';
   document.getElementById('comment-modal').classList.add('open');
@@ -332,7 +411,7 @@ function updatePanel() {
   noEl.style.display = 'none';
   cnt.textContent = state.comments.length;
   cnt.classList.add('visible');
-  list.innerHTML = '';
+  list.querySelectorAll('.comment-item').forEach(el => el.remove());
   state.comments.forEach(c => {
     const li = document.createElement('li');
     li.className = 'comment-item';

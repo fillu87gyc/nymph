@@ -331,7 +331,8 @@ def test_selection_highlight_correct_occurrence(page: Page, live_server):
     # ハイライトされた mark の親要素が TypeScript コード (fetchUser を含む) であること
     parent_text = mark.evaluate("el => el.parentElement.textContent")
     assert "fetchUser" in parent_text, (
-        f"3番目の 'return' (TypeScript) がハイライトされるべきだが、実際の親テキスト: {parent_text!r}"
+        f"3番目の 'return' (TypeScript) がハイライトされるべきだが、"
+        f"実際の親テキスト: {parent_text!r}"
     )
 
 

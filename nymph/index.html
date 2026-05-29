@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="/style.css">
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link id="hljs-theme" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css">
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/highlight.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -233,7 +235,7 @@ async function renderSource(src) {
     }
     return `<div class="md-block" data-ls="${ls}" data-le="${le}" data-block-type="code">` +
            `<button class="comment-btn">＋</button>` +
-           `<pre><code class="language-${esc(lang||'')}">${esc(code)}</code></pre>` +
+           `<pre><code class="language-${esc(lang||'plaintext')}">${esc(code)}</code></pre>` +
            `</div>`;
   };
 
@@ -247,6 +249,12 @@ async function renderSource(src) {
   try {
     await mermaid.run({ querySelector: '#content .mermaid' });
   } catch(e) { console.warn('mermaid:', e); }
+
+  if (typeof hljs !== 'undefined') {
+    document.querySelectorAll('#content pre code').forEach(el => {
+      try { hljs.highlightElement(el); } catch(e) { console.warn('hljs:', e); }
+    });
+  }
 
   restoreIndicators();
   attachHandlers();
@@ -744,9 +752,17 @@ function connectSSE() {
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
+const HLJS_DARK  = 'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css';
+const HLJS_LIGHT = 'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
+
+function applyHljsTheme(dark) {
+  document.getElementById('hljs-theme').href = dark ? HLJS_DARK : HLJS_LIGHT;
+}
+
 document.getElementById('btn-theme').addEventListener('click', () => {
   const isLight = document.documentElement.dataset.theme === 'light';
   document.documentElement.dataset.theme = isLight ? 'dark' : 'light';
+  applyHljsTheme(isLight);
   initMermaid();
   mermaidSeq = 0;
   renderSource(state.source);
@@ -793,7 +809,10 @@ function toast(msg) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 const savedTheme = localStorage.getItem('nymph-theme');
-if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+if (savedTheme) {
+  document.documentElement.dataset.theme = savedTheme;
+  applyHljsTheme(savedTheme !== 'light');
+}
 
 (async () => {
   await loadContent();

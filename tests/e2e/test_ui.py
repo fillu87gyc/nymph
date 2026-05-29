@@ -371,7 +371,11 @@ def test_block_and_selection_comments_coexist(page: Page, live_server):
             """() => {
                 document.querySelectorAll('.md-block')
                     .forEach(b => { b.style.outline = ''; b.style.outlineOffset = ''; });
-                document.querySelectorAll('mark.text-highlight')
-                    .forEach(m => { const p = m.parentNode; if (p) { while (m.firstChild) p.insertBefore(m.firstChild, m); p.removeChild(m); } });
+                document.querySelectorAll('mark.text-highlight').forEach(m => {
+                    const p = m.parentNode;
+                    if (!p) return;
+                    while (m.firstChild) p.insertBefore(m.firstChild, m);
+                    p.removeChild(m);
+                });
             }"""
         )

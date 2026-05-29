@@ -736,6 +736,7 @@ function connectSSE() {
   sse.onerror   = () => dot.classList.add('error');
   sse.onmessage = async (e) => {
     if (e.data === 'reload') {
+      await loadComments();
       await loadContent();
       toast('ファイルが更新されました');
     }

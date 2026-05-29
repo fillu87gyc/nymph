@@ -133,7 +133,7 @@ class TestCheckpoint:
         assert status == 200
         data = json.loads(body)
         assert len(data["lines"]) > 0
-        types = {l["type"] for l in data["lines"]}
+        types = {item["type"] for item in data["lines"]}
         assert "insert" in types
 
         # Restore original

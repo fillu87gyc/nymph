@@ -1,4 +1,4 @@
-from playwright.sync_api import Page, expect
+from playwright.sync_api import expect, Page
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -318,5 +318,6 @@ def test_block_and_selection_comments_coexist(page: Page, live_server):
         assert has_outline, f"コメント {i + 1} クリック後にハイライトがない"
         # アニメーション終了前にアウトラインをリセットして次のクリックに備える
         page.evaluate(
-            "() => document.querySelectorAll('.md-block').forEach(b => { b.style.outline = ''; b.style.outlineOffset = ''; })"
+            "() => document.querySelectorAll('.md-block')"
+            ".forEach(b => { b.style.outline = ''; b.style.outlineOffset = ''; })"
         )

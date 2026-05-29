@@ -21,6 +21,8 @@ class Handler(BaseHTTPRequestHandler):
     comments_path = None
     _cached_content = None
     _content_lock = threading.Lock()
+    _dropped_content: "str | None" = None
+    _dropped_name: "str | None" = None
 
     def log_message(self, *_):
         pass
@@ -46,6 +48,8 @@ class Handler(BaseHTTPRequestHandler):
             self._save_comments()
         elif path == "/edit-op":
             self._handle_edit_op()
+        elif path == "/switch-file":
+            self._switch_file()
         else:
             self._send(404, "text/plain", b"Not found")
 
@@ -57,6 +61,19 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_content(self):
+        if Handler.file_path is None:
+            if Handler._dropped_content is not None:
+                data = json.dumps(
+                    {
+                        "content": Handler._dropped_content,
+                        "filename": Handler._dropped_name,
+                        "mtime": 0,
+                    }
+                ).encode()
+            else:
+                data = json.dumps({"content": "", "filename": None, "mtime": 0}).encode()
+            self._send(200, "application/json", data)
+            return
         try:
             with open(Handler.file_path, "r", encoding="utf-8") as f:
                 text = f.read()
@@ -79,6 +96,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
         self.end_headers()
+        if Handler.file_path is None:
+            return
         last = None
         try:
             while True:
@@ -95,6 +114,9 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def _serve_comments(self):
+        if Handler.comments_path is None:
+            self._send(200, "application/json", b"[]")
+            return
         try:
             if os.path.exists(Handler.comments_path):
                 with open(Handler.comments_path, "r", encoding="utf-8") as f:
@@ -106,6 +128,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(500, "text/plain", str(e).encode())
 
     def _save_comments(self):
+        if Handler.comments_path is None:
+            self._send(200, "application/json", b"{}")
+            return
         try:
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
@@ -148,6 +173,17 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send(500, "text/plain", str(e).encode())
 
+    def _switch_file(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            payload = json.loads(body)
+            Handler._dropped_content = payload.get("content", "")
+            Handler._dropped_name = payload.get("filename", "dropped.md")
+            self._send(200, "application/json", b"{}")
+        except Exception as e:
+            self._send(500, "text/plain", str(e).encode())
+
     def _remap_comments(self, edit_line, old_line_count, delta):
         if not os.path.exists(Handler.comments_path):
             return
@@ -177,28 +213,30 @@ def find_port(start=6276):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("使い方: nymph <file.md>")
-        sys.exit(1)
-
-    fpath = os.path.abspath(sys.argv[1])
-    if not os.path.exists(fpath):
-        print(f"エラー: {fpath} が見つかりません")
-        sys.exit(1)
-
-    Handler.file_path = fpath
-    Handler.comments_path = fpath + ".comments.json"
+    if len(sys.argv) >= 2:
+        fpath = os.path.abspath(sys.argv[1])
+        if not os.path.exists(fpath):
+            print(f"エラー: {fpath} が見つかりません")
+            sys.exit(1)
+        Handler.file_path = fpath
+        Handler.comments_path = fpath + ".comments.json"
+    # file_path が None のままサーバーを起動する場合はそのまま続行
 
     port = find_port()
     server = ThreadingHTTPServer(("localhost", port), Handler)
 
-    lock_path = fpath + ".nymph-lock"
-    with open(lock_path, "w") as f:
-        f.write(str(port))
+    lock_path = None
+    if Handler.file_path is not None:
+        lock_path = Handler.file_path + ".nymph-lock"
+        with open(lock_path, "w") as f:
+            f.write(str(port))
 
     url = f"http://localhost:{port}"
     print(f"nymph   {url}")
-    print(f"監視中  {fpath}")
+    if Handler.file_path is not None:
+        print(f"監視中  {Handler.file_path}")
+    else:
+        print("ファイルをブラウザにドロップして開始してください")
     print("Ctrl+C で停止")
 
     threading.Timer(0.3, lambda: webbrowser.open(url)).start()
@@ -208,7 +246,8 @@ def main():
     except KeyboardInterrupt:
         print("\n停止しました。")
     finally:
-        try:
-            os.unlink(lock_path)
-        except OSError:
-            pass
+        if lock_path is not None:
+            try:
+                os.unlink(lock_path)
+            except OSError:
+                pass

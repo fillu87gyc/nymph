@@ -87,6 +87,24 @@ class TestEndpoints:
         assert exc.value.code == 404
 
 
+class TestDragDrop:
+    def test_switch_file_updates_content(self, drop_server):
+        base = drop_server
+        import json as _json
+
+        body = _json.dumps({"content": "# Drop", "filename": "drop.md"}).encode()
+        req = urllib.request.Request(
+            base + "/switch-file",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req)
+        status, _, rbody = _get(base + "/content")
+        data = _json.loads(rbody)
+        assert data["filename"] == "drop.md"
+        assert "Drop" in data["content"]
+
+
 class TestFindPort:
     def test_returns_open_port(self):
         port = find_port()

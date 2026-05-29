@@ -30,3 +30,34 @@ def server(tmp_path_factory):
     httpd.shutdown()
     if os.path.exists(comments_path):
         os.remove(comments_path)
+
+
+@pytest.fixture(scope="module")
+def drop_server():
+    """Server started without a file_path to test drag & drop."""
+    # Save and reset class-level state
+    orig_file_path = Handler.file_path
+    orig_comments_path = Handler.comments_path
+    orig_dropped_content = Handler._dropped_content
+    orig_dropped_name = Handler._dropped_name
+
+    Handler.file_path = None
+    Handler.comments_path = None
+    Handler._dropped_content = None
+    Handler._dropped_name = None
+
+    port = find_port()
+    httpd = ThreadingHTTPServer(("localhost", port), Handler)
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    time.sleep(0.1)
+
+    yield f"http://localhost:{port}"
+
+    httpd.shutdown()
+
+    # Restore original state
+    Handler.file_path = orig_file_path
+    Handler.comments_path = orig_comments_path
+    Handler._dropped_content = orig_dropped_content
+    Handler._dropped_name = orig_dropped_name

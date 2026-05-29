@@ -37,6 +37,8 @@
     <button class="btn icon" id="btn-theme" title="テーマ切替">◐</button>
   </header>
 
+  <div id="drop-overlay">ここにドロップ</div>
+
   <div id="main">
     <div id="content">
       <div id="welcome">
@@ -710,12 +712,21 @@ function clearAllComments() {
 async function loadContent() {
   const res = await fetch('/content');
   const { content, filename } = await res.json();
-  document.getElementById('watch-name').textContent = filename;
+  document.getElementById('watch-name').textContent = filename ?? '—';
   state.source = content;
   mermaidSeq = 0;
-  await renderSource(content);
-  const now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  document.getElementById('update-time').textContent = `更新: ${now}`;
+  if (!filename && !content) {
+    const el = document.getElementById('content');
+    const welcome = document.getElementById('welcome');
+    welcome.querySelector('p').innerHTML = '.md ファイルをここにドロップしてください';
+    el.innerHTML = '';
+    el.appendChild(welcome);
+    welcome.classList.remove('hidden');
+  } else {
+    await renderSource(content);
+    const now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('update-time').textContent = `更新: ${now}`;
+  }
 }
 
 async function loadComments() {
@@ -806,6 +817,46 @@ function toast(msg) {
   el.textContent = msg; el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2400);
 }
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
+;(function () {
+  const overlay = document.getElementById('drop-overlay');
+  document.body.addEventListener('dragover', e => {
+    e.preventDefault();
+    overlay.classList.add('active');
+  });
+  document.body.addEventListener('dragleave', e => {
+    if (!e.relatedTarget || !document.body.contains(e.relatedTarget)) {
+      overlay.classList.remove('active');
+    }
+  });
+  document.body.addEventListener('drop', async e => {
+    e.preventDefault();
+    overlay.classList.remove('active');
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.name.endsWith('.md')) {
+      toast('Markdownファイル(.md)をドロップしてください');
+      return;
+    }
+    try {
+      const content = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('読み込み失敗'));
+        reader.readAsText(file);
+      });
+      await fetch('/switch-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, filename: file.name }),
+      });
+      await loadContent();
+      await loadComments();
+    } catch (err) {
+      toast('ファイルの読み込みに失敗しました');
+    }
+  });
+})();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 const savedTheme = localStorage.getItem('nymph-theme');

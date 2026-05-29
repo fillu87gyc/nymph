@@ -71,6 +71,11 @@ def _stabilize(page: Page) -> None:
     """
     )
     page.wait_for_load_state("load")
+    # Mermaid renders asynchronously after .md-block is painted; wait for SVGs.
+    try:
+        page.wait_for_selector(".mermaid svg", timeout=10_000)
+    except Exception:
+        pass
     page.wait_for_timeout(400)
     page.evaluate("document.getElementById('update-time').textContent = '更新: --:--:--'")
 

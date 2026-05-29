@@ -12,7 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uvx ruff check --diff . || true
       - run: uvx ruff check .
       - run: uvx ruff format --check .
 

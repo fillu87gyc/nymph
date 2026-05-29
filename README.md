@@ -105,6 +105,30 @@ draw.io でのインポート方法：
 
 ---
 
+## Claude Code との連携
+
+Claude Code が Markdown を編集するたびに、コメントのアンカー（行番号）が自動で追従します。
+
+### インストール
+
+```bash
+claude plugin install github:fillu87gyc/nymph
+```
+
+Claude Code 上で：
+
+```
+/nymph:install
+```
+
+### 仕組み
+
+nymph 起動時にロックファイル (`{file}.nymph-lock`) を作成します。Claude Code の PostToolUse フックがこのファイルを検知し、Edit ツールの `old_string` / `new_string` を `/edit-op` エンドポイントに送信します。サーバーは変更前のキャッシュから編集位置を特定し、影響を受けるコメントの行番号を即時更新します。
+
+nymph が起動していないときはフックが即座にスキップするため、通常の Claude Code の動作に影響しません。
+
+---
+
 ## 要件
 
 - Python 3.8 以上

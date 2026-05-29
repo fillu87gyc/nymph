@@ -163,24 +163,36 @@ async function renderSource(src) {
 
   const renderer = new marked.Renderer();
 
-  function wrap(inner) {
+  function wrap(inner, type, extra = '') {
     const t = blockTokens[idx++] || {};
     const ls = t.ls || 1, le = t.le || ls;
-    return `<div class="md-block" data-ls="${ls}" data-le="${le}">` +
+    return `<div class="md-block" data-ls="${ls}" data-le="${le}" data-block-type="${type}"${extra}>` +
            `<button class="comment-btn" aria-label="コメント">＋</button>` +
            inner + '</div>';
   }
 
-  renderer.paragraph = (text) => wrap(`<p>${text}</p>`);
-  renderer.heading    = (text, level) => wrap(`<h${level}>${text}</h${level}>`);
-  renderer.blockquote = (q)    => wrap(`<blockquote>${q}</blockquote>`);
+  renderer.paragraph = (text) => wrap(`<p>${text}</p>`, 'paragraph');
+  renderer.heading    = (text, level) => wrap(`<h${level}>${text}</h${level}>`, 'heading');
+  renderer.blockquote = (q)    => wrap(`<blockquote>${q}</blockquote>`, 'blockquote');
   renderer.list       = (body, ordered, start) => {
     const tag = ordered ? `ol${start !== 1 ? ` start="${start}"` : ''}` : 'ul';
-    return wrap(`<${tag}>${body}</${tag}>`);
+    return wrap(`<${tag}>${body}</${tag}>`, 'list');
   };
-  renderer.hr         = ()     => wrap('<hr>');
-  renderer.table      = (h,b)  => wrap(`<table><thead>${h}</thead><tbody>${b}</tbody></table>`);
-  renderer.html       = (html) => wrap(html);
+  renderer.hr         = ()     => wrap('<hr>', 'hr');
+  renderer.html       = (html) => wrap(html, 'html');
+
+  renderer.table = (h, b) => {
+    const t = blockTokens[idx] || {};
+    let extra = '';
+    if (t.header) {
+      const headers = t.header.map(cell => cell.text || '');
+      const rows = (t.rows || []).map(row =>
+        Object.fromEntries(row.map((cell, i) => [headers[i] ?? i, cell.text || '']))
+      );
+      extra = ` data-table-ctx="${esc(JSON.stringify({ headers, rows }))}"`;
+    }
+    return wrap(`<table><thead>${h}</thead><tbody>${b}</tbody></table>`, 'table', extra);
+  };
 
   renderer.code = (code, lang) => {
     const t = blockTokens[idx++] || {};
@@ -189,7 +201,7 @@ async function renderSource(src) {
       mermaidSeq++;
       const mid = `mermaid-${mermaidSeq}`;
       const enc = encodeURIComponent(code);
-      return `<div class="md-block" data-ls="${ls}" data-le="${le}">` +
+      return `<div class="md-block" data-ls="${ls}" data-le="${le}" data-block-type="mermaid">` +
              `<button class="comment-btn">＋</button>` +
              `<div class="mermaid-wrap">` +
              `<div class="mermaid-bar">` +
@@ -199,7 +211,7 @@ async function renderSource(src) {
              `<div class="mermaid-area"><div class="mermaid" id="${mid}">${esc(code)}</div></div>` +
              `</div></div>`;
     }
-    return `<div class="md-block" data-ls="${ls}" data-le="${le}">` +
+    return `<div class="md-block" data-ls="${ls}" data-le="${le}" data-block-type="code">` +
            `<button class="comment-btn">＋</button>` +
            `<pre><code class="language-${esc(lang||'')}">${esc(code)}</code></pre>` +
            `</div>`;
@@ -235,9 +247,27 @@ function attachHandlers() {
       e.stopPropagation();
       const b = btn.closest('.md-block');
       const ls = +b.dataset.ls, le = +b.dataset.le;
-      const lines = state.source.split('\n');
-      const ctx = lines.slice(ls - 1, Math.min(ls + 2, le)).join('\n');
-      openCommentModal(ls, le, ctx);
+      const blockType = b.dataset.blockType || 'paragraph';
+      let context, displayCtx;
+
+      if (blockType === 'table' && b.dataset.tableCtx) {
+        context = JSON.parse(b.dataset.tableCtx);
+        displayCtx = context.headers.join(' | ');
+      } else if (blockType === 'code' || blockType === 'mermaid') {
+        const srcLines = state.source.split('\n');
+        const raw = srcLines.slice(ls - 1, le).join('\n');
+        const codeLines = raw.split('\n');
+        const lang = codeLines[0].replace(/^```+/, '').trim() || null;
+        const code = codeLines.slice(1, codeLines[codeLines.length - 1].trimStart().startsWith('```') ? -1 : undefined).join('\n');
+        context = lang ? { lang, code } : { code };
+        displayCtx = codeLines[1] || '';
+      } else {
+        const srcLines = state.source.split('\n');
+        context = srcLines.slice(ls - 1, Math.min(ls + 2, le)).join('\n');
+        displayCtx = context.split('\n')[0];
+      }
+
+      openCommentModal(ls, le, displayCtx, blockType, context);
     });
   });
 
@@ -321,14 +351,14 @@ document.getElementById('btn-selection-comment').addEventListener('mousedown', e
 document.getElementById('btn-selection-comment').addEventListener('click', openSelectionComment);
 
 // ── Comment modal ─────────────────────────────────────────────────────────────
-function openCommentModal(ls, le, ctx) {
+function openCommentModal(ls, le, displayCtx, blockType = 'selection', context = displayCtx) {
   hideSelectionPopup();
-  state.pending = { ls, le, ctx };
+  state.pending = { ls, le, blockType, context };
   const lineLabel = ls === le ? `L${ls}` : `L${ls}–${le}`;
-  const short = ctx.length <= 20 ? `「${ctx}」` : null;
+  const short = displayCtx.length <= 20 ? `「${displayCtx}」` : null;
   document.getElementById('modal-line').textContent =
     short ? `${short} にコメント追加` : `${lineLabel} にコメント追加`;
-  document.getElementById('modal-ctx').textContent = ctx;
+  document.getElementById('modal-ctx').textContent = displayCtx;
   document.getElementById('comment-ta').value = '';
   document.getElementById('comment-modal').classList.add('open');
   document.getElementById('comment-ta').focus();
@@ -341,7 +371,7 @@ function submitComment() {
   const text = document.getElementById('comment-ta').value.trim();
   if (!text || !state.pending) return;
   const c = { id: state.nextId++, ls: state.pending.ls, le: state.pending.le,
-              ctx: state.pending.ctx, text };
+              block_type: state.pending.blockType, context: state.pending.context, text };
   state.comments.push(c);
   state.comments.sort((a,b) => a.ls - b.ls);
   closeCommentModal();
@@ -394,6 +424,14 @@ function downloadDrawio(code) {
 }
 
 // ── Comment panel ─────────────────────────────────────────────────────────────
+function ctxDisplay(c) {
+  const ctx = c.context !== undefined ? c.context : c.ctx;
+  if (!ctx) return '';
+  if (typeof ctx === 'string') return ctx.split('\n')[0];
+  if (ctx.headers) return ctx.headers.join(' | ');
+  if (ctx.code) return ctx.code.split('\n')[0];
+  return '';
+}
 function openPanel() { document.getElementById('comments-panel').classList.add('open'); }
 function closePanel() { document.getElementById('comments-panel').classList.remove('open'); }
 
@@ -419,7 +457,7 @@ function updatePanel() {
     li.innerHTML = `<span class="c-line">${range}</span>
       <div class="c-body">
         <div class="c-text">${esc(c.text)}</div>
-        <div class="c-ctx">${esc(c.ctx.split('\n')[0])}</div>
+        <div class="c-ctx">${esc(ctxDisplay(c))}</div>
       </div>
       <button class="c-del" title="削除">✕</button>`;
     li.querySelector('.c-del').addEventListener('click', ev => {
@@ -446,16 +484,20 @@ function scrollToLine(ls) {
 // ── Copy review ───────────────────────────────────────────────────────────────
 function copyReview() {
   if (!state.comments.length) { toast('コメントがありません'); return; }
-  const lines = state.source.split('\n');
-  const date = new Date().toLocaleDateString('ja-JP');
-  let out = `# nymph Review — ${date}\n\nコメント数: ${state.comments.length}\n\n---\n\n`;
-  state.comments.forEach((c, i) => {
-    const range = c.ls === c.le ? `L${c.ls}` : `L${c.ls}–${c.le}`;
-    const excerpt = lines.slice(c.ls - 1, c.le).join('\n');
-    out += `## [${i+1}] ${range}\n\n`;
-    out += `\`\`\`\n${excerpt}\n\`\`\`\n\n`;
-    out += `**コメント:** ${c.text}\n\n---\n\n`;
-  });
+  const payload = {
+    date: new Date().toLocaleDateString('ja-JP'),
+    file: document.getElementById('watch-name').textContent,
+    comment_count: state.comments.length,
+    comments: state.comments.map((c, i) => ({
+      id: i + 1,
+      line_start: c.ls,
+      line_end: c.le,
+      block_type: c.block_type || 'unknown',
+      context: c.context !== undefined ? c.context : (c.ctx || ''),
+      comment: c.text,
+    })),
+  };
+  const out = JSON.stringify(payload, null, 2);
   navigator.clipboard.writeText(out)
     .then(() => toast('レビューをコピーしました'))
     .catch(() => {

@@ -81,10 +81,7 @@ def _stabilize(page: Page) -> None:
         pass
     # Scroll the inner container (#main) to bottom so below-the-fold content is rendered,
     # then return to top.  window.scrollTo is a no-op here because body is overflow:hidden.
-    page.evaluate(
-        "const m = document.getElementById('main');"
-        "m.scrollTo(0, m.scrollHeight);"
-    )
+    page.evaluate("const m=document.getElementById('main'); m.scrollTo(0,m.scrollHeight)")
     page.wait_for_timeout(300)
     page.evaluate("document.getElementById('main').scrollTo(0, 0)")
     # Expand the scroll-constrained app shell so full_page=True captures the full document.

@@ -158,6 +158,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin-bottom: 0;
 }
 #content pre code { background: none; padding: 0; font-size: .84em; color: var(--text); }
+#content pre code.hljs { background: transparent; padding: 0; }
 #content blockquote {
   border-left: 3px solid var(--accent); padding-left: 16px; margin-left: 0;
   color: var(--text-muted); font-family: 'Lora', serif; font-style: italic;

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 from PIL import Image, ImageChops
-from playwright.sync_api import Locator, Page
+from playwright.sync_api import Page
 
 # Platform-specific baselines so macOS and Linux don't clobber each other.
 SNAPSHOTS = Path(__file__).parent / "snapshots" / platform.system().lower()
@@ -57,18 +57,13 @@ def _assert_screenshot(page: Page, name: str) -> None:
     _compare(page.screenshot(full_page=True), name)
 
 
-def _assert_element_screenshot(locator: Locator, name: str) -> None:
-    locator.scroll_into_view_if_needed()
-    _compare(locator.screenshot(), name)
-
-
 def _save_actual(name: str, data: bytes) -> None:
     stem = Path(name).stem
     (SNAPSHOTS / f"{stem}-actual.png").write_bytes(data)
 
 
 def _stabilize(page: Page) -> None:
-    """Disable animations and normalize dynamic content."""
+    """Disable animations, trigger full-page rendering, then normalize dynamic content."""
     page.add_style_tag(
         content="""
         *, *::before, *::after {
@@ -84,11 +79,24 @@ def _stabilize(page: Page) -> None:
         page.wait_for_selector(".mermaid svg", timeout=10_000)
     except Exception:
         pass
-    page.wait_for_timeout(400)
+    # Scroll the inner container (#main) to bottom so below-the-fold content is rendered,
+    # then return to top.  window.scrollTo is a no-op here because body is overflow:hidden.
+    page.evaluate(
+        "const m = document.getElementById('main');"
+        "m.scrollTo(0, m.scrollHeight);"
+    )
+    page.wait_for_timeout(300)
+    page.evaluate("document.getElementById('main').scrollTo(0, 0)")
+    # Expand the scroll-constrained app shell so full_page=True captures the full document.
+    page.add_style_tag(
+        content="""
+        html, body { height: auto !important; overflow: visible !important; }
+        #app { height: auto !important; }
+        #main { flex: none !important; overflow-y: visible !important; }
+    """
+    )
+    page.wait_for_timeout(100)
     page.evaluate("document.getElementById('update-time').textContent = '更新: --:--:--'")
-
-
-# ── フルページ ────────────────────────────────────────────────────────────────
 
 
 def test_vrt_dark_theme(page: Page, live_server):
@@ -126,30 +134,3 @@ def test_vrt_comments_panel(page: Page, live_server):
     page.click("#btn-submit")
     _stabilize(page)
     _assert_screenshot(page, "comments-panel.png")
-
-
-# ── セクション単位 ────────────────────────────────────────────────────────────
-
-
-def test_vrt_mermaid_sequence(page: Page, live_server):
-    """シーケンス図ブロックが SVG としてレンダリングされていることを確認する。"""
-    page.goto(live_server)
-    _stabilize(page)
-    block = page.locator(".md-block[data-block-type='mermaid']").first
-    _assert_element_screenshot(block, "mermaid-sequence.png")
-
-
-def test_vrt_mermaid_flowchart(page: Page, live_server):
-    """フロー図ブロックが SVG としてレンダリングされていることを確認する。"""
-    page.goto(live_server)
-    _stabilize(page)
-    block = page.locator(".md-block[data-block-type='mermaid']").nth(1)
-    _assert_element_screenshot(block, "mermaid-flowchart.png")
-
-
-def test_vrt_table(page: Page, live_server):
-    """テーブルブロックのレイアウトを確認する。"""
-    page.goto(live_server)
-    _stabilize(page)
-    block = page.locator(".md-block[data-block-type='table']").first
-    _assert_element_screenshot(block, "table.png")

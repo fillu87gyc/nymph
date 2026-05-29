@@ -26,6 +26,11 @@
       コメント <span id="comment-count"></span>
     </button>
     <button class="btn primary" id="btn-copy">レビューをコピー</button>
+    <button class="btn icon" id="btn-clear-all" title="コメントをすべて削除">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M1.5 3.5h11M5.5 3.5V2.5h3v1M3 3.5l.9 8h6.2l.9-8" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
     <span class="sep"></span>
     <button class="btn icon" id="btn-theme" title="テーマ切替">◐</button>
   </header>
@@ -66,6 +71,19 @@
     <div class="modal-foot">
       <button class="btn" id="btn-cancel">キャンセル</button>
       <button class="btn primary" id="btn-submit">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clear all confirmation modal -->
+<div id="confirm-modal">
+  <div id="confirm-backdrop"></div>
+  <div id="confirm-box">
+    <div class="modal-head">全コメントを削除</div>
+    <p class="confirm-msg">本当に消していいですか？</p>
+    <div class="modal-foot">
+      <button class="btn" id="btn-confirm-cancel">キャンセル</button>
+      <button class="btn danger" id="btn-confirm-ok">削除する</button>
     </div>
   </div>
 </div>
@@ -661,6 +679,25 @@ function copyReview() {
     });
 }
 
+// ── Clear all comments ────────────────────────────────────────────────────────
+function openClearAllModal() {
+  if (!state.comments.length) { toast('コメントがありません'); return; }
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeClearAllModal() {
+  document.getElementById('confirm-modal').classList.remove('open');
+}
+function clearAllComments() {
+  state.comments = [];
+  state.nextId = 1;
+  closeClearAllModal();
+  saveComments();
+  updatePanel();
+  restoreIndicators();
+  closePanel();
+  toast('コメントをすべて削除しました');
+}
+
 // ── Server API ────────────────────────────────────────────────────────────────
 async function loadContent() {
   const res = await fetch('/content');
@@ -722,6 +759,10 @@ document.getElementById('btn-comments').addEventListener('click', () => {
 });
 document.getElementById('btn-close-panel').addEventListener('click', closePanel);
 document.getElementById('btn-copy').addEventListener('click', copyReview);
+document.getElementById('btn-clear-all').addEventListener('click', openClearAllModal);
+document.getElementById('btn-confirm-cancel').addEventListener('click', closeClearAllModal);
+document.getElementById('confirm-backdrop').addEventListener('click', closeClearAllModal);
+document.getElementById('btn-confirm-ok').addEventListener('click', clearAllComments);
 
 document.getElementById('modal-backdrop').addEventListener('click', closeCommentModal);
 document.getElementById('btn-cancel').addEventListener('click', closeCommentModal);

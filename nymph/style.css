@@ -278,6 +278,28 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   display: flex; gap: 7px; padding: 7px 14px 11px; justify-content: flex-end;
 }
 
+/* ── Confirm modal ── */
+#confirm-modal {
+  position: fixed; inset: 0; z-index: 1010;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(2px);
+}
+#confirm-modal.open { display: flex; }
+#confirm-backdrop { position: absolute; inset: 0; }
+#confirm-box {
+  position: relative; width: 300px;
+  background: var(--bg-surface); border: 1px solid var(--border-light);
+  border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.5); overflow: hidden;
+}
+.confirm-msg {
+  padding: 18px 16px 14px; font-size: 13px; color: var(--text); text-align: center; margin: 0;
+}
+#confirm-box .modal-foot { justify-content: center; }
+.btn.danger {
+  background: #c94444; color: #fff; border-color: transparent;
+}
+.btn.danger:hover { background: #b03535; }
+
 /* ── draw.io modal ── */
 #drawio-modal {
   position: fixed; inset: 0; z-index: 1000;

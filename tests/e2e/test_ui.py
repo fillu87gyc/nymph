@@ -67,7 +67,7 @@ def test_toolbar_brand(page: Page, live_server):
 def test_markdown_renders(page: Page, live_server):
     page.goto(live_server)
     page.wait_for_selector(".md-block")
-    expect(page.locator("h1").first).to_contain_text("Test Document")
+    expect(page.locator("h1").first).to_contain_text("フルスペック")
 
 
 def test_filename_in_toolbar(page: Page, live_server):
@@ -201,7 +201,7 @@ def test_selection_popup_appears(page: Page, live_server):
     """テキストをドラッグ選択するとポップアップが表示される。"""
     page.goto(live_server)
     page.wait_for_selector(".md-block")
-    _select_word(page, "paragraph")
+    _select_word(page, "fibonacci")
     expect(page.locator("#selection-popup")).to_have_class("visible")
 
 
@@ -209,22 +209,22 @@ def test_selection_comment_modal_ctx_is_selected_text(page: Page, live_server):
     """ポップアップをクリックするとモーダルの context が選択テキストになる。"""
     page.goto(live_server)
     page.wait_for_selector(".md-block")
-    _select_word(page, "bold")
+    _select_word(page, "fibonacci")
     page.click("#btn-selection-comment")
     expect(page.locator("#comment-modal")).to_have_class("open")
-    expect(page.locator("#modal-ctx")).to_contain_text("bold")
+    expect(page.locator("#modal-ctx")).to_contain_text("fibonacci")
     # 短い選択テキスト(≤20字)はタイトルに「word」形式で表示される
-    expect(page.locator("#modal-line")).to_contain_text("bold")
+    expect(page.locator("#modal-line")).to_contain_text("fibonacci")
 
 
 def test_selection_comment_added_to_panel(page: Page, live_server):
     """文字指定コメントがパネルに追加され、ctx に選択テキストが入る。"""
     page.goto(live_server)
     page.wait_for_selector(".md-block")
-    _add_selection_comment(page, "paragraph", "ここ気になる")
+    _add_selection_comment(page, "seq", "ここ気になる")
     expect(page.locator("#comments-panel")).to_have_class("open")
     expect(page.locator(".comment-item")).to_have_count(1)
-    expect(page.locator(".c-ctx").first).to_contain_text("paragraph")
+    expect(page.locator(".c-ctx").first).to_contain_text("seq")
     expect(page.locator(".c-text").first).to_contain_text("ここ気になる")
 
 
@@ -248,14 +248,14 @@ def test_multiple_selection_comments_all_listed(page: Page, live_server):
     """複数の文字指定コメントがすべてパネルに一覧表示される。"""
     page.goto(live_server)
     page.wait_for_selector(".md-block")
-    _add_selection_comment(page, "bold", "コメント1")
-    _add_selection_comment(page, "Another", "コメント2")
-    _add_selection_comment(page, "hello", "コメント3")
+    _add_selection_comment(page, "fibonacci", "コメント1")
+    _add_selection_comment(page, "async", "コメント2")
+    _add_selection_comment(page, "poetry", "コメント3")
 
     expect(page.locator(".comment-item")).to_have_count(3)
     expect(page.locator("#comment-count")).to_have_text("3")
     panel_text = page.locator("#comments-list").inner_text()
-    for word in ("bold", "Another", "hello"):
+    for word in ("fibonacci", "async", "poetry"):
         assert word in panel_text, f"'{word}' がパネルに表示されていない"
 
 
@@ -263,8 +263,8 @@ def test_multiple_selection_comments_each_clickable(page: Page, live_server):
     """パネルの各コメント行をクリックでき、クリック後もコメント件数が変わらない。"""
     page.goto(live_server)
     page.wait_for_selector(".md-block")
-    _add_selection_comment(page, "bold", "コメント1")
-    _add_selection_comment(page, "Another", "コメント2")
+    _add_selection_comment(page, "fibonacci", "コメント1")
+    _add_selection_comment(page, "async", "コメント2")
 
     items = page.locator(".comment-item")
     expect(items).to_have_count(2)
@@ -295,30 +295,30 @@ def test_selection_comment_panel_click_highlights(page: Page, live_server):
     """文字指定コメントをパネルでクリックすると mark.text-highlight が表示される。"""
     page.goto(live_server)
     page.wait_for_selector(".md-block")
-    _add_selection_comment(page, "paragraph", "文字選択ハイライト")
+    _add_selection_comment(page, "fibonacci", "文字選択ハイライト")
 
     page.locator(".comment-item").first.locator(".c-body").click()
     page.wait_for_selector("mark.text-highlight", timeout=2000)
     mark = page.locator("mark.text-highlight")
     expect(mark).to_be_visible()
-    assert mark.text_content() == "paragraph"
+    assert mark.text_content() == "fibonacci"
 
 
 def test_selection_highlight_correct_occurrence(page: Page, live_server):
     """同じ文字列が複数ある場合、選択した出現箇所がハイライトされる。
 
     バグ再現: selection_offset なしでは常に最初の出現がハイライトされていた。
-    SAMPLE_MD のリスト ("item one" / "item two" / "item three") で
-    3番目の "item" を選択してコメントを追加し、パネルクリック時に
-    "item three" の行がハイライトされることを確認する。
+    SAMPLE_MD の Python/TypeScript コードブロック内の "return" (Python×1 + TypeScript×2 = 計3回) で
+    3番目 (index=2, TypeScript の2つ目の return) を選択してコメントを追加し、
+    パネルクリック時に TypeScript ブロックがハイライトされることを確認する。
     """
     page.goto(live_server)
     page.wait_for_selector(".md-block")
 
-    # 3番目(index=2)の "item" を選択してコメント追加
-    _select_word_nth(page, "item", 2)
+    # 3番目(index=2)の "return" を選択してコメント追加
+    _select_word_nth(page, "return", 2)
     page.click("#btn-selection-comment")
-    page.fill("#comment-ta", "3番目のitem")
+    page.fill("#comment-ta", "3番目のreturn")
     page.click("#btn-submit")
 
     page.locator(".comment-item").first.locator(".c-body").click()
@@ -326,12 +326,12 @@ def test_selection_highlight_correct_occurrence(page: Page, live_server):
 
     mark = page.locator("mark.text-highlight")
     expect(mark).to_be_visible()
-    assert mark.text_content() == "item"
+    assert mark.text_content() == "return"
 
-    # ハイライトされた mark の親要素が "three" を含む行であること
+    # ハイライトされた mark の親要素が TypeScript コード (fetchUser を含む) であること
     parent_text = mark.evaluate("el => el.parentElement.textContent")
-    assert "three" in parent_text, (
-        f"3番目の 'item' がハイライトされるべきだが、実際の親テキスト: {parent_text!r}"
+    assert "fetchUser" in parent_text, (
+        f"3番目の 'return' (TypeScript) がハイライトされるべきだが、実際の親テキスト: {parent_text!r}"
     )
 
 
@@ -344,8 +344,8 @@ def test_block_and_selection_comments_coexist(page: Page, live_server):
     page.wait_for_selector(".md-block")
 
     _add_block_comment(page, "ブロック指定コメント")
-    _add_selection_comment(page, "paragraph", "文字指定コメント1")
-    _add_selection_comment(page, "Another", "文字指定コメント2")
+    _add_selection_comment(page, "fibonacci", "文字指定コメント1")
+    _add_selection_comment(page, "async", "文字指定コメント2")
 
     expect(page.locator(".comment-item")).to_have_count(3)
     expect(page.locator("#comment-count")).to_have_text("3")

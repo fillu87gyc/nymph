@@ -198,17 +198,26 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 #comments-panel {
   border-top: 1px solid var(--border); background: var(--bg);
   flex-shrink: 0; overflow: hidden; height: 0; transition: height .2s ease;
+  display: flex; flex-direction: column;
 }
-#comments-panel.open { height: 210px; }
+.panel-resize-handle {
+  flex-shrink: 0; height: 8px; cursor: ns-resize;
+  display: flex; align-items: center; justify-content: center;
+}
+.panel-resize-handle::after {
+  content: ''; width: 36px; height: 3px; border-radius: 1.5px;
+  background: var(--border-light); transition: background .15s;
+}
+.panel-resize-handle:hover::after { background: var(--accent); }
 .cpanel-head {
-  display: flex; align-items: center; padding: 9px 18px;
+  flex-shrink: 0; display: flex; align-items: center; padding: 9px 18px;
   border-bottom: 1px solid var(--border); gap: 8px;
 }
 .cpanel-title {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: .1em; color: var(--text-muted);
 }
-#comments-list { list-style: none; overflow-y: auto; max-height: 156px; }
+#comments-list { list-style: none; overflow-y: auto; flex: 1; }
 .comment-item {
   display: flex; align-items: flex-start; gap: 10px; padding: 9px 18px;
   border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s;
@@ -225,10 +234,12 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);
   margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.c-del {
-  flex-shrink: 0; background: none; border: none; color: var(--text-dim);
+.c-actions { flex-shrink: 0; display: flex; gap: 2px; align-items: center; }
+.c-edit, .c-del {
+  background: none; border: none; color: var(--text-dim);
   cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 3px; transition: color .1s;
 }
+.c-edit:hover { color: var(--accent); }
 .c-del:hover { color: #b04040; }
 #no-comments {
   padding: 28px 18px; text-align: center; color: var(--text-dim);
@@ -326,6 +337,17 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   box-shadow: 0 3px 14px rgba(0,0,0,.45);
 }
 #btn-selection-comment:hover { filter: brightness(1.12); }
+
+/* ── Text highlight ── */
+mark.text-highlight {
+  background: rgba(194,112,48,.38); color: inherit;
+  border-radius: 2px; padding: 0 1px;
+  animation: highlight-fade 2s ease forwards;
+}
+@keyframes highlight-fade {
+  0%, 60% { background: rgba(194,112,48,.38); }
+  100%     { background: transparent; }
+}
 
 /* ── Toast ── */
 #toast {

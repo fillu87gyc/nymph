@@ -34,6 +34,8 @@
       </svg>
     </button>
     <span class="sep"></span>
+    <button id="btn-checkpoint" class="btn" title="チェックポイントを設定">📍</button>
+    <button id="btn-diff" class="btn" title="diff表示切替">± diff</button>
     <button class="btn icon" id="btn-theme" title="テーマ切替">◐</button>
   </header>
 
@@ -126,6 +128,8 @@ const state = {
   pending: null,
   editingId: null,
   mermaidPending: null,
+  diffMode: false,
+  diffData: null,
 };
 
 // ── Mermaid init ──────────────────────────────────────────────────────────────
@@ -258,6 +262,7 @@ async function renderSource(src) {
 
   restoreIndicators();
   attachHandlers();
+  if (state.diffMode) applyDiffHighlight();
 }
 
 // ── Comment indicators ────────────────────────────────────────────────────────
@@ -736,6 +741,34 @@ function saveComments() {
   }).catch(() => {});
 }
 
+// ── Checkpoint / Diff ─────────────────────────────────────────────────────
+async function loadDiff() {
+  const res = await fetch('/diff');
+  state.diffData = await res.json();
+}
+
+function applyDiffHighlight() {
+  if (!state.diffMode || !state.diffData) {
+    document.querySelectorAll('.md-block').forEach(el => {
+      el.classList.remove('diff-insert', 'diff-delete');
+    });
+    return;
+  }
+  const insertLines = new Set(
+    state.diffData.lines.filter(l => l.type === 'insert').map(l => l.n)
+  );
+  document.querySelectorAll('.md-block').forEach(el => {
+    const ls = parseInt(el.dataset.ls, 10);
+    const le = parseInt(el.dataset.le, 10);
+    let hasInsert = false;
+    for (let i = ls; i <= le; i++) {
+      if (insertLines.has(i)) { hasInsert = true; break; }
+    }
+    el.classList.toggle('diff-insert', hasInsert);
+    el.classList.remove('diff-delete');
+  });
+}
+
 // ── SSE hot reload ────────────────────────────────────────────────────────────
 function connectSSE() {
   const dot = document.getElementById('watch-dot');
@@ -787,6 +820,26 @@ document.getElementById('btn-submit').addEventListener('click', submitComment);
 document.getElementById('comment-ta').addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitComment();
   if (e.key === 'Escape') closeCommentModal();
+});
+
+document.getElementById('btn-checkpoint').addEventListener('click', async () => {
+  const res = await fetch('/checkpoint', { method: 'POST', headers: {'Content-Length': '0'} });
+  const data = await res.json();
+  toast(`チェックポイントを設定しました（${data.lines}行）`);
+  document.getElementById('btn-checkpoint').classList.add('has-checkpoint');
+  if (state.diffMode) {
+    await loadDiff();
+    applyDiffHighlight();
+  }
+});
+
+document.getElementById('btn-diff').addEventListener('click', async () => {
+  state.diffMode = !state.diffMode;
+  document.getElementById('btn-diff').classList.toggle('active', state.diffMode);
+  if (state.diffMode) {
+    await loadDiff();
+  }
+  applyDiffHighlight();
 });
 
 document.getElementById('btn-close-drawio').addEventListener('click', closeDrawioModal);

@@ -1,3 +1,4 @@
+import difflib
 import json
 import os
 import socket
@@ -21,6 +22,7 @@ class Handler(BaseHTTPRequestHandler):
     comments_path = None
     _cached_content = None
     _content_lock = threading.Lock()
+    checkpoint_content: str | None = None
 
     def log_message(self, *_):
         pass
@@ -37,6 +39,8 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_sse()
         elif path == "/comments":
             self._serve_comments()
+        elif path == "/diff":
+            self._serve_diff()
         else:
             self._send(404, "text/plain", b"Not found")
 
@@ -46,6 +50,8 @@ class Handler(BaseHTTPRequestHandler):
             self._save_comments()
         elif path == "/edit-op":
             self._handle_edit_op()
+        elif path == "/checkpoint":
+            self._set_checkpoint()
         else:
             self._send(404, "text/plain", b"Not found")
 
@@ -166,6 +172,48 @@ class Handler(BaseHTTPRequestHandler):
                 json.dump(comments, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
+
+    def _set_checkpoint(self):
+        try:
+            with open(Handler.file_path, "r", encoding="utf-8") as f:
+                Handler.checkpoint_content = f.read()
+            line_count = Handler.checkpoint_content.count("\n") + 1
+            data = json.dumps({"ok": True, "lines": line_count}).encode()
+            self._send(200, "application/json", data)
+        except Exception as e:
+            self._send(500, "text/plain", str(e).encode())
+
+    def _serve_diff(self):
+        try:
+            if Handler.checkpoint_content is None:
+                self._send(200, "application/json", json.dumps({"lines": []}).encode())
+                return
+            with open(Handler.file_path, "r", encoding="utf-8") as f:
+                current = f.read()
+            checkpoint_lines = Handler.checkpoint_content.splitlines(keepends=True)
+            current_lines = current.splitlines(keepends=True)
+            matcher = difflib.SequenceMatcher(None, checkpoint_lines, current_lines)
+            result = []
+            current_n = 0
+            for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+                if tag == "equal":
+                    for line in current_lines[j1:j2]:
+                        current_n += 1
+                        c = line.rstrip("\n")
+                        result.append({"n": current_n, "type": "equal", "content": c})
+                elif tag in ("replace", "insert"):
+                    for line in current_lines[j1:j2]:
+                        current_n += 1
+                        c = line.rstrip("\n")
+                        result.append({"n": current_n, "type": "insert", "content": c})
+                elif tag == "delete":
+                    for line in checkpoint_lines[i1:i2]:
+                        c = line.rstrip("\n")
+                        result.append({"n": None, "type": "delete", "content": c})
+            data = json.dumps({"lines": result}).encode()
+            self._send(200, "application/json", data)
+        except Exception as e:
+            self._send(500, "text/plain", str(e).encode())
 
 
 def find_port(start=6276):

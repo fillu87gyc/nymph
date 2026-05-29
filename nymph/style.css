@@ -372,6 +372,22 @@ mark.text-highlight {
   100%     { background: transparent; }
 }
 
+/* ── Checkpoint / Diff ── */
+.md-block.diff-insert {
+  border-left-color: #4caf50;
+  background: rgba(76, 175, 80, 0.08);
+}
+.md-block.diff-delete {
+  border-left-color: #f44336;
+  background: rgba(244, 67, 54, 0.08);
+  opacity: 0.6;
+}
+#btn-diff.active,
+#btn-checkpoint.has-checkpoint {
+  background: var(--accent);
+  color: var(--bg);
+}
+
 /* ── Toast ── */
 #toast {
   position: fixed; bottom: 22px; right: 22px;

@@ -42,7 +42,7 @@ def _assert_screenshot(page: Page, name: str) -> None:
     diff = ImageChops.difference(baseline, actual)
     total = baseline.width * baseline.height
     diff_bytes = diff.tobytes()
-    pixel_diffs = sum(1 for i in range(0, len(diff_bytes), 3) if any(diff_bytes[i:i+3]))
+    pixel_diffs = sum(1 for i in range(0, len(diff_bytes), 3) if any(diff_bytes[i : i + 3]))
     mismatch = pixel_diffs / total
 
     if mismatch > THRESHOLD:

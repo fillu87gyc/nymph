@@ -2,6 +2,7 @@ from playwright.sync_api import Page, expect
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _select_word(page, word: str) -> None:
     """#content 内の word をJS で選択し、selection popup が出るまで待つ。"""
     page.evaluate(

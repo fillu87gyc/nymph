@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import socket
@@ -176,15 +177,53 @@ def find_port(start=6276):
     return start
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("使い方: nymph <file.md>")
-        sys.exit(1)
+def export_html(md_path: str, out_path: str) -> None:
+    with open(md_path, "r", encoding="utf-8") as f:
+        md_content = f.read()
+    comments_path = md_path + ".comments.json"
+    comments = []
+    if os.path.exists(comments_path):
+        with open(comments_path, "r", encoding="utf-8") as f:
+            comments = json.load(f)
+    template = _read("index.html").decode("utf-8")
+    css_content = _read("style.css").decode("utf-8")
 
-    fpath = os.path.abspath(sys.argv[1])
+    def _safe_json(obj):
+        return json.dumps(obj, ensure_ascii=False).replace("</", "<\\/")
+
+    init_script = (
+        "<script>\n"
+        "  window.__EXPORT_MODE__ = true;\n"
+        f"  window.__INITIAL_SOURCE__ = {_safe_json(md_content)};\n"
+        f"  window.__INITIAL_COMMENTS__ = {_safe_json(comments)};\n"
+        f"  window.__INITIAL_FILENAME__ = {_safe_json(os.path.basename(md_path))};\n"
+        "</script>"
+    )
+    html = template.replace(
+        '<link rel="stylesheet" href="/style.css">',
+        f"<style>\n{css_content}\n</style>",
+        1,
+    )
+    html = html.replace("</head>", init_script + "\n</head>", 1)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"エクスポート完了: {out_path} ({len(comments)}件のコメント)")
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="nymph", description="Markdownレビューツール")
+    parser.add_argument("file", help="Markdownファイル")
+    parser.add_argument(
+        "--export", "-e", metavar="OUT", help="HTMLエクスポートしてサーバーを起動せずに終了"
+    )
+    args = parser.parse_args()
+    fpath = os.path.abspath(args.file)
     if not os.path.exists(fpath):
         print(f"エラー: {fpath} が見つかりません")
         sys.exit(1)
+    if args.export:
+        export_html(fpath, args.export)
+        sys.exit(0)
 
     Handler.file_path = fpath
     Handler.comments_path = fpath + ".comments.json"

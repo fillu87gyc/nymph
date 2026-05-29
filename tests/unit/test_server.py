@@ -87,6 +87,36 @@ class TestEndpoints:
         assert exc.value.code == 404
 
 
+class TestExportHtml:
+    def test_export_creates_file(self, tmp_path):
+        from nymph.server import export_html
+
+        md = tmp_path / "test.md"
+        md.write_text("# Hello\n\nworld\n")
+        out = tmp_path / "out.html"
+        export_html(str(md), str(out))
+        assert out.exists()
+
+    def test_export_embeds_content(self, tmp_path):
+        from nymph.server import export_html
+
+        md = tmp_path / "test.md"
+        md.write_text("# Hello Export\n")
+        out = tmp_path / "out.html"
+        export_html(str(md), str(out))
+        assert "__EXPORT_MODE__" in out.read_text()
+
+    def test_export_escapes_script_tag(self, tmp_path):
+        from nymph.server import export_html
+
+        md = tmp_path / "test.md"
+        md.write_text("</script><script>alert(1)</script>\n")
+        out = tmp_path / "out.html"
+        export_html(str(md), str(out))
+        html = out.read_text()
+        assert "<\\/" in html
+
+
 class TestFindPort:
     def test_returns_open_port(self):
         port = find_port()

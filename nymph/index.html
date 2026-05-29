@@ -815,9 +815,19 @@ if (savedTheme) {
 }
 
 (async () => {
-  await loadContent();
-  await loadComments();
-  connectSSE();
+  if (window.__EXPORT_MODE__) {
+    state.source = window.__INITIAL_SOURCE__;
+    state.comments = window.__INITIAL_COMMENTS__;
+    state.nextId = state.comments.reduce((m, c) => Math.max(m, c.id), 0) + 1;
+    const badge = document.getElementById('watch-name');
+    if (badge) badge.textContent = window.__INITIAL_FILENAME__;
+    await renderSource(state.source);
+    updatePanel();
+  } else {
+    await loadContent();
+    await loadComments();
+    connectSSE();
+  }
 })();
 </script>
 </body>

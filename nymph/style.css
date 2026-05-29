@@ -305,6 +305,28 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   display: flex; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--border);
 }
 
+/* ── Selection comment popup ── */
+#selection-popup {
+  position: fixed; z-index: 600;
+  visibility: hidden; opacity: 0;
+  transform: translateY(5px);
+  transition: opacity .13s, transform .13s, visibility .13s;
+  pointer-events: none;
+}
+#selection-popup.visible {
+  visibility: visible; opacity: 1;
+  transform: translateY(0); pointer-events: auto;
+}
+#btn-selection-comment {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 6px; padding: 5px 12px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: 0 3px 14px rgba(0,0,0,.45);
+}
+#btn-selection-comment:hover { filter: brightness(1.12); }
+
 /* ── Toast ── */
 #toast {
   position: fixed; bottom: 22px; right: 22px;

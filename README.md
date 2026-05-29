@@ -31,8 +31,10 @@ cd nymph
 pip install .
 ```
 
-インストール不要で使う場合：
+インストール不要で使う場合（初回のみ clone、以降は `python3` コマンドのみ）：
 ```bash
+git clone https://github.com/fillu87gyc/nymph  # 初回のみ
+cd nymph
 python3 nymph.py output.md
 ```
 
@@ -73,32 +75,32 @@ draw.io でのインポート方法：
 
 ### レビューのコピー
 
-ツールバーの **レビューをコピー** ボタンで、全コメントを以下の形式でクリップボードにコピーします：
+ツールバーの **レビューをコピー** ボタンで、全コメントを以下の **JSON 形式**でクリップボードにコピーします：
 
-```markdown
-# MD Review — 2026/05/28
-
-コメント数: 2
-
----
-
-## [1] L5–7
-
-\```
-## アーキテクチャ
-\```
-
-**コメント:** この図は現状と異なります
-
----
-
-## [2] L12
-
-\```
-graph TD
-\```
-
-**コメント:** ノード名を日本語に統一してください
+```json
+{
+  "date": "2026/5/28",
+  "file": "output.md",
+  "comment_count": 2,
+  "comments": [
+    {
+      "id": 1,
+      "line_start": 5,
+      "line_end": 7,
+      "block_type": "code",
+      "context": { "lang": "", "code": "## アーキテクチャ" },
+      "comment": "この図は現状と異なります"
+    },
+    {
+      "id": 2,
+      "line_start": 12,
+      "line_end": 12,
+      "block_type": "code",
+      "context": { "lang": "", "code": "graph TD" },
+      "comment": "ノード名を日本語に統一してください"
+    }
+  ]
+}
 ```
 
 ---

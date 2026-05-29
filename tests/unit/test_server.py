@@ -87,6 +87,67 @@ class TestEndpoints:
         assert exc.value.code == 404
 
 
+class TestWritebackComments:
+    def test_writeback_inserts_comments(self, tmp_path):
+        from nymph.server import writeback_comments
+
+        md = tmp_path / "test.md"
+        md.write_text("# Hello\n\nworld\n")
+        (tmp_path / "test.md.comments.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "id": 1,
+                        "ls": 1,
+                        "le": 1,
+                        "block_type": "heading",
+                        "context": "Hello",
+                        "text": "見出しコメント",
+                    },
+                    {
+                        "id": 2,
+                        "ls": 3,
+                        "le": 3,
+                        "block_type": "paragraph",
+                        "context": "world",
+                        "text": "本文コメント",
+                    },
+                ]
+            )
+        )
+        writeback_comments(str(md))
+        content = md.read_text()
+        assert "> [nymph] 見出しコメント" in content
+        assert "> [nymph] 本文コメント" in content
+
+    def test_writeback_no_comments_file(self, tmp_path, capsys):
+        from nymph.server import writeback_comments
+
+        md = tmp_path / "test.md"
+        md.write_text("# Hello\n")
+        writeback_comments(str(md))
+        assert "見つかりません" in capsys.readouterr().out
+
+    def test_writeback_order_preserved(self, tmp_path):
+        from nymph.server import writeback_comments
+
+        md = tmp_path / "test.md"
+        md.write_text("line1\n\nline3\n\nline5\n")
+        (tmp_path / "test.md.comments.json").write_text(
+            json.dumps(
+                [
+                    {"id": 1, "ls": 1, "le": 1, "context": "line1", "text": "first"},
+                    {"id": 2, "ls": 3, "le": 3, "context": "line3", "text": "second"},
+                ]
+            )
+        )
+        writeback_comments(str(md))
+        lines = md.read_text().splitlines()
+        assert lines[1] == "> [nymph] first"
+        line3_idx = lines.index("line3")
+        assert lines[line3_idx + 1] == "> [nymph] second"
+
+
 class TestFindPort:
     def test_returns_open_port(self):
         port = find_port()

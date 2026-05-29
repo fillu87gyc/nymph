@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import socket
@@ -176,15 +177,44 @@ def find_port(start=6276):
     return start
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("使い方: nymph <file.md>")
-        sys.exit(1)
+def writeback_comments(md_path: str) -> None:
+    comments_path = md_path + ".comments.json"
+    if not os.path.exists(comments_path):
+        print("コメントファイルが見つかりません。書き戻すコメントはありません。")
+        return
+    with open(comments_path, "r", encoding="utf-8") as f:
+        comments = json.load(f)
+    if not comments:
+        print("コメントはありません。")
+        return
+    with open(md_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    for c in sorted(comments, key=lambda c: c.get("le", 0), reverse=True):
+        le = c.get("le", 0)
+        text = c.get("text", "").replace("\n", " ")
+        lines.insert(le, f"> [nymph] {text}\n")
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    print(f"{len(comments)}件のコメントを書き戻しました: {md_path}")
 
-    fpath = os.path.abspath(sys.argv[1])
+
+def main():
+    parser = argparse.ArgumentParser(prog="nymph", description="Markdownレビューツール")
+    parser.add_argument("file", help="Markdownファイル")
+    parser.add_argument(
+        "--writeback",
+        "-w",
+        action="store_true",
+        help="コメントをMarkdownファイルに書き戻してサーバーを起動せずに終了",
+    )
+    args = parser.parse_args()
+    fpath = os.path.abspath(args.file)
     if not os.path.exists(fpath):
         print(f"エラー: {fpath} が見つかりません")
         sys.exit(1)
+    if args.writeback:
+        writeback_comments(fpath)
+        sys.exit(0)
 
     Handler.file_path = fpath
     Handler.comments_path = fpath + ".comments.json"

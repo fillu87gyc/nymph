@@ -12,7 +12,8 @@ from pathlib import Path
 
 import pytest
 from PIL import Image, ImageChops
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 # Platform-specific baselines so macOS and Linux don't clobber each other.
 SNAPSHOTS = Path(__file__).parent / "snapshots" / platform.system().lower()

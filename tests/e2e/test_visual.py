@@ -42,7 +42,7 @@ def _assert_screenshot(page: Page, name: str) -> None:
     diff = ImageChops.difference(baseline, actual)
     total = baseline.width * baseline.height
     diff_bytes = diff.tobytes()
-    pixel_diffs = sum(1 for i in range(0, len(diff_bytes), 3) if any(diff_bytes[i:i+3]))
+    pixel_diffs = sum(1 for i in range(0, len(diff_bytes), 3) if any(diff_bytes[i : i + 3]))
     mismatch = pixel_diffs / total
 
     if mismatch > THRESHOLD:
@@ -61,13 +61,15 @@ def _save_actual(name: str, data: bytes) -> None:
 
 def _stabilize(page: Page) -> None:
     """Disable animations and normalize dynamic content."""
-    page.add_style_tag(content="""
+    page.add_style_tag(
+        content="""
         *, *::before, *::after {
             animation-duration: 0s !important;
             transition-duration: 0s !important;
             transition-delay: 0s !important;
         }
-    """)
+    """
+    )
     page.wait_for_load_state("load")
     page.wait_for_timeout(400)
     page.evaluate("document.getElementById('update-time').textContent = '更新: --:--:--'")

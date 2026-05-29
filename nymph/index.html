@@ -250,7 +250,11 @@ async function renderSource(src) {
     await mermaid.run({ querySelector: '#content .mermaid' });
   } catch(e) { console.warn('mermaid:', e); }
 
-  document.querySelectorAll('#content pre code').forEach(el => hljs.highlightElement(el));
+  if (typeof hljs !== 'undefined') {
+    document.querySelectorAll('#content pre code').forEach(el => {
+      try { hljs.highlightElement(el); } catch(e) { console.warn('hljs:', e); }
+    });
+  }
 
   restoreIndicators();
   attachHandlers();

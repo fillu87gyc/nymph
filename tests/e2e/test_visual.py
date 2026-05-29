@@ -90,6 +90,7 @@ def _stabilize(page: Page) -> None:
 
 # ── フルページ ────────────────────────────────────────────────────────────────
 
+
 def test_vrt_dark_theme(page: Page, live_server):
     page.goto(live_server)
     page.wait_for_selector(".md-block")
@@ -128,6 +129,7 @@ def test_vrt_comments_panel(page: Page, live_server):
 
 
 # ── セクション単位 ────────────────────────────────────────────────────────────
+
 
 def test_vrt_mermaid_sequence(page: Page, live_server):
     """シーケンス図ブロックが SVG としてレンダリングされていることを確認する。"""

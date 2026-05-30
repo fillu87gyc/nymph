@@ -13,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/highlight.min.js"></script>
 </head>
 <body>
+<div id="drop-overlay">📂 .md ファイルをドロップ</div>
 <div id="app">
 
   <header id="toolbar">
@@ -34,6 +35,8 @@
       </svg>
     </button>
     <span class="sep"></span>
+    <button id="btn-checkpoint" class="btn" title="チェックポイントを設定">📍</button>
+    <button id="btn-diff" class="btn" title="diff表示切替">± diff</button>
     <button class="btn icon" id="btn-theme" title="テーマ切替">◐</button>
   </header>
 
@@ -44,7 +47,7 @@
           <rect x="6" y="4" width="28" height="32" rx="3" stroke="currentColor" stroke-width="1.5"/>
           <path d="M12 13h16M12 19h16M12 25h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <p>ファイルを読み込んでいます…</p>
+        <p id="welcome-msg">ファイルを読み込んでいます…</p>
       </div>
     </div>
   </div>
@@ -126,6 +129,8 @@ const state = {
   pending: null,
   editingId: null,
   mermaidPending: null,
+  diffMode: false,
+  diffData: null,
 };
 
 // ── Mermaid init ──────────────────────────────────────────────────────────────
@@ -258,6 +263,7 @@ async function renderSource(src) {
 
   restoreIndicators();
   attachHandlers();
+  if (state.diffMode) applyDiffHighlight();
 }
 
 // ── Comment indicators ────────────────────────────────────────────────────────
@@ -710,7 +716,10 @@ function clearAllComments() {
 async function loadContent() {
   const res = await fetch('/content');
   const { content, filename } = await res.json();
-  document.getElementById('watch-name').textContent = filename;
+  document.getElementById('watch-name').textContent = filename ?? '—';
+  if (filename === null) {
+    document.getElementById('welcome-msg').textContent = '.md ファイルをここにドロップ';
+  }
   state.source = content;
   mermaidSeq = 0;
   await renderSource(content);
@@ -734,6 +743,34 @@ function saveComments() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(state.comments),
   }).catch(() => {});
+}
+
+// ── Checkpoint / Diff ─────────────────────────────────────────────────────
+async function loadDiff() {
+  const res = await fetch('/diff');
+  state.diffData = await res.json();
+}
+
+function applyDiffHighlight() {
+  if (!state.diffMode || !state.diffData) {
+    document.querySelectorAll('.md-block').forEach(el => {
+      el.classList.remove('diff-insert', 'diff-delete');
+    });
+    return;
+  }
+  const insertLines = new Set(
+    state.diffData.lines.filter(l => l.type === 'insert').map(l => l.n)
+  );
+  document.querySelectorAll('.md-block').forEach(el => {
+    const ls = parseInt(el.dataset.ls, 10);
+    const le = parseInt(el.dataset.le, 10);
+    let hasInsert = false;
+    for (let i = ls; i <= le; i++) {
+      if (insertLines.has(i)) { hasInsert = true; break; }
+    }
+    el.classList.toggle('diff-insert', hasInsert);
+    el.classList.remove('diff-delete');
+  });
 }
 
 // ── SSE hot reload ────────────────────────────────────────────────────────────
@@ -789,6 +826,26 @@ document.getElementById('comment-ta').addEventListener('keydown', e => {
   if (e.key === 'Escape') closeCommentModal();
 });
 
+document.getElementById('btn-checkpoint').addEventListener('click', async () => {
+  const res = await fetch('/checkpoint', { method: 'POST', headers: {'Content-Length': '0'} });
+  const data = await res.json();
+  toast(`チェックポイントを設定しました（${data.lines}行）`);
+  document.getElementById('btn-checkpoint').classList.add('has-checkpoint');
+  if (state.diffMode) {
+    await loadDiff();
+    applyDiffHighlight();
+  }
+});
+
+document.getElementById('btn-diff').addEventListener('click', async () => {
+  state.diffMode = !state.diffMode;
+  document.getElementById('btn-diff').classList.toggle('active', state.diffMode);
+  if (state.diffMode) {
+    await loadDiff();
+  }
+  applyDiffHighlight();
+});
+
 document.getElementById('btn-close-drawio').addEventListener('click', closeDrawioModal);
 document.getElementById('drawio-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('drawio-modal')) closeDrawioModal();
@@ -806,6 +863,50 @@ function toast(msg) {
   el.textContent = msg; el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2400);
 }
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
+(function() {
+  const overlay = document.getElementById('drop-overlay');
+
+  document.body.addEventListener('dragover', e => {
+    e.preventDefault();
+    overlay.classList.add('active');
+  });
+
+  document.body.addEventListener('dragleave', e => {
+    if (!e.relatedTarget || !document.body.contains(e.relatedTarget)) {
+      overlay.classList.remove('active');
+    }
+  });
+
+  document.body.addEventListener('drop', async e => {
+    e.preventDefault();
+    overlay.classList.remove('active');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (!file.name.endsWith('.md')) {
+      toast('Markdownファイルをドロップしてください');
+      return;
+    }
+    try {
+      const content = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = ev => resolve(ev.target.result);
+        reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+        reader.readAsText(file);
+      });
+      await fetch('/switch-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, filename: file.name }),
+      });
+      await loadContent();
+      await loadComments();
+    } catch (err) {
+      toast(err.message || 'ファイルの読み込みに失敗しました');
+    }
+  });
+})();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 const savedTheme = localStorage.getItem('nymph-theme');

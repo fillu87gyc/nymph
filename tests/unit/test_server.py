@@ -6,7 +6,7 @@ import urllib.request
 
 import pytest
 
-from nymph.server import find_port
+from nymph.server import Handler, find_port
 
 
 def _get(url):
@@ -20,6 +20,17 @@ def _post_json(url, payload):
         url,
         data=data,
         headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req) as r:
+        return r.status, r.read()
+
+
+def _post_empty(url):
+    req = urllib.request.Request(
+        url,
+        data=b"",
+        headers={"Content-Length": "0"},
         method="POST",
     )
     with urllib.request.urlopen(req) as r:
@@ -87,6 +98,49 @@ class TestEndpoints:
         assert exc.value.code == 404
 
 
+class TestCheckpoint:
+    def test_checkpoint_set(self, server):
+        base, md_path, _ = server
+        Handler.checkpoint_content = None
+        status, body = _post_empty(base + "/checkpoint")
+        assert status == 200
+        data = json.loads(body)
+        assert data["ok"] is True
+        assert data["lines"] > 0
+        assert Handler.checkpoint_content is not None
+
+    def test_diff_no_checkpoint(self, server):
+        base, *_ = server
+        Handler.checkpoint_content = None
+        status, ct, body = _get(base + "/diff")
+        assert status == 200
+        assert "application/json" in ct
+        data = json.loads(body)
+        assert data == {"lines": []}
+
+    def test_diff_with_change(self, server):
+        base, md_path, _ = server
+        # Set checkpoint with original content
+        Handler.checkpoint_content = None
+        _post_empty(base + "/checkpoint")
+        original_checkpoint = Handler.checkpoint_content
+
+        # Modify the file
+        new_content = original_checkpoint + "\nNew line added.\n"
+        md_path.write_text(new_content, encoding="utf-8")
+
+        status, ct, body = _get(base + "/diff")
+        assert status == 200
+        data = json.loads(body)
+        assert len(data["lines"]) > 0
+        types = {item["type"] for item in data["lines"]}
+        assert "insert" in types
+
+        # Restore original
+        md_path.write_text(original_checkpoint, encoding="utf-8")
+        Handler.checkpoint_content = None
+
+
 class TestFindPort:
     def test_returns_open_port(self):
         port = find_port()
@@ -100,3 +154,21 @@ class TestFindPort:
             s.listen(1)
             port = find_port(occupied)
             assert port != occupied
+
+
+class TestDragDrop:
+    def test_switch_file_updates_content(self, server_no_file):
+        # POST /switch-file でコンテンツが切り替わること
+        base = server_no_file
+        _post_json(base + "/switch-file", {"content": "# Hello Drop", "filename": "drop.md"})
+        _, _, body = _get(base + "/content")
+        data = json.loads(body)
+        assert data["filename"] == "drop.md"
+        assert "Hello Drop" in data["content"]
+
+    def test_content_no_file(self, server_no_file):
+        # ファイルなし起動時に filename が null を返すこと
+        base = server_no_file
+        _, _, body = _get(base + "/content")
+        data = json.loads(body)
+        assert data["filename"] is None

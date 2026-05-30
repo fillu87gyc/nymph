@@ -18,6 +18,8 @@ def server(tmp_path_factory):
 
     Handler.file_path = str(md_path)
     Handler.comments_path = comments_path
+    Handler._dropped_content = None
+    Handler._dropped_name = None
 
     port = find_port()
     httpd = ThreadingHTTPServer(("localhost", port), Handler)
@@ -30,3 +32,31 @@ def server(tmp_path_factory):
     httpd.shutdown()
     if os.path.exists(comments_path):
         os.remove(comments_path)
+
+
+@pytest.fixture()
+def server_no_file():
+    saved_fp = Handler.file_path
+    saved_cp = Handler.comments_path
+    saved_dc = Handler._dropped_content
+    saved_dn = Handler._dropped_name
+
+    Handler.file_path = None
+    Handler.comments_path = None
+    Handler._dropped_content = None
+    Handler._dropped_name = None
+
+    port = find_port()
+    httpd = ThreadingHTTPServer(("localhost", port), Handler)
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    time.sleep(0.1)
+
+    yield f"http://localhost:{port}"
+
+    httpd.shutdown()
+
+    Handler.file_path = saved_fp
+    Handler.comments_path = saved_cp
+    Handler._dropped_content = saved_dc
+    Handler._dropped_name = saved_dn

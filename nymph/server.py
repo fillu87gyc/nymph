@@ -251,13 +251,17 @@ class Handler(BaseHTTPRequestHandler):
                     for line in current_lines[j1:j2]:
                         current_n += 1
                         c = line.rstrip("\n")
-                        result.append({"n": current_n, "type": "insert", "content": c, "g": group_id})
+                        result.append(
+                            {"n": current_n, "type": "insert", "content": c, "g": group_id}
+                        )
                     group_id += 1
                 elif tag == "insert":
                     for line in current_lines[j1:j2]:
                         current_n += 1
                         c = line.rstrip("\n")
-                        result.append({"n": current_n, "type": "insert", "content": c, "g": group_id})
+                        result.append(
+                            {"n": current_n, "type": "insert", "content": c, "g": group_id}
+                        )
                     group_id += 1
                 elif tag == "delete":
                     for line in checkpoint_lines[i1:i2]:

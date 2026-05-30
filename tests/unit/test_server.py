@@ -165,8 +165,8 @@ class TestCheckpoint:
         types = {item["type"] for item in data["lines"]}
         assert "insert" in types
         assert "delete" in types
-        insert_groups = {l["g"] for l in data["lines"] if l["type"] == "insert"}
-        delete_groups = {l["g"] for l in data["lines"] if l["type"] == "delete"}
+        insert_groups = {item["g"] for item in data["lines"] if item["type"] == "insert"}
+        delete_groups = {item["g"] for item in data["lines"] if item["type"] == "delete"}
         assert insert_groups & delete_groups
 
         md_path.write_text(original_checkpoint, encoding="utf-8")

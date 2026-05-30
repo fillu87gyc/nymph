@@ -20,7 +20,6 @@
     <span class="brand">nymph</span>
     <div class="watch-badge">
       <span class="watch-dot" id="watch-dot"></span>
-      <span id="watch-name">—</span>
     </div>
     <span class="update-time" id="update-time"></span>
     <span class="sep"></span>
@@ -715,7 +714,7 @@ function copyReview() {
   if (!state.comments.length) { toast('コメントがありません'); return; }
   const payload = {
     date: new Date().toLocaleDateString('ja-JP'),
-    file: document.getElementById('watch-name').textContent,
+    file: state.activeFile ? state.activeFile.split('/').pop() : '—',
     comment_count: state.comments.length,
     comments: state.comments.map((c, i) => ({
       id: i + 1,
@@ -761,7 +760,6 @@ async function loadContent(filePath) {
   const url = filePath ? `/content?file=${encodeURIComponent(filePath)}` : '/content';
   const res = await fetch(url);
   const { content, filename } = await res.json();
-  document.getElementById('watch-name').textContent = filename ?? '—';
   if (filename === null) {
     document.getElementById('welcome-msg').textContent = '.md ファイルをここにドロップ';
   }
@@ -906,10 +904,8 @@ function connectSSE() {
     try {
       const msg = JSON.parse(e.data);
       if (msg.file) {
-        const activeName = state.activeFile
-          ? state.activeFile.split('/').pop()
-          : document.getElementById('watch-name').textContent;
-        if (msg.file === activeName) {
+        const activeName = state.activeFile ? state.activeFile.split('/').pop() : null;
+        if (activeName && msg.file === activeName) {
           await loadComments();
           await loadContent(state.activeFile || undefined);
           toast('ファイルが更新されました');

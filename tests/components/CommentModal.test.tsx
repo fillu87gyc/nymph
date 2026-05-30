@@ -5,7 +5,7 @@ import { CommentModal } from '../../src/client/components/CommentModal.tsx';
 import type { PendingComment } from '../../src/client/types.ts';
 
 const pending: PendingComment = {
-  ls: 5, le: 7, blockType: 'paragraph', context: 'Some context', selectionOffset: null,
+  ls: 5, le: 7, block_type: 'paragraph', context: 'Some context', selection_offset: null,
 };
 
 describe('CommentModal', () => {

@@ -30,6 +30,10 @@ export function initState(paths: string[]) {
   }
 }
 
+function activePaths(): string[] {
+  return state.filePaths.length ? state.filePaths : (state.activeFile ? [state.activeFile] : []);
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -43,7 +47,7 @@ function err(msg: string, status = 500): Response {
 
 function handleContent(url: URL): Response {
   const fileParam = url.searchParams.get('file');
-  const allowed = new Set(state.filePaths.length ? state.filePaths : (state.activeFile ? [state.activeFile] : []));
+  const allowed = new Set(activePaths());
 
   if (fileParam && !allowed.has(fileParam)) return err('Forbidden', 403);
 
@@ -64,7 +68,7 @@ function handleContent(url: URL): Response {
 }
 
 function handleWatch(): Response {
-  const paths = state.filePaths.length ? state.filePaths : (state.activeFile ? [state.activeFile] : []);
+  const paths = activePaths();
   const encoder = new TextEncoder();
   const mtimes = new Map<string, number>();
   for (const p of paths) {
@@ -103,7 +107,7 @@ function handleWatch(): Response {
 
 function handleGetComments(url: URL): Response {
   const fileParam = url.searchParams.get('file');
-  const allowed = new Set(state.filePaths.length ? state.filePaths : (state.activeFile ? [state.activeFile] : []));
+  const allowed = new Set(activePaths());
 
   if (fileParam && !allowed.has(fileParam)) return err('Forbidden', 403);
 
@@ -130,14 +134,14 @@ async function handleSaveComments(req: Request): Promise<Response> {
 }
 
 function handleFiles(): Response {
-  const paths = state.filePaths.length ? state.filePaths : (state.activeFile ? [state.activeFile] : []);
+  const paths = activePaths();
   return json(paths.map(p => ({ path: p, name: basename(p) })));
 }
 
 async function handleSetActiveFile(req: Request): Promise<Response> {
   try {
     const { path } = await req.json() as { path: string };
-    const allowed = new Set(state.filePaths.length ? state.filePaths : (state.activeFile ? [state.activeFile] : []));
+    const allowed = new Set(activePaths());
     if (!path || !allowed.has(path)) return json({ error: 'invalid path' }, 400);
     state.activeFile = path;
     state.commentsPath = path + '.comments.json';

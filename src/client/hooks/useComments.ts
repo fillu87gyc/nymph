@@ -27,9 +27,9 @@ export function useComments() {
       id: currentNextId,
       ls: pending.ls,
       le: pending.le,
-      block_type: pending.blockType,
+      block_type: pending.block_type,
       context: pending.context,
-      ...(pending.selectionOffset != null && { selection_offset: pending.selectionOffset }),
+      ...(pending.selection_offset != null && { selection_offset: pending.selection_offset }),
       text,
     };
     const updated = [...comments, c].sort((a, b) => a.ls - b.ls);

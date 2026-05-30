@@ -43,7 +43,7 @@ export interface ContentResponse {
 export interface PendingComment {
   ls: number;
   le: number;
-  blockType: string;
+  block_type: string;
   context: Comment['context'];
-  selectionOffset: number | null;
+  selection_offset: number | null;
 }

@@ -71,8 +71,7 @@ export function App() {
   // SSE
   useSSE((changedFile) => {
     if (!changedFile || !activeFile) return;
-    const activeName = activeFile.split('/').pop();
-    if (changedFile === activeName || changedFile === activeFile) {
+    if (changedFile === activeFile) {
       loadContent(activeFile).then(() => loadComments()).then(() => toast('ファイルが更新されました'));
     }
   });
@@ -112,7 +111,7 @@ export function App() {
   function openCommentModal(
     ls: number, le: number, displayCtx: string, blockType: string, context: any, selectionOffset: number | null,
   ) {
-    setPending({ ls, le, blockType, context, selectionOffset });
+    setPending({ ls, le, block_type: blockType, context, selection_offset: selectionOffset });
     setEditingId(null);
     setEditingDisplayCtx(displayCtx);
     setEditingInitialText('');
@@ -120,7 +119,7 @@ export function App() {
   }
 
   function openEditModal(c: Comment) {
-    setPending({ ls: c.ls, le: c.le, blockType: c.block_type, context: c.context, selectionOffset: c.selection_offset ?? null });
+    setPending({ ls: c.ls, le: c.le, block_type: c.block_type, context: c.context, selection_offset: c.selection_offset ?? null });
     setEditingId(c.id);
     setEditingDisplayCtx(ctxDisplay(c));
     setEditingInitialText(c.text);
@@ -143,7 +142,7 @@ export function App() {
   }
 
   function handleSelectionComment(ls: number, le: number, ctx: string, selectionOffset: number | null) {
-    setPending({ ls, le, blockType: 'selection', context: ctx, selectionOffset });
+    setPending({ ls, le, block_type: 'selection', context: ctx, selection_offset: selectionOffset });
     setEditingId(null);
     setEditingDisplayCtx(ctx);
     setEditingInitialText('');

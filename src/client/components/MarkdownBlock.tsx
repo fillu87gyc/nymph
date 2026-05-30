@@ -1,5 +1,5 @@
 import { diffChars } from 'diff';
-import { memo, type ReactNode, useState } from 'react';
+import { memo, type ReactNode, useCallback, useState } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { DiffLine } from '../types.ts';
@@ -49,10 +49,12 @@ type AddCommentCb = (
 interface MarkdownBlockProps {
   block: BlockData;
   hasComment: boolean;
+  highlighted: boolean;
   diffGroups: DiffGroup[];
   diffMode: boolean;
   onAddComment: AddCommentCb;
   onOpenDrawio: (code: string) => void;
+  onRef: (key: string, el: HTMLElement | null) => void;
 }
 
 // Inner content is memoized so React doesn't clobber mermaid SVG or hljs
@@ -89,19 +91,37 @@ const StableContent = memo(
 export function MarkdownBlock({
   block,
   hasComment,
+  highlighted,
   diffGroups,
   diffMode,
   onAddComment,
   onOpenDrawio,
+  onRef,
 }: MarkdownBlockProps) {
   const [hovered, setHovered] = useState(false);
+
+  const refCallback = useCallback(
+    (el: HTMLElement | null) => onRef(block.key, el),
+    [block.key, onRef],
+  );
 
   const showButton = hovered || hasComment;
   const isDiffChanged = diffMode && diffGroups.length > 0;
 
+  const className = [
+    'md-block',
+    hasComment && 'has-comment',
+    isDiffChanged && 'diff-changed',
+    highlighted && 'highlighted',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div
-      className={`md-block${hasComment ? ' has-comment' : ''}${isDiffChanged ? ' diff-changed' : ''}`}
+      ref={refCallback}
+      className={className}
+      data-block="true"
       data-ls={block.ls}
       data-le={block.le}
       data-block-type={block.type}

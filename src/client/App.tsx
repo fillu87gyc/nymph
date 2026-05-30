@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
@@ -12,6 +13,7 @@ import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useSSE } from './hooks/useSSE.ts';
 import { ctxDisplay } from './lib/comments.ts';
+import { highlightSelectionText } from './lib/markdown.ts';
 import type { Comment, PendingComment } from './types.ts';
 
 const HLJS_DARK =
@@ -26,6 +28,15 @@ export function App() {
   const [toastState, setToastState] = useState({ msg: '', v: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [welcomeMsg, setWelcomeMsg] = useState('ファイルを読み込んでいます…');
+  const [hljsTheme, setHljsTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('nymph-theme');
+    const theme = saved === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = theme;
+    return theme;
+  });
+  const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
+    null,
+  );
 
   // Modal state
   const [commentModalOpen, setCommentModalOpen] = useState(false);
@@ -38,6 +49,7 @@ export function App() {
   const [drawioCode, setDrawioCode] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
   const {
     comments,
     nextId,
@@ -106,36 +118,53 @@ export function App() {
     }
   });
 
-  // Theme
-  function applyHljsTheme(dark: boolean) {
-    let el = document.getElementById('hljs-theme') as HTMLLinkElement | null;
-    if (!el) {
-      el = document.createElement('link');
-      el.id = 'hljs-theme';
-      el.rel = 'stylesheet';
-      document.head.appendChild(el);
-    }
-    el.href = dark ? HLJS_DARK : HLJS_LIGHT;
-  }
-
-  useEffect(() => {
-    const saved = localStorage.getItem('nymph-theme');
-    if (saved) {
-      document.documentElement.dataset.theme = saved;
-      applyHljsTheme(saved !== 'light');
-    } else {
-      applyHljsTheme(true);
-    }
-  }, [applyHljsTheme]);
-
   function handleToggleTheme() {
-    const isLight = document.documentElement.dataset.theme === 'light';
-    document.documentElement.dataset.theme = isLight ? 'dark' : 'light';
-    applyHljsTheme(isLight);
-    localStorage.setItem('nymph-theme', document.documentElement.dataset.theme);
-    // Re-trigger source to re-render mermaid
+    const next = hljsTheme === 'light' ? 'dark' : 'light';
+    setHljsTheme(next);
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem('nymph-theme', next);
     setSource((s) => `${s}`);
   }
+
+  const flashBlockHighlight = useCallback((ls: number) => {
+    setHighlightedBlockLs(ls);
+    setTimeout(
+      () => setHighlightedBlockLs((prev) => (prev === ls ? null : prev)),
+      1400,
+    );
+  }, []);
+
+  const scrollToComment = useCallback(
+    (c: Comment) => {
+      const map = blockRefsMapRef.current;
+      let targetEl: HTMLElement | null = null;
+      const blocksInRange: HTMLElement[] = [];
+
+      for (const el of map.values()) {
+        const bls = +(el.dataset.ls ?? 0);
+        const ble = +(el.dataset.le ?? 0);
+        if (bls === c.ls) targetEl = el;
+        if (bls <= c.le && ble >= c.ls) blocksInRange.push(el);
+      }
+
+      if (!targetEl) return;
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      if (c.block_type === 'selection' && typeof c.context === 'string') {
+        highlightSelectionText(
+          blocksInRange,
+          c.ls,
+          c.le,
+          c.context,
+          c.selection_offset ?? null,
+          flashBlockHighlight,
+        );
+      } else {
+        flashBlockHighlight(c.ls);
+      }
+    },
+    [flashBlockHighlight],
+  );
 
   // Comment modal
   function openCommentModal(
@@ -230,16 +259,7 @@ export function App() {
     navigator.clipboard
       .writeText(out)
       .then(() => toast('レビューをコピーしました'))
-      .catch(() => {
-        const ta = Object.assign(document.createElement('textarea'), {
-          value: out,
-        });
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        toast('レビューをコピーしました');
-      });
+      .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
   // Clear all
@@ -314,6 +334,13 @@ export function App() {
         void handleDrop(e);
       }}
     >
+      {createPortal(
+        <link
+          rel="stylesheet"
+          href={hljsTheme === 'dark' ? HLJS_DARK : HLJS_LIGHT}
+        />,
+        document.head,
+      )}
       <div id="drop-overlay" className={isDragging ? 'active' : ''}>
         📂 .md ファイルをドロップ
       </div>
@@ -338,19 +365,22 @@ export function App() {
           comments={comments}
           diffMode={diffMode}
           diffData={diffData}
+          isDarkTheme={hljsTheme === 'dark'}
+          highlightedBlockLs={highlightedBlockLs}
           onAddComment={openCommentModal}
           onOpenDrawio={(code) => {
             setDrawioCode(code);
             setDrawioOpen(true);
           }}
           contentRef={contentRef}
+          blockRefsMapRef={blockRefsMapRef}
           welcomeMsg={welcomeMsg}
         />
       </div>
       <CommentsPanel
         open={panelOpen}
         comments={comments}
-        contentRef={contentRef}
+        onScrollToComment={scrollToComment}
         onEdit={openEditModal}
         onDelete={deleteComment}
         onClose={() => setPanelOpen(false)}
@@ -382,7 +412,10 @@ export function App() {
         }}
         onToast={toast}
       />
-      <SelectionPopup contentId="content" onComment={handleSelectionComment} />
+      <SelectionPopup
+        contentRef={contentRef}
+        onComment={handleSelectionComment}
+      />
       <Toast message={toastState.msg} version={toastState.v} />
     </div>
   );

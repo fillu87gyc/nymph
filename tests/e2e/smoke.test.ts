@@ -72,7 +72,7 @@ test.describe('SSE: ファイル変更で再描画', () => {
   test.afterEach(() => {
     writeFileSync(
       FIXTURE,
-      '# Sample\n\nThis is a test file for nymph E2E tests.\n\n## Section\n\nSome content here.\n\n```ts\nconst x = 1;\n```\n',
+      '# Sample\n\nThis is a test file for nymph E2E tests.\n\n## Section\n\nSome content here.\n\n```ts\nconst x = 1;\n```\n\n## Diagram\n\n```mermaid\ngraph TD; A-->B\n```\n',
     );
   });
 

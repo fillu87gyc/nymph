@@ -113,7 +113,7 @@ test.describe('全コメント削除', () => {
 });
 
 test.describe('コメントクリックでコンテンツハイライト', () => {
-  test('コメントをクリックすると対応ブロックにアウトラインが付く', async ({
+  test('コメントをクリックすると対応ブロックに highlighted クラスが付く', async ({
     page,
   }) => {
     await addComment(page, 'highlight test');
@@ -123,12 +123,26 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
 
     await page.locator('.comment-item').first().click();
 
-    await expect(async () => {
-      const outline = await page
-        .locator(`#content .md-block[data-ls="${ls}"]`)
-        .evaluate((el) => (el as HTMLElement).style.outline);
-      expect(outline).not.toBe('');
-    }).toPass({ timeout: 1000 });
+    await expect(
+      page.locator(`#content .md-block[data-ls="${ls}"]`),
+    ).toHaveClass(/highlighted/, { timeout: 1000 });
+  });
+
+  test('highlighted クラスはしばらく後に消える', async ({ page }) => {
+    await addComment(page, 'transient highlight');
+
+    const firstBlock = page.locator('#content .md-block').first();
+    const ls = await firstBlock.getAttribute('data-ls');
+
+    await page.locator('.comment-item').first().click();
+    await expect(
+      page.locator(`#content .md-block[data-ls="${ls}"]`),
+    ).toHaveClass(/highlighted/, { timeout: 1000 });
+
+    // 1.4s アニメーション後に消える
+    await expect(
+      page.locator(`#content .md-block[data-ls="${ls}"]`),
+    ).not.toHaveClass(/highlighted/, { timeout: 2500 });
   });
 
   test('コメントクリック後に対応ブロックがビューポートに入る', async ({

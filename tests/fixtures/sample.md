@@ -9,3 +9,9 @@ Some content here.
 ```ts
 const x = 1;
 ```
+
+## Diagram
+
+```mermaid
+graph TD; A-->B
+```

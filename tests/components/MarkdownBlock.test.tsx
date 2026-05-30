@@ -25,10 +25,12 @@ function makeProps(
   return {
     block: makeBlock(),
     hasComment: false,
+    highlighted: false,
     diffGroups: [],
     diffMode: false,
     onAddComment: vi.fn(),
     onOpenDrawio: vi.fn(),
+    onRef: vi.fn(),
     ...overrides,
   };
 }

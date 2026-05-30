@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
 import { ctxDisplay } from '../lib/comments.ts';
-import { scrollToLine } from '../lib/markdown.ts';
 import type { Comment } from '../types.ts';
 
 const PANEL_DEFAULT_H = 210;
@@ -9,7 +8,7 @@ const PANEL_MIN_H = 80;
 interface CommentsPanelProps {
   open: boolean;
   comments: Comment[];
-  contentRef: React.RefObject<HTMLDivElement | null>;
+  onScrollToComment: (c: Comment) => void;
   onEdit: (c: Comment) => void;
   onDelete: (id: number) => void;
   onClose: () => void;
@@ -18,7 +17,7 @@ interface CommentsPanelProps {
 export function CommentsPanel({
   open,
   comments,
-  contentRef,
+  onScrollToComment,
   onEdit,
   onDelete,
   onClose,
@@ -54,7 +53,7 @@ export function CommentsPanel({
   }, []);
 
   function handleItemClick(c: Comment) {
-    if (contentRef.current) scrollToLine(contentRef.current, c);
+    onScrollToComment(c);
   }
 
   const savedH =

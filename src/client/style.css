@@ -829,6 +829,28 @@ mark.text-highlight {
   }
 }
 
+/* ── Block highlight (scroll-to-comment) ── */
+.md-block.highlighted {
+  animation: block-highlight-fade 1.4s ease forwards;
+}
+@keyframes block-highlight-fade {
+  0%,
+  60% {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 4px;
+  }
+}
+
+/* ── CSS Custom Highlight API — text selection highlight ── */
+::highlight(text-highlight) {
+  background-color: rgba(194, 112, 48, 0.45);
+  color: inherit;
+}
+
 /* ── Checkpoint / Diff ── */
 .md-block.diff-changed::before {
   background: rgba(76, 175, 80, 0.55);

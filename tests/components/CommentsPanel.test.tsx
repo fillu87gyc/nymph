@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useRef } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { CommentsPanel } from '../../src/client/components/CommentsPanel.tsx';
 import type { Comment } from '../../src/client/types.ts';
@@ -26,12 +25,11 @@ function Wrapper({
   onEdit?: (c: Comment) => void;
   onDelete?: (id: number) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
   return (
     <CommentsPanel
       open={true}
       comments={comments}
-      contentRef={ref}
+      onScrollToComment={vi.fn()}
       onEdit={onEdit ?? vi.fn()}
       onDelete={onDelete ?? vi.fn()}
       onClose={vi.fn()}

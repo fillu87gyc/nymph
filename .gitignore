@@ -8,3 +8,5 @@ build/
 *.nymph-lock
 node_modules/
 bun.lockb
+coverage/
+test-results/

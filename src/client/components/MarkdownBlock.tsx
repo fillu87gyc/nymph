@@ -15,23 +15,25 @@ function renderCharDiff(
   side: 'del' | 'ins',
 ): ReactNode {
   const parts = diffChars(oldText, newText);
-  return parts.map((part, i) => {
+  let offset = 0;
+  return parts.map((part) => {
+    const key = offset;
+    offset += part.value.length;
     if (part.removed) {
       return side === 'del' ? (
-        <mark key={i} className="diff-char-del">
+        <mark key={key} className="diff-char-del">
           {part.value}
         </mark>
       ) : null;
     }
     if (part.added) {
       return side === 'ins' ? (
-        <mark key={i} className="diff-char-ins">
+        <mark key={key} className="diff-char-ins">
           {part.value}
         </mark>
       ) : null;
     }
-    // biome-ignore lint/suspicious/noArrayIndexKey: stable within a single diffChars result
-    return <span key={i}>{part.value}</span>;
+    return <span key={key}>{part.value}</span>;
   });
 }
 

@@ -915,6 +915,16 @@ mark.text-highlight {
   color: #a5d6a7;
   background: rgba(165, 214, 167, 0.08);
 }
+.diff-char-del {
+  background: rgba(239, 154, 154, 0.45);
+  border-radius: 2px;
+  font-style: normal;
+}
+.diff-char-ins {
+  background: rgba(165, 214, 167, 0.45);
+  border-radius: 2px;
+  font-style: normal;
+}
 
 /* ── Drop overlay ── */
 #drop-overlay {

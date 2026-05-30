@@ -18,9 +18,6 @@
 
   <header id="toolbar">
     <span class="brand">nymph</span>
-    <div class="watch-badge">
-      <span class="watch-dot" id="watch-dot"></span>
-    </div>
     <span class="update-time" id="update-time"></span>
     <span class="sep"></span>
     <div id="file-tabs"></div>
@@ -781,17 +778,33 @@ async function loadFiles() {
   } catch(e) {}
 }
 
+function makeDot() {
+  const dot = document.createElement('span');
+  dot.className = 'watch-dot';
+  dot.id = 'watch-dot';
+  return dot;
+}
+
 function renderTabs() {
   const container = document.getElementById('file-tabs');
+  container.innerHTML = '';
   if (state.files.length < 2) {
-    container.innerHTML = '';
+    const name = state.activeFile ? state.activeFile.split('/').pop() : null;
+    if (name) {
+      const label = document.createElement('span');
+      label.className = 'tab active';
+      label.appendChild(makeDot());
+      label.appendChild(document.createTextNode(name));
+      container.appendChild(label);
+    }
     return;
   }
-  container.innerHTML = '';
   state.files.forEach(f => {
     const btn = document.createElement('button');
-    btn.className = 'tab' + (f.path === state.activeFile ? ' active' : '');
-    btn.textContent = f.name;
+    const isActive = f.path === state.activeFile;
+    btn.className = 'tab' + (isActive ? ' active' : '');
+    if (isActive) btn.appendChild(makeDot());
+    btn.appendChild(document.createTextNode(f.name));
     btn.addEventListener('click', async () => {
       if (f.path === state.activeFile) return;
       await fetch('/active-file', {
@@ -890,10 +903,10 @@ function applyDiffHighlight() {
 
 // ── SSE hot reload ────────────────────────────────────────────────────────────
 function connectSSE() {
-  const dot = document.getElementById('watch-dot');
+  const getDot = () => document.getElementById('watch-dot');
   const sse = new EventSource('/watch');
-  sse.onopen    = () => dot.classList.remove('error');
-  sse.onerror   = () => dot.classList.add('error');
+  sse.onopen    = () => getDot()?.classList.remove('error');
+  sse.onerror   = () => getDot()?.classList.add('error');
   sse.onmessage = async (e) => {
     if (e.data === 'reload') {
       await loadComments();

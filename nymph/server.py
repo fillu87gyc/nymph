@@ -1,4 +1,5 @@
 import difflib
+import glob as _glob
 import json
 import os
 import socket
@@ -7,7 +8,7 @@ import threading
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -20,6 +21,8 @@ def _read(name: str) -> bytes:
 class Handler(BaseHTTPRequestHandler):
     file_path = None
     comments_path = None
+    file_paths: list = []
+    active_file: str = None
     _cached_content = None
     _content_lock = threading.Lock()
     checkpoint_content: str | None = None
@@ -47,6 +50,8 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_comments()
         elif path == "/diff":
             self._serve_diff()
+        elif path == "/files":
+            self._serve_files()
         else:
             self._send(404, "text/plain", b"Not found")
 
@@ -60,6 +65,8 @@ class Handler(BaseHTTPRequestHandler):
             self._set_checkpoint()
         elif path == "/switch-file":
             self._switch_file()
+        elif path == "/active-file":
+            self._set_active_file()
         else:
             self._send(404, "text/plain", b"Not found")
 
@@ -71,17 +78,24 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_content(self):
+        qs = parse_qs(urlparse(self.path).query)
+        file_param = qs.get("file", [None])[0]
+        allowed = set(Handler.file_paths or ([Handler.file_path] if Handler.file_path else []))
+        if file_param and file_param not in allowed:
+            self._send(403, "text/plain", b"Forbidden")
+            return
+        target = file_param if file_param else (Handler.active_file or Handler.file_path)
         try:
-            if Handler.file_path is not None:
-                with open(Handler.file_path, "r", encoding="utf-8") as f:
+            if target is not None:
+                with open(target, "r", encoding="utf-8") as f:
                     text = f.read()
                 with Handler._content_lock:
                     Handler._cached_content = text
                 data = json.dumps(
                     {
                         "content": text,
-                        "filename": os.path.basename(Handler.file_path),
-                        "mtime": os.path.getmtime(Handler.file_path),
+                        "filename": os.path.basename(target),
+                        "mtime": os.path.getmtime(target),
                     }
                 ).encode()
             elif Handler._dropped_content is not None:
@@ -104,34 +118,69 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
         self.end_headers()
-        if Handler.file_path is None:
+        if not Handler.file_paths and Handler.file_path is None:
             return
-        last = None
+        paths = Handler.file_paths if Handler.file_paths else [Handler.file_path]
+        mtimes = {p: None for p in paths}
         try:
             while True:
-                try:
-                    mtime = os.path.getmtime(Handler.file_path)
-                    if last is not None and mtime != last:
-                        self.wfile.write(b"data: reload\n\n")
-                        self.wfile.flush()
-                    last = mtime
-                except FileNotFoundError:
-                    pass
+                for p in list(mtimes.keys()):
+                    try:
+                        mtime = os.path.getmtime(p)
+                        if mtimes[p] is not None and mtime != mtimes[p]:
+                            msg = json.dumps({"file": p})
+                            self.wfile.write(f"data: {msg}\n\n".encode())
+                            self.wfile.flush()
+                        mtimes[p] = mtime
+                    except FileNotFoundError:
+                        pass
                 time.sleep(0.5)
         except (BrokenPipeError, ConnectionResetError):
             pass
 
     def _serve_comments(self):
+        qs = parse_qs(urlparse(self.path).query)
+        file_param = qs.get("file", [None])[0]
+        allowed = set(Handler.file_paths or ([Handler.file_path] if Handler.file_path else []))
+        if file_param and file_param not in allowed:
+            self._send(403, "text/plain", b"Forbidden")
+            return
+        if file_param:
+            cp = file_param + ".comments.json"
+        else:
+            cp = Handler.comments_path
         try:
-            if Handler.comments_path is None:
+            if cp is None:
                 self._send(200, "application/json", b"[]")
                 return
-            if os.path.exists(Handler.comments_path):
-                with open(Handler.comments_path, "r", encoding="utf-8") as f:
+            if os.path.exists(cp):
+                with open(cp, "r", encoding="utf-8") as f:
                     data = f.read().encode()
             else:
                 data = b"[]"
             self._send(200, "application/json", data)
+        except Exception as e:
+            self._send(500, "text/plain", str(e).encode())
+
+    def _serve_files(self):
+        paths = Handler.file_paths if Handler.file_paths else [Handler.file_path]
+        data = json.dumps([{"path": p, "name": os.path.basename(p)} for p in paths]).encode()
+        self._send(200, "application/json", data)
+
+    def _set_active_file(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            payload = json.loads(body)
+            new_path = payload.get("path")
+            allowed = set(Handler.file_paths or ([Handler.file_path] if Handler.file_path else []))
+            if not new_path or new_path not in allowed:
+                self._send(400, "application/json", b'{"error":"invalid path"}')
+                return
+            Handler.active_file = new_path
+            Handler.file_path = new_path
+            Handler.comments_path = new_path + ".comments.json"
+            self._send(200, "application/json", b"{}")
         except Exception as e:
             self._send(500, "text/plain", str(e).encode())
 
@@ -283,17 +332,31 @@ def find_port(start=6276):
 
 
 def main():
-    if len(sys.argv) >= 2:
-        fpath = os.path.abspath(sys.argv[1])
-        if not os.path.exists(fpath):
-            print(f"エラー: {fpath} が見つかりません")
-            sys.exit(1)
-        Handler.file_path = fpath
-        Handler.comments_path = fpath + ".comments.json"
-    else:
+    args = sys.argv[1:]
+    if not args:
         Handler.file_path = None
         Handler.comments_path = None
         fpath = None
+    else:
+        paths = []
+        for a in args:
+            if os.path.isdir(a):
+                paths.extend(sorted(_glob.glob(os.path.join(os.path.abspath(a), "*.md"))))
+            else:
+                expanded = sorted(_glob.glob(a))
+                paths.extend(
+                    [os.path.abspath(p) for p in expanded] if expanded else [os.path.abspath(a)]
+                )
+        paths = [p for p in paths if os.path.exists(p)]
+        if not paths:
+            print("エラー: Markdownファイルが見つかりません")
+            sys.exit(1)
+
+        Handler.file_paths = paths
+        Handler.active_file = paths[0]
+        Handler.file_path = paths[0]
+        Handler.comments_path = paths[0] + ".comments.json"
+        fpath = paths[0]
 
     port = find_port()
     server = ThreadingHTTPServer(("localhost", port), Handler)
@@ -305,7 +368,9 @@ def main():
 
     url = f"http://localhost:{port}"
     print(f"nymph   {url}")
-    if fpath:
+    if Handler.file_paths:
+        print(f"監視中  {', '.join(Handler.file_paths)}")
+    elif fpath:
         print(f"監視中  {fpath}")
     else:
         print("ファイルをブラウザにドロップして開始")

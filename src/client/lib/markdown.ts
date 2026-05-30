@@ -1,4 +1,4 @@
-import { marked, Renderer } from 'marked';
+import { marked, Renderer, type Token } from 'marked';
 import type { Comment, DiffLine } from '../types.ts';
 
 export const BLOCK_TYPES = new Set([
@@ -25,7 +25,7 @@ function lineCount(raw: string): number {
   return raw.replace(/\n+$/, '').split('\n').length;
 }
 
-export function assignLines(src: string, tokens: marked.Token[]) {
+export function assignLines(src: string, tokens: Token[]) {
   let from = 0;
   for (const t of tokens) {
     if (!t.raw) continue;

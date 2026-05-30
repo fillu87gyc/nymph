@@ -40,11 +40,15 @@ def server_no_file():
     saved_cp = Handler.comments_path
     saved_dc = Handler._dropped_content
     saved_dn = Handler._dropped_name
+    saved_fps = Handler.file_paths[:]
+    saved_af = Handler.active_file
 
     Handler.file_path = None
     Handler.comments_path = None
     Handler._dropped_content = None
     Handler._dropped_name = None
+    Handler.file_paths = []
+    Handler.active_file = None
 
     port = find_port()
     httpd = ThreadingHTTPServer(("localhost", port), Handler)
@@ -60,3 +64,5 @@ def server_no_file():
     Handler.comments_path = saved_cp
     Handler._dropped_content = saved_dc
     Handler._dropped_name = saved_dn
+    Handler.file_paths = saved_fps
+    Handler.active_file = saved_af

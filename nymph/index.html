@@ -18,12 +18,9 @@
 
   <header id="toolbar">
     <span class="brand">nymph</span>
-    <div class="watch-badge">
-      <span class="watch-dot" id="watch-dot"></span>
-      <span id="watch-name">—</span>
-    </div>
     <span class="update-time" id="update-time"></span>
     <span class="sep"></span>
+    <div id="file-tabs"></div>
     <span class="spacer"></span>
     <button class="btn" id="btn-comments" title="コメントパネル">
       コメント <span id="comment-count"></span>
@@ -131,6 +128,8 @@ const state = {
   mermaidPending: null,
   diffMode: false,
   diffData: null,
+  files: [],
+  activeFile: null,
 };
 
 // ── Mermaid init ──────────────────────────────────────────────────────────────
@@ -712,7 +711,7 @@ function copyReview() {
   if (!state.comments.length) { toast('コメントがありません'); return; }
   const payload = {
     date: new Date().toLocaleDateString('ja-JP'),
-    file: document.getElementById('watch-name').textContent,
+    file: state.activeFile ? state.activeFile.split('/').pop() : '—',
     comment_count: state.comments.length,
     comments: state.comments.map((c, i) => ({
       id: i + 1,
@@ -754,10 +753,10 @@ function clearAllComments() {
 }
 
 // ── Server API ────────────────────────────────────────────────────────────────
-async function loadContent() {
-  const res = await fetch('/content');
+async function loadContent(filePath) {
+  const url = filePath ? `/content?file=${encodeURIComponent(filePath)}` : '/content';
+  const res = await fetch(url);
   const { content, filename } = await res.json();
-  document.getElementById('watch-name').textContent = filename ?? '—';
   if (filename === null) {
     document.getElementById('welcome-msg').textContent = '.md ファイルをここにドロップ';
   }
@@ -766,6 +765,60 @@ async function loadContent() {
   await renderSource(content);
   const now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   document.getElementById('update-time').textContent = `更新: ${now}`;
+}
+
+async function loadFiles() {
+  try {
+    const res = await fetch('/files');
+    state.files = await res.json();
+    if (state.files.length > 0 && !state.activeFile) {
+      state.activeFile = state.files[0].path;
+    }
+    renderTabs();
+  } catch(e) {}
+}
+
+function makeDot() {
+  const dot = document.createElement('span');
+  dot.className = 'watch-dot';
+  dot.id = 'watch-dot';
+  return dot;
+}
+
+function renderTabs() {
+  const container = document.getElementById('file-tabs');
+  container.innerHTML = '';
+  if (state.files.length < 2) {
+    const name = state.activeFile ? state.activeFile.split('/').pop() : null;
+    if (name) {
+      const label = document.createElement('span');
+      label.className = 'tab active';
+      label.appendChild(makeDot());
+      label.appendChild(document.createTextNode(name));
+      container.appendChild(label);
+    }
+    return;
+  }
+  state.files.forEach(f => {
+    const btn = document.createElement('button');
+    const isActive = f.path === state.activeFile;
+    btn.className = 'tab' + (isActive ? ' active' : '');
+    if (isActive) btn.appendChild(makeDot());
+    btn.appendChild(document.createTextNode(f.name));
+    btn.addEventListener('click', async () => {
+      if (f.path === state.activeFile) return;
+      await fetch('/active-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: f.path }),
+      });
+      state.activeFile = f.path;
+      renderTabs();
+      await loadContent(f.path);
+      await loadComments();
+    });
+    container.appendChild(btn);
+  });
 }
 
 async function loadComments() {
@@ -850,16 +903,28 @@ function applyDiffHighlight() {
 
 // ── SSE hot reload ────────────────────────────────────────────────────────────
 function connectSSE() {
-  const dot = document.getElementById('watch-dot');
+  const getDot = () => document.getElementById('watch-dot');
   const sse = new EventSource('/watch');
-  sse.onopen    = () => dot.classList.remove('error');
-  sse.onerror   = () => dot.classList.add('error');
+  sse.onopen    = () => getDot()?.classList.remove('error');
+  sse.onerror   = () => getDot()?.classList.add('error');
   sse.onmessage = async (e) => {
     if (e.data === 'reload') {
       await loadComments();
       await loadContent();
       toast('ファイルが更新されました');
+      return;
     }
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.file) {
+        const activeName = state.activeFile ? state.activeFile.split('/').pop() : null;
+        if (activeName && msg.file === activeName) {
+          await loadComments();
+          await loadContent(state.activeFile || undefined);
+          toast('ファイルが更新されました');
+        }
+      }
+    } catch(_) {}
   };
 }
 
@@ -1001,6 +1066,7 @@ if (savedTheme) {
 (async () => {
   await loadContent();
   await loadComments();
+  await loadFiles();
   connectSSE();
 })();
 </script>

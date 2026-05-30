@@ -2,6 +2,7 @@ import json
 import os
 import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import pytest
@@ -131,12 +132,10 @@ class TestCheckpoint:
 
     def test_diff_with_change(self, server):
         base, md_path, _ = server
-        # Set checkpoint with original content
         Handler.checkpoint_content = None
         _post_empty(base + "/checkpoint")
         original_checkpoint = Handler.checkpoint_content
 
-        # Modify the file
         new_content = original_checkpoint + "\nNew line added.\n"
         md_path.write_text(new_content, encoding="utf-8")
 
@@ -147,7 +146,6 @@ class TestCheckpoint:
         types = {item["type"] for item in data["lines"]}
         assert "insert" in types
 
-        # Restore original
         md_path.write_text(original_checkpoint, encoding="utf-8")
         Handler.checkpoint_content = None
 
@@ -171,6 +169,45 @@ class TestCheckpoint:
 
         md_path.write_text(original_checkpoint, encoding="utf-8")
         Handler.checkpoint_content = None
+
+
+class TestMultiFileWatch:
+    def test_files_endpoint(self, server):
+        base, *_ = server
+        status, ct, body = _get(base + "/files")
+        assert status == 200
+        assert "application/json" in ct
+        data = json.loads(body)
+        assert isinstance(data, list)
+        assert all("path" in f and "name" in f for f in data)
+
+    def test_active_file_switch(self, server, tmp_path):
+        from nymph.server import Handler
+
+        base, md_path, _ = server
+        f2 = tmp_path / "other.md"
+        f2.write_text("# Other\n")
+        original_paths = Handler.file_paths[:]
+        Handler.file_paths = [str(md_path), str(f2)]
+        status, _ = _post_json(base + "/active-file", {"path": str(f2)})
+        assert status == 200
+        assert Handler.active_file == str(f2)
+        # restore
+        Handler.file_paths = original_paths
+        Handler.active_file = str(md_path)
+        Handler.file_path = str(md_path)
+        Handler.comments_path = str(md_path) + ".comments.json"
+
+    def test_content_query_param(self, server, tmp_path):
+        base, *_ = server
+        f2 = tmp_path / "query_test.md"
+        f2.write_text("# Query\n\nHello query.\n")
+        Handler.file_paths = [Handler.file_path, str(f2)]
+        status, ct, body = _get(base + f"/content?file={urllib.parse.quote(str(f2))}")
+        assert status == 200
+        data = json.loads(body)
+        assert data["filename"] == "query_test.md"
+        assert "# Query" in data["content"]
 
 
 class TestFindPort:

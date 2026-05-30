@@ -49,16 +49,12 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700;
   color: var(--accent); letter-spacing: .02em; user-select: none; margin-right: 4px;
 }
-.watch-badge {
-  display: flex; align-items: center; gap: 5px;
-  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);
-  background: var(--bg-surface); border: 1px solid var(--border);
-  padding: 3px 9px; border-radius: 5px;
-}
 .watch-dot {
+  display: inline-block;
   width: 6px; height: 6px; border-radius: 50%; background: #4a9a4a;
   box-shadow: 0 0 6px rgba(74,154,74,.6);
   animation: pulse 2s ease-in-out infinite;
+  margin-right: 5px; flex-shrink: 0;
 }
 .watch-dot.error { background: #c04040; box-shadow: 0 0 6px rgba(192,64,64,.6); animation: none; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
@@ -81,6 +77,28 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
 }
 #comment-count.visible { display: inline-flex; }
+
+/* ── File tabs ── */
+#file-tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  overflow-x: auto;
+  max-width: 40%;
+}
+#file-tabs .tab {
+  padding: 2px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  transition: all .15s;
+}
+#file-tabs .tab:hover { background: var(--bg-hover); color: var(--text); }
+#file-tabs .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
 /* ── Main scroll area ── */
 #main { flex: 1; overflow-y: auto; }

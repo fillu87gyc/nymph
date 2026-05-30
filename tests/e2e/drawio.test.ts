@@ -65,10 +65,10 @@ test.describe('download 用 hidden anchor の存在', () => {
     await page.locator('.btn-drawio').first().click();
     await expect(page.locator('#drawio-modal')).toBeVisible();
 
-    // useRef で管理している download 用 <a> が DOM に存在する
+    // useRef で管理している download 用 <a> が DOM に存在する（tabIndex={-1} + display:none）
     const exists = await page.evaluate(() => {
       const modal = document.querySelector('#drawio-modal');
-      const anchor = modal?.querySelector('a[aria-hidden="true"]');
+      const anchor = modal?.querySelector('a[tabindex="-1"]');
       return !!anchor;
     });
     expect(exists).toBe(true);

@@ -5,3 +5,4 @@ dist/
 build/
 .venv/
 *.comments.json
+*.nymph-lock

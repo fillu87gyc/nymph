@@ -45,13 +45,16 @@ const StableContent = memo(
         <div
           className="mermaid"
           id={mermaidId}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: mermaid code from our own parser
           dangerouslySetInnerHTML={{ __html: esc(mermaidCode ?? '') }}
         />
       );
     }
+    // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML from our own markdown renderer
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
   },
-  (prev, next) => prev.html === next.html && prev.mermaidCode === next.mermaidCode,
+  (prev, next) =>
+    prev.html === next.html && prev.mermaidCode === next.mermaidCode,
 );
 
 export function MarkdownBlock({
@@ -108,7 +111,10 @@ export function MarkdownBlock({
             <span className="mermaid-label">
               <em>Mermaid</em> Diagram
             </span>
-            <button className="btn-drawio" onClick={() => onOpenDrawio(block.mermaidCode!)}>
+            <button
+              className="btn-drawio"
+              onClick={() => onOpenDrawio(block.mermaidCode!)}
+            >
               → draw.io
             </button>
           </div>
@@ -128,6 +134,7 @@ export function MarkdownBlock({
       {diffDels.length > 0 && (
         <div className="diff-side diff-side-del">
           {diffDels.map((d, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
             <span key={i} className="diff-del">
               − {d.content || ' '}
             </span>
@@ -137,6 +144,7 @@ export function MarkdownBlock({
       {diffIns.length > 0 && (
         <div className="diff-side diff-side-ins">
           {diffIns.map((ins, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
             <span key={i} className="diff-ins">
               + {ins.content}
             </span>

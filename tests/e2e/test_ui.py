@@ -380,3 +380,61 @@ def test_block_and_selection_comments_coexist(page: Page, live_server):
                 });
             }"""
         )
+
+
+# ── comment-btn 位置バグ回帰 ──────────────────────────────────────────────────
+
+
+def test_comment_btn_near_top_of_tall_list(page: Page, live_server):
+    """多段リストの comment-btn がブロック先頭付近（上端 30% 以内）に表示される。
+
+    バグ: top: 50% により多段リストの中央（draw.io 行など）にボタンが出ていた。
+    修正: top: 0.7em（固定値）でブロック先頭付近に固定される。
+    SAMPLE_MD の番号付きリスト（5 項目、ol タグ）を対象にする。
+    ネストリストは内部に複数の md-block を持つため ol ブロックを直接指定する。
+    """
+    page.goto(live_server)
+    page.wait_for_selector(".md-block")
+
+    # 番号付きリスト（ol を直接含む md-block）を取得 — ネストなしで comment-btn が 1 つ
+    ordered_block = (
+        page.locator(".md-block[data-block-type='list']").filter(has=page.locator("ol")).first
+    )
+    block_box = ordered_block.bounding_box()
+    assert block_box is not None and block_box["height"] > 80, (
+        "番号付きリストブロックが見つからないか高さ不足です"
+    )
+
+    ordered_block.hover()
+    btn_box = ordered_block.locator("> .comment-btn").bounding_box()
+    assert btn_box is not None
+
+    btn_center_y = btn_box["y"] + btn_box["height"] / 2
+    offset_ratio = (btn_center_y - block_box["y"]) / block_box["height"]
+
+    assert offset_ratio < 0.3, (
+        f"comment-btn がブロック上端から {offset_ratio:.0%} の位置にあります"
+        f"（期待: 30% 以内）。top: 50% への誤戻りを確認してください。"
+    )
+
+
+def test_single_contiguous_list_is_one_block(page: Page, live_server):
+    """空行のない連続リストが 1 つの md-block としてレンダリングされる。
+
+    バグ: リスト間の空行（例: - aaaa\\n\\n- 次の項目）で意図せず
+    ブロックが分割され、comment-btn が重複表示されていた。
+    SAMPLE_MD の番号付きリスト（5 項目、空行なし）は 1 ブロックであること。
+    """
+    page.goto(live_server)
+    page.wait_for_selector(".md-block")
+
+    ordered_block_count = page.evaluate("""() =>
+        [...document.querySelectorAll('.md-block[data-block-type="list"]')]
+            .filter(el => el.querySelector('ol') !== null)
+            .length
+    """)
+
+    assert ordered_block_count == 1, (
+        f"番号付きリストが {ordered_block_count} ブロックに分割されました（期待: 1）。"
+        "リスト項目間の空行による意図しない分割が発生している可能性があります。"
+    )

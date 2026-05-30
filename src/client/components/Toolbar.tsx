@@ -43,7 +43,12 @@ export function Toolbar({
         </span>
       )}
       <span className="sep" />
-      <FileTabs files={files} activeFile={activeFile} onSwitch={onSwitchFile} onClose={onCloseFile} />
+      <FileTabs
+        files={files}
+        activeFile={activeFile}
+        onSwitch={onSwitchFile}
+        onClose={onCloseFile}
+      />
       <span className="spacer" />
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>
         コメント{' '}

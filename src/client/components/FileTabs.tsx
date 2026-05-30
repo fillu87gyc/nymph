@@ -7,7 +7,12 @@ interface FileTabsProps {
   onClose: (path: string) => void;
 }
 
-export function FileTabs({ files, activeFile, onSwitch, onClose }: FileTabsProps) {
+export function FileTabs({
+  files,
+  activeFile,
+  onSwitch,
+  onClose,
+}: FileTabsProps) {
   if (files.length === 0) return null;
 
   return (
@@ -25,15 +30,25 @@ export function FileTabs({ files, activeFile, onSwitch, onClose }: FileTabsProps
             {f.path !== '__dropped__' && (
               <span
                 className="tab-close"
-                role="button"
-                aria-label={`${f.name}を閉じる`}
+                aria-hidden="true"
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose(f.path);
                 }}
               >
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                  <path d="M1 1l6 6M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <svg
+                  width="8"
+                  height="8"
+                  viewBox="0 0 8 8"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M1 1l6 6M7 1L1 7"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </span>
             )}

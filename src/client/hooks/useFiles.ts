@@ -8,7 +8,8 @@ export function useFiles() {
   const loadFiles = useCallback(async () => {
     try {
       const res = await fetch('/files');
-      const data: { files: FileEntry[]; activeFile: string | null } = await res.json();
+      const data: { files: FileEntry[]; activeFile: string | null } =
+        await res.json();
       setFiles(data.files);
       if (data.files.length > 0) {
         setActiveFile(data.activeFile ?? data.files[0].path);

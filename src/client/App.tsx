@@ -100,6 +100,7 @@ export function App() {
     if (changedFile === activeFile) {
       loadContent(activeFile)
         .then(() => loadComments())
+        .then(() => (diffMode ? loadDiff() : Promise.resolve()))
         .then(() => toast('ファイルが更新されました'));
     }
   });

@@ -1,4 +1,5 @@
-import { memo, useState } from 'react';
+import { memo, useState, type ReactNode } from 'react';
+import { diffChars } from 'diff';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { DiffLine } from '../types.ts';
@@ -6,6 +7,32 @@ import type { DiffLine } from '../types.ts';
 export interface DiffGroup {
   inserts: DiffLine[];
   deletes: DiffLine[];
+}
+
+function renderCharDiff(
+  oldText: string,
+  newText: string,
+  side: 'del' | 'ins',
+): ReactNode {
+  const parts = diffChars(oldText, newText);
+  return parts.map((part, i) => {
+    if (part.removed) {
+      return side === 'del' ? (
+        <mark key={i} className="diff-char-del">
+          {part.value}
+        </mark>
+      ) : null;
+    }
+    if (part.added) {
+      return side === 'ins' ? (
+        <mark key={i} className="diff-char-ins">
+          {part.value}
+        </mark>
+      ) : null;
+    }
+    // biome-ignore lint/suspicious/noArrayIndexKey: stable within a single diffChars result
+    return <span key={i}>{part.value}</span>;
+  });
 }
 
 type AddCommentCb = (
@@ -70,10 +97,6 @@ export function MarkdownBlock({
   const showButton = hovered || hasComment;
   const isDiffChanged = diffMode && diffGroups.length > 0;
 
-  const diffDels = isDiffChanged ? diffGroups.flatMap((g) => g.deletes) : [];
-  const diffIns = isDiffChanged
-    ? diffGroups.flatMap((g) => g.inserts).filter((l) => l.content.trim())
-    : [];
 
   return (
     <div
@@ -131,26 +154,48 @@ export function MarkdownBlock({
         <StableContent html={block.html} type={block.type} />
       )}
 
-      {diffDels.length > 0 && (
-        <div className="diff-side diff-side-del">
-          {diffDels.map((d, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-            <span key={i} className="diff-del">
-              − {d.content || ' '}
-            </span>
-          ))}
-        </div>
-      )}
-      {diffIns.length > 0 && (
-        <div className="diff-side diff-side-ins">
-          {diffIns.map((ins, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-            <span key={i} className="diff-ins">
-              + {ins.content}
-            </span>
-          ))}
-        </div>
-      )}
+      {isDiffChanged &&
+        diffGroups.map((group, gi) => {
+          const hasBoth = group.deletes.length > 0 && group.inserts.length > 0;
+          const validIns = group.inserts.filter((l) => l.content.trim());
+          return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: diff groups have no stable id
+            <div key={gi}>
+              {group.deletes.length > 0 && (
+                <div className="diff-side diff-side-del">
+                  {group.deletes.map((d, i) => {
+                    const paired = hasBoth ? group.inserts[i] : undefined;
+                    return (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
+                      <span key={i} className="diff-del">
+                        −{' '}
+                        {paired
+                          ? renderCharDiff(d.content, paired.content, 'del')
+                          : d.content || ' '}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              {validIns.length > 0 && (
+                <div className="diff-side diff-side-ins">
+                  {validIns.map((ins, i) => {
+                    const paired = hasBoth ? group.deletes[i] : undefined;
+                    return (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
+                      <span key={i} className="diff-ins">
+                        +{' '}
+                        {paired
+                          ? renderCharDiff(paired.content, ins.content, 'ins')
+                          : ins.content}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
     </div>
   );
 }

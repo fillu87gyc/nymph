@@ -7,7 +7,7 @@
     "nymph": "src/cli.ts"
   },
   "scripts": {
-    "dev": "NYMPH_NO_OPEN=1 concurrently -k -n server,vite -c cyan,magenta \"bun --watch src/cli.ts\" \"vite --open\"",
+    "dev": "NYMPH_NO_OPEN=1 concurrently -k -n server,vite -c cyan,magenta \"bun --watch src/cli.ts $NYMPH_FILES\" \"vite --open\"",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

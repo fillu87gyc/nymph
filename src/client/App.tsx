@@ -46,7 +46,7 @@ export function App() {
     deleteComment,
     clearAll,
   } = useComments();
-  const { files, activeFile, setActiveFile, loadFiles, switchFile } =
+  const { files, activeFile, setActiveFile, loadFiles, switchFile, closeFile } =
     useFiles();
   const {
     diffMode,
@@ -268,6 +268,13 @@ export function App() {
     await loadComments();
   }
 
+  // Close file
+  async function handleCloseFile(path: string) {
+    const next = await closeFile(path);
+    await loadContent(next ?? undefined);
+    await loadComments();
+  }
+
   // Drag & drop
   useEffect(() => {
     const overlay = document.getElementById('drop-overlay');
@@ -301,6 +308,7 @@ export function App() {
         });
         await loadContent();
         await loadComments();
+        await loadFiles();
       } catch (err: any) {
         toast(err.message || 'ファイルの読み込みに失敗しました');
       }
@@ -332,6 +340,7 @@ export function App() {
         onToggleDiff={toggleDiff}
         onToggleTheme={handleToggleTheme}
         onSwitchFile={handleSwitchFile}
+        onCloseFile={handleCloseFile}
       />
       <div id="main">
         <ContentArea

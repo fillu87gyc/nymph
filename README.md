@@ -56,10 +56,28 @@ nymph output.md
 # Ctrl+C で停止
 ```
 
-複数ファイルも指定できます：
+複数ファイルや glob も指定できます：
 
 ```bash
 nymph *.md
+```
+
+### オプション
+
+```
+使い方: nymph [オプション] [ファイル ...]
+
+オプション:
+  -p, --port <番号>    使用するポート番号 (デフォルト: 6276)
+  --no-open            ブラウザを自動的に開かない
+  -v, --version        バージョンを表示して終了
+  -h, --help           このヘルプを表示して終了
+```
+
+```bash
+nymph -p 8080 output.md        # ポートを指定
+nymph --no-open output.md      # ブラウザを開かずに起動
+nymph --version                # バージョン確認
 ```
 
 ---

@@ -188,6 +188,21 @@ class TestFindPort:
             assert port != occupied
 
 
+class TestStyleRegression:
+    """style.css の CSS 値に関する回帰テスト。"""
+
+    def test_comment_btn_top_is_not_50pct(self, server):
+        # バグ: top: 50% で多段リストの中央にコメントボタンが表示されていた。
+        # top: 0.7em（固定値）への変更を保護する。
+        base, *_ = server
+        _, _, body = _get(base + "/style.css")
+        css = body.decode()
+        assert "top: 0.7em" in css, (
+            "comment-btn の top が 0.7em ではありません。"
+            "top: 50% に戻すと多段リストの中央にボタンが表示されるバグが再現します。"
+        )
+
+
 class TestDragDrop:
     def test_switch_file_updates_content(self, server_no_file):
         # POST /switch-file でコンテンツが切り替わること

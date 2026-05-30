@@ -92,6 +92,7 @@ function handleWatch(): Response {
   }
 
   let timer: ReturnType<typeof setInterval>;
+  let pingTimer: ReturnType<typeof setInterval>;
   const stream = new ReadableStream({
     start(ctrl) {
       timer = setInterval(() => {
@@ -110,9 +111,13 @@ function handleWatch(): Response {
           }
         }
       }, 500);
+      pingTimer = setInterval(() => {
+        ctrl.enqueue(encoder.encode(': ping\n\n'));
+      }, 5000);
     },
     cancel() {
       clearInterval(timer);
+      clearInterval(pingTimer);
     },
   });
 

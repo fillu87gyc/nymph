@@ -63,7 +63,8 @@ export function DrawioModal({
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* biome-ignore lint/a11y/useAnchorContent: hidden download trigger */}
-      <a ref={dlRef} aria-hidden="true" style={{ display: 'none' }} />
+      {/* biome-ignore lint/a11y/useValidAnchor: href is set programmatically before .click() */}
+      <a ref={dlRef} tabIndex={-1} style={{ display: 'none' }} />
       <div id="drawio-box">
         <div className="dbox-head">
           <span className="dbox-title">draw.io エクスポート</span>

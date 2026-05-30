@@ -115,7 +115,10 @@ test.describe('選択コメントのワークフロー', () => {
 
     await expect(page.locator('.comment-item')).toBeVisible({ timeout: 3000 });
     // コメントパネルのコンテキスト欄（c-ctx）に内容が表示される
-    const ctx = await page.locator('.comment-item .c-ctx').first().textContent();
+    const ctx = await page
+      .locator('.comment-item .c-ctx')
+      .first()
+      .textContent();
     expect(ctx?.trim().length).toBeGreaterThan(0);
   });
 

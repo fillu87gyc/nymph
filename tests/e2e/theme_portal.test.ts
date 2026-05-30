@@ -55,10 +55,14 @@ test.describe('hljs テーマ link portal', () => {
     await page.locator('#btn-theme').click();
 
     // React state 更新 → portal 再レンダー
-    await page.waitForFunction((prev) => {
-      const link = document.head.querySelector('link[href*="highlight.js"]');
-      return link?.getAttribute('href') !== prev;
-    }, before, { timeout: 2000 });
+    await page.waitForFunction(
+      (prev) => {
+        const link = document.head.querySelector('link[href*="highlight.js"]');
+        return link?.getAttribute('href') !== prev;
+      },
+      before,
+      { timeout: 2000 },
+    );
 
     const after = await page.evaluate(() =>
       document.head
@@ -109,8 +113,7 @@ test.describe('hljs テーマ link portal', () => {
     await page.locator('#btn-theme').click();
 
     const count = await page.evaluate(
-      () =>
-        document.head.querySelectorAll('link[href*="highlight.js"]').length,
+      () => document.head.querySelectorAll('link[href*="highlight.js"]').length,
     );
     expect(count).toBe(1);
   });

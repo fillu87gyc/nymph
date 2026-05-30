@@ -85,7 +85,9 @@ test.describe('download 用 hidden anchor の存在', () => {
     await expect(page.locator('#btn-dl-drawio')).toBeVisible();
 
     // ダウンロードイベントを待つ（失敗しても構わない）
-    const downloadPromise = page.waitForEvent('download', { timeout: 3000 }).catch(() => null);
+    const downloadPromise = page
+      .waitForEvent('download', { timeout: 3000 })
+      .catch(() => null);
     await page.locator('#btn-dl-drawio').click();
     await downloadPromise;
 

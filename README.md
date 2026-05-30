@@ -1,7 +1,5 @@
 # nymph
 
-> リポジトリ名: **nymph** (`fillu87gyc/nymph`)
-
 AI が生成した Markdown・Mermaid をレビューするための軽量ツール。
 
 ```bash
@@ -10,11 +8,13 @@ nymph output.md
 
 ブラウザが開き、ファイルを監視して自動再レンダリングします。
 
+**スタック**: Bun · React 18 · TypeScript · Vite 7
+
 ---
 
 ## 要件
 
-- **Bun** (`mise use -g bun` または [公式インストーラ](https://bun.sh))
+- **Bun** (`mise use -g bun` または [bun.sh](https://bun.sh))
 
 ---
 
@@ -56,7 +56,7 @@ nymph output.md
 # Ctrl+C で停止
 ```
 
-ファイルを保存するたびにブラウザが自動更新されます。複数ファイルも指定できます：
+複数ファイルも指定できます：
 
 ```bash
 nymph *.md
@@ -68,7 +68,7 @@ nymph *.md
 
 ### ホットリロード
 
-ファイルの変更を検知し、即座に再レンダリングします（SSE）。
+ファイルの変更を SSE で検知し、即座に再レンダリングします。
 
 ### Mermaid レンダリング + draw.io エクスポート
 
@@ -76,7 +76,7 @@ Mermaid コードブロックをインラインでレンダリングします。
 
 ### インラインコメント
 
-レンダリングされた各ブロックにカーソルを合わせると **＋** ボタンが表示されます。コメントは `output.md.comments.json` として自動保存されます。
+レンダリングされた各ブロックにホバーすると **＋** ボタンが表示されます。テキスト選択でも範囲コメントが追加できます。コメントは `output.md.comments.json` として自動保存されます。
 
 ### レビューのコピー
 
@@ -84,7 +84,7 @@ Mermaid コードブロックをインラインでレンダリングします。
 
 ### チェックポイント / Diff
 
-📍 ボタンでチェックポイントを設定し、**± diff** ボタンで変更箇所をハイライト表示できます。
+**📍** ボタンでチェックポイントを設定し、**± diff** ボタンで変更箇所をハイライト表示できます。
 
 ---
 
@@ -93,26 +93,28 @@ Mermaid コードブロックをインラインでレンダリングします。
 ```bash
 bun install
 bun run dev        # API サーバー(:6276) + Vite(:5173) を同時起動
-bun run test       # 単体 + コンポーネントテスト (Vitest)
+bun run test       # 単体 + コンポーネントテスト (Vitest 3)
 bun run test:e2e   # E2E テスト (Playwright)
-bun run build      # プロダクションビルド
+bun run build      # プロダクションビルド (Vite 7)
 ```
 
 ---
 
 ## Claude Code との連携
 
+Claude Code のプロジェクトに nymph を追加すると、Edit ツールによるファイル編集時にコメントの行番号が自動追従します。
+
 ```bash
 claude plugin install github:fillu87gyc/nymph
 ```
 
-Claude Code 上で：
+Claude Code 上でフックをインストール：
 
 ```
 /nymph:install
 ```
 
-Edit ツールの `old_string` / `new_string` を `/edit-op` エンドポイントに送信し、コメントの行番号を自動追従させます。
+仕組み：`PostToolUse` フックが Edit ツールの `old_string` / `new_string` を `/edit-op` エンドポイントに転送し、編集前後の行数差分でコメント位置を自動補正します。
 
 ---
 

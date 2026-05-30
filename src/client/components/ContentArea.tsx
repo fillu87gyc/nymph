@@ -8,6 +8,7 @@ interface ContentAreaProps {
   comments: Comment[];
   diffMode: boolean;
   diffData: DiffResponse | null;
+  welcomeMsg?: string;
   onAddComment: (
     ls: number,
     le: number,
@@ -25,6 +26,7 @@ export function ContentArea({
   comments,
   diffMode,
   diffData,
+  welcomeMsg = 'ファイルを読み込んでいます…',
   onAddComment,
   onOpenDrawio,
   contentRef,
@@ -143,7 +145,7 @@ export function ContentArea({
             strokeLinecap="round"
           />
         </svg>
-        <p id="welcome-msg">ファイルを読み込んでいます…</p>
+        <p id="welcome-msg">{welcomeMsg}</p>
       </div>
       {!isEmpty &&
         blocks.map((block) => (

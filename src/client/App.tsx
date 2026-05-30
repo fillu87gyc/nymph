@@ -23,8 +23,9 @@ export function App() {
   const [source, setSource] = useState('');
   const [updateTime, setUpdateTime] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
-  const toastKey = useRef(0);
+  const [toastState, setToastState] = useState({ msg: '', v: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [welcomeMsg, setWelcomeMsg] = useState('ファイルを読み込んでいます…');
 
   // Modal state
   const [commentModalOpen, setCommentModalOpen] = useState(false);
@@ -58,8 +59,7 @@ export function App() {
   } = useDiff();
 
   function toast(msg: string) {
-    toastKey.current++;
-    setToastMsg(`${msg}__${toastKey.current}`);
+    setToastState((s) => ({ msg, v: s.v + 1 }));
   }
 
   const loadContent = useCallback(async (filePath?: string | null) => {
@@ -70,8 +70,7 @@ export function App() {
       const res = await fetch(url);
       const { content, filename } = await res.json();
       if (filename === null) {
-        const wm = document.getElementById('welcome-msg');
-        if (wm) wm.textContent = '.md ファイルをここにドロップ';
+        setWelcomeMsg('.md ファイルをここにドロップ');
       }
       setSource(content);
       const now = new Date().toLocaleTimeString('ja-JP', {
@@ -98,9 +97,12 @@ export function App() {
   useSSE((changedFile) => {
     if (!changedFile || !activeFile) return;
     if (changedFile === activeFile) {
-      loadContent(activeFile)
-        .then(() => loadComments())
-        .then(() => toast('ファイルが更新されました'));
+      void (async () => {
+        await loadContent(activeFile);
+        await loadComments();
+        if (diffMode) await loadDiff();
+        toast('ファイルが更新されました');
+      })();
     }
   });
 
@@ -269,55 +271,52 @@ export function App() {
   }
 
   // Drag & drop
-  useEffect(() => {
-    const overlay = document.getElementById('drop-overlay');
-    function onDragOver(e: DragEvent) {
-      e.preventDefault();
-      overlay?.classList.add('active');
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    if (!e.relatedTarget || !document.body.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
     }
-    function onDragLeave(e: DragEvent) {
-      if (
-        !e.relatedTarget ||
-        !document.body.contains(e.relatedTarget as Node)
-      ) {
-        overlay?.classList.remove('active');
-      }
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer?.files[0];
+    if (!file) return;
+    if (!file.name.endsWith('.md')) {
+      toast('Markdownファイルをドロップしてください');
+      return;
     }
-    async function onDrop(e: DragEvent) {
-      e.preventDefault();
-      overlay?.classList.remove('active');
-      const file = e.dataTransfer?.files[0];
-      if (!file) return;
-      if (!file.name.endsWith('.md')) {
-        toast('Markdownファイルをドロップしてください');
-        return;
-      }
-      try {
-        const content = await file.text();
-        await fetch('/switch-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content, filename: file.name }),
-        });
-        await loadContent();
-        await loadComments();
-      } catch (err: any) {
-        toast(err.message || 'ファイルの読み込みに失敗しました');
-      }
+    try {
+      const content = await file.text();
+      await fetch('/switch-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, filename: file.name }),
+      });
+      await loadContent();
+      await loadComments();
+    } catch (err: any) {
+      toast(err.message || 'ファイルの読み込みに失敗しました');
     }
-    document.body.addEventListener('dragover', onDragOver);
-    document.body.addEventListener('dragleave', onDragLeave);
-    document.body.addEventListener('drop', onDrop);
-    return () => {
-      document.body.removeEventListener('dragover', onDragOver);
-      document.body.removeEventListener('dragleave', onDragLeave);
-      document.body.removeEventListener('drop', onDrop);
-    };
-  }, [toast, loadContent, loadComments]);
+  }
 
   return (
-    <div id="app">
-      <div id="drop-overlay">📂 .md ファイルをドロップ</div>
+    <div
+      id="app"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => {
+        void handleDrop(e);
+      }}
+    >
+      <div id="drop-overlay" className={isDragging ? 'active' : ''}>
+        📂 .md ファイルをドロップ
+      </div>
       <Toolbar
         updateTime={updateTime}
         commentCount={comments.length}
@@ -345,6 +344,7 @@ export function App() {
             setDrawioOpen(true);
           }}
           contentRef={contentRef}
+          welcomeMsg={welcomeMsg}
         />
       </div>
       <CommentsPanel
@@ -383,7 +383,7 @@ export function App() {
         onToast={toast}
       />
       <SelectionPopup contentId="content" onComment={handleSelectionComment} />
-      <Toast message={toastMsg} />
+      <Toast message={toastState.msg} version={toastState.v} />
     </div>
   );
 }

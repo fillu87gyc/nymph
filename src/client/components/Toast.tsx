@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 
 interface ToastProps {
   message: string;
+  version: number;
 }
 
-export function Toast({ message }: ToastProps) {
+export function Toast({ message, version }: ToastProps) {
   const [visible, setVisible] = useState(false);
   const [current, setCurrent] = useState('');
 
@@ -14,7 +15,7 @@ export function Toast({ message }: ToastProps) {
     setVisible(true);
     const t = setTimeout(() => setVisible(false), 2400);
     return () => clearTimeout(t);
-  }, [message]);
+  }, [message, version]);
 
   return (
     <div id="toast" className={visible ? 'show' : ''}>

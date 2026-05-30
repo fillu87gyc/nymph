@@ -1,8 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import {
-  renderMarkdown,
-  scrollToLine,
-} from '../../src/client/lib/markdown.ts';
+import { renderMarkdown, scrollToLine } from '../../src/client/lib/markdown.ts';
 import type { Comment } from '../../src/client/types.ts';
 
 function makeSetup() {
@@ -38,13 +35,25 @@ describe('renderMarkdown', () => {
 
   test('コードブロックが .md-block + <pre><code> として描画される', async () => {
     const { container, welcome } = makeSetup();
-    await renderMarkdown(container, welcome, '```ts\nconst x = 1;\n```', vi.fn(), vi.fn());
+    await renderMarkdown(
+      container,
+      welcome,
+      '```ts\nconst x = 1;\n```',
+      vi.fn(),
+      vi.fn(),
+    );
     expect(container.querySelector('pre code')).not.toBeNull();
   });
 
   test('各ブロックに .comment-btn が付く', async () => {
     const { container, welcome } = makeSetup();
-    await renderMarkdown(container, welcome, '# H1\n\nParagraph', vi.fn(), vi.fn());
+    await renderMarkdown(
+      container,
+      welcome,
+      '# H1\n\nParagraph',
+      vi.fn(),
+      vi.fn(),
+    );
     const btns = container.querySelectorAll('.comment-btn');
     expect(btns.length).toBeGreaterThanOrEqual(2);
   });
@@ -65,7 +74,13 @@ describe('renderMarkdown', () => {
   test('コードブロックのコメントボタンに code context が渡される', async () => {
     const { container, welcome } = makeSetup();
     const onAddComment = vi.fn();
-    await renderMarkdown(container, welcome, '```ts\nconst x = 1;\n```', onAddComment, vi.fn());
+    await renderMarkdown(
+      container,
+      welcome,
+      '```ts\nconst x = 1;\n```',
+      onAddComment,
+      vi.fn(),
+    );
     const btn = container.querySelector('.comment-btn') as HTMLElement;
     btn.click();
     const [, , , blockType, context] = onAddComment.mock.calls[0];
@@ -75,7 +90,13 @@ describe('renderMarkdown', () => {
 
   test('リストが .md-block + <ul> として描画される', async () => {
     const { container, welcome } = makeSetup();
-    await renderMarkdown(container, welcome, '- item1\n- item2', vi.fn(), vi.fn());
+    await renderMarkdown(
+      container,
+      welcome,
+      '- item1\n- item2',
+      vi.fn(),
+      vi.fn(),
+    );
     expect(container.querySelector('ul')).not.toBeNull();
   });
 
@@ -150,7 +171,13 @@ describe('renderMarkdown', () => {
 
   test('data-ls / data-le 属性が正しく付く', async () => {
     const { container, welcome } = makeSetup();
-    await renderMarkdown(container, welcome, '# H1\n\nParagraph', vi.fn(), vi.fn());
+    await renderMarkdown(
+      container,
+      welcome,
+      '# H1\n\nParagraph',
+      vi.fn(),
+      vi.fn(),
+    );
     const blocks = container.querySelectorAll('.md-block');
     for (const b of blocks) {
       expect((b as HTMLElement).dataset.ls).toBeDefined();

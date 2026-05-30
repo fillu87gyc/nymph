@@ -11,17 +11,25 @@ async function addComment(page: import('@playwright/test').Page, text: string) {
   await firstBlock.locator('.comment-btn').click();
   await page.locator('#comment-ta').fill(text);
   await page.locator('#btn-submit').click();
-  await expect(page.locator('.comment-item').first()).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('.comment-item').first()).toBeVisible({
+    timeout: 3000,
+  });
 }
 
 test.beforeEach(async ({ page }) => {
   if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
   await page.goto('/');
-  await expect(page.locator('#content .md-block').first()).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#content .md-block').first()).toBeVisible({
+    timeout: 5000,
+  });
 });
 
 test.afterEach(() => {
-  try { rmSync(COMMENTS_FILE); } catch { /* ignore */ }
+  try {
+    rmSync(COMMENTS_FILE);
+  } catch {
+    /* ignore */
+  }
 });
 
 test.describe('コメントパネルの開閉', () => {
@@ -74,7 +82,9 @@ test.describe('コメントの編集', () => {
     await ta.fill('updated text');
     await page.locator('#btn-submit').click();
 
-    await expect(page.locator('.comment-item .c-text')).toContainText('updated text');
+    await expect(page.locator('.comment-item .c-text')).toContainText(
+      'updated text',
+    );
   });
 });
 
@@ -103,7 +113,9 @@ test.describe('全コメント削除', () => {
 });
 
 test.describe('コメントクリックでコンテンツハイライト', () => {
-  test('コメントをクリックすると対応ブロックにアウトラインが付く', async ({ page }) => {
+  test('コメントをクリックすると対応ブロックにアウトラインが付く', async ({
+    page,
+  }) => {
     await addComment(page, 'highlight test');
 
     const firstBlock = page.locator('#content .md-block').first();
@@ -119,7 +131,9 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
     }).toPass({ timeout: 1000 });
   });
 
-  test('コメントクリック後に対応ブロックがビューポートに入る', async ({ page }) => {
+  test('コメントクリック後に対応ブロックがビューポートに入る', async ({
+    page,
+  }) => {
     await addComment(page, 'scroll test');
     const firstBlock = page.locator('#content .md-block').first();
     const ls = await firstBlock.getAttribute('data-ls');
@@ -131,14 +145,18 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
 });
 
 test.describe('コメントパネルのリサイズ', () => {
-  test('リサイズハンドルを上にドラッグするとパネルが高くなる', async ({ page }) => {
+  test('リサイズハンドルを上にドラッグするとパネルが高くなる', async ({
+    page,
+  }) => {
     await addComment(page, 'resize test');
     await expect(page.locator('#comments-panel.open')).toBeVisible();
 
     const panel = page.locator('#comments-panel');
     const handle = page.locator('#panel-resize-handle');
 
-    const initialHeight = await panel.evaluate((el) => (el as HTMLElement).offsetHeight);
+    const initialHeight = await panel.evaluate(
+      (el) => (el as HTMLElement).offsetHeight,
+    );
     const handleBox = await handle.boundingBox();
     if (!handleBox) throw new Error('resize handle not found');
 
@@ -149,7 +167,9 @@ test.describe('コメントパネルのリサイズ', () => {
     await page.mouse.move(cx, cy - 120, { steps: 10 });
     await page.mouse.up();
 
-    const newHeight = await panel.evaluate((el) => (el as HTMLElement).offsetHeight);
+    const newHeight = await panel.evaluate(
+      (el) => (el as HTMLElement).offsetHeight,
+    );
     expect(newHeight).toBeGreaterThan(initialHeight);
   });
 

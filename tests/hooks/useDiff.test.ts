@@ -100,23 +100,31 @@ describe('useDiff', () => {
       });
     });
 
-    await act(async () => { await result.current.toggleDiff(); });
+    await act(async () => {
+      await result.current.toggleDiff();
+    });
     expect(result.current.diffMode).toBe(true);
 
-    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
-      if (String(url) === '/checkpoint') {
-        return new Response(JSON.stringify({ ok: true, lines: 5 }), {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockImplementation(async (url) => {
+        if (String(url) === '/checkpoint') {
+          return new Response(JSON.stringify({ ok: true, lines: 5 }), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify(sampleDiff), {
           headers: { 'Content-Type': 'application/json' },
         });
-      }
-      return new Response(JSON.stringify(sampleDiff), {
-        headers: { 'Content-Type': 'application/json' },
       });
+
+    await act(async () => {
+      await result.current.setCheckpoint();
     });
 
-    await act(async () => { await result.current.setCheckpoint(); });
-
-    const diffCalls = fetchSpy.mock.calls.filter(([url]) => String(url) === '/diff');
+    const diffCalls = fetchSpy.mock.calls.filter(
+      ([url]) => String(url) === '/diff',
+    );
     expect(diffCalls.length).toBeGreaterThan(0);
     expect(result.current.diffData).toEqual(sampleDiff);
   });

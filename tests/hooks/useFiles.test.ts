@@ -68,7 +68,9 @@ describe('useFiles', () => {
   });
 
   test('switchFile が POST /active-file を呼ぶ', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}'));
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}'));
     const { result } = renderHook(() => useFiles());
     await act(() => result.current.switchFile('/some/file.md'));
     expect(fetchSpy).toHaveBeenCalledWith(

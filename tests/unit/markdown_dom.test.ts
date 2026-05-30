@@ -166,13 +166,19 @@ describe('scrollToLine', () => {
     const scrollSpy = vi.fn();
     block.scrollIntoView = scrollSpy;
     scrollToLine(makeContainer(block), makeComment({ ls: 1, le: 1 }));
-    expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(scrollSpy).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'center',
+    });
   });
 
   test('block コメントでアウトラインが設定される', () => {
     const block = makeBlock(1, 1);
     block.scrollIntoView = vi.fn();
-    scrollToLine(makeContainer(block), makeComment({ ls: 1, le: 1, block_type: 'paragraph' }));
+    scrollToLine(
+      makeContainer(block),
+      makeComment({ ls: 1, le: 1, block_type: 'paragraph' }),
+    );
     expect(block.style.outline).not.toBe('');
     expect(block.style.outlineOffset).not.toBe('');
   });

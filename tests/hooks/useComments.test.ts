@@ -73,7 +73,11 @@ describe('useComments', () => {
       result.current.addComment({ ...pending, ls: 10, le: 10 }, 'second', 1);
     });
     await act(() => {
-      result.current.addComment({ ...pending, ls: 3, le: 3 }, 'first', result.current.nextId);
+      result.current.addComment(
+        { ...pending, ls: 3, le: 3 },
+        'first',
+        result.current.nextId,
+      );
     });
     expect(result.current.comments[0].ls).toBe(3);
     expect(result.current.comments[1].ls).toBe(10);
@@ -138,7 +142,11 @@ describe('useComments', () => {
       result.current.addComment(pending, 'a', 1);
     });
     await act(() => {
-      result.current.addComment({ ...pending, ls: 5 }, 'b', result.current.nextId);
+      result.current.addComment(
+        { ...pending, ls: 5 },
+        'b',
+        result.current.nextId,
+      );
     });
     await act(() => {
       result.current.clearAll();

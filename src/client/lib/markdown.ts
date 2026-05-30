@@ -1,4 +1,4 @@
-import { type Token, marked, Renderer } from 'marked';
+import { marked, Renderer, type Token } from 'marked';
 import type { Comment, DiffLine } from '../types.ts';
 
 export const BLOCK_TYPES = new Set([

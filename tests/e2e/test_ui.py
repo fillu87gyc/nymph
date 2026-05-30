@@ -72,7 +72,7 @@ def test_markdown_renders(page: Page, live_server):
 
 def test_filename_in_toolbar(page: Page, live_server):
     page.goto(live_server)
-    expect(page.locator("#watch-name")).to_contain_text("test.md")
+    expect(page.locator("#file-tabs .tab.active")).to_contain_text("test.md")
 
 
 def test_sse_watch_dot_connected(page: Page, live_server):

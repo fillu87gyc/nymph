@@ -397,9 +397,9 @@ def test_comment_btn_near_top_of_tall_list(page: Page, live_server):
     page.wait_for_selector(".md-block")
 
     # 番号付きリスト（ol を直接含む md-block）を取得 — ネストなしで comment-btn が 1 つ
-    ordered_block = page.locator(".md-block[data-block-type='list']").filter(
-        has=page.locator("ol")
-    ).first
+    ordered_block = (
+        page.locator(".md-block[data-block-type='list']").filter(has=page.locator("ol")).first
+    )
     block_box = ordered_block.bounding_box()
     assert block_box is not None and block_box["height"] > 80, (
         "番号付きリストブロックが見つからないか高さ不足です"

@@ -6,3 +6,5 @@ build/
 .venv/
 *.comments.json
 *.nymph-lock
+node_modules/
+bun.lockb

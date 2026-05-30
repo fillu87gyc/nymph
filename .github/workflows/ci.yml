@@ -6,78 +6,32 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: uvx ruff check .
-      - run: uvx ruff format --check .
-
   unit:
-    name: Unit tests
+    name: Unit & Component tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e ".[test]"
-      - run: pytest tests/unit -v --tb=short
+          bun-version: latest
+      - run: bun install
+      - run: bun run test
 
   e2e:
-    name: E2E
+    name: E2E (Playwright)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e ".[test]"
-      - run: playwright install chromium --with-deps
-      - run: pytest tests/e2e/test_ui.py -v --tb=short --screenshot=only-on-failure --tracing=retain-on-failure
+          bun-version: latest
+      - run: bun install
+      - run: bun run build
+      - run: bunx playwright install chromium --with-deps
+      - run: bun run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: e2e-traces
           path: test-results/
           retention-days: 7
-
-  vrt:
-    name: VRT
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -e ".[test]"
-      - run: playwright install chromium --with-deps
-
-      # First run on this platform: generates baselines and passes.
-      # Subsequent runs: compares against committed baselines.
-      - run: pytest tests/e2e/test_visual.py -v --tb=short
-
-      - name: Commit new/updated snapshots (main only)
-        if: always() && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/snapshots/
-          git diff --staged --quiet && echo "No snapshot changes" || \
-            (git commit -m "chore: update VRT snapshots [skip ci]" && \
-             git pull --rebase origin main && \
-             git push)
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: vrt-snapshots-${{ github.run_number }}
-          path: tests/e2e/snapshots/
-          retention-days: 30

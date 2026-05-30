@@ -12,30 +12,37 @@ nymph output.md
 
 ---
 
+## 要件
+
+- **Bun** (`mise use -g bun` または [公式インストーラ](https://bun.sh))
+
+---
+
 ## インストール
 
-**uv（推奨）**
+**bunx（インストール不要）**
 ```bash
-uv tool install git+https://github.com/fillu87gyc/nymph
+bunx nymph *.md
 ```
 
-**pip**
+**グローバルインストール**
 ```bash
-pip install git+https://github.com/fillu87gyc/nymph
+bun install -g nymph
+nymph *.md
 ```
 
-**ローカル**
+**単一バイナリ（Bun 不要で配布可）**
+```bash
+bun build --compile src/cli.ts --outfile nymph
+./nymph *.md
+```
+
+**ローカル開発**
 ```bash
 git clone https://github.com/fillu87gyc/nymph
 cd nymph
-pip install .
-```
-
-インストール不要で使う場合（初回のみ clone、以降は `python3` コマンドのみ）：
-```bash
-git clone https://github.com/fillu87gyc/nymph  # 初回のみ
-cd nymph
-python3 nymph.py output.md
+bun install
+bun run src/cli.ts output.md
 ```
 
 ---
@@ -44,12 +51,16 @@ python3 nymph.py output.md
 
 ```bash
 nymph output.md
-# MD Review  http://localhost:6276
-# 監視中     /path/to/output.md
+# nymph   http://localhost:6276
+# 監視中  /path/to/output.md
 # Ctrl+C で停止
 ```
 
-ファイルを保存するたびにブラウザが自動更新されます。
+ファイルを保存するたびにブラウザが自動更新されます。複数ファイルも指定できます：
+
+```bash
+nymph *.md
+```
 
 ---
 
@@ -57,59 +68,39 @@ nymph output.md
 
 ### ホットリロード
 
-500ms ポーリングでファイルの変更を検知し、即座に再レンダリングします。Python 標準ライブラリのみ使用。
+ファイルの変更を検知し、即座に再レンダリングします（SSE）。
 
 ### Mermaid レンダリング + draw.io エクスポート
 
 Mermaid コードブロックをインラインでレンダリングします。各ダイアグラムに **→ draw.io** ボタンがあり、`.drawio` ファイルのダウンロードまたはコードのコピーができます。
 
-draw.io でのインポート方法：
-- ダウンロードした `.drawio` ファイルを draw.io デスクトップで開く
-- または draw.io の **挿入 › Mermaid** にコードをペースト
-
 ### インラインコメント
 
-レンダリングされた各ブロックにカーソルを合わせると **＋** ボタンが表示されます。クリックするとコメントを追加でき、**元の Markdown の行番号** に紐づいて保存されます。
-
-コメントは `output.md.comments.json` としてファイルの隣に自動保存されます。
+レンダリングされた各ブロックにカーソルを合わせると **＋** ボタンが表示されます。コメントは `output.md.comments.json` として自動保存されます。
 
 ### レビューのコピー
 
-ツールバーの **レビューをコピー** ボタンで、全コメントを以下の **JSON 形式**でクリップボードにコピーします：
+**レビューをコピー** ボタンで全コメントを JSON 形式でクリップボードにコピーします。
 
-```json
-{
-  "date": "2026/5/28",
-  "file": "output.md",
-  "comment_count": 2,
-  "comments": [
-    {
-      "id": 1,
-      "line_start": 5,
-      "line_end": 7,
-      "block_type": "code",
-      "context": { "lang": "", "code": "## アーキテクチャ" },
-      "comment": "この図は現状と異なります"
-    },
-    {
-      "id": 2,
-      "line_start": 12,
-      "line_end": 12,
-      "block_type": "code",
-      "context": { "lang": "", "code": "graph TD" },
-      "comment": "ノード名を日本語に統一してください"
-    }
-  ]
-}
+### チェックポイント / Diff
+
+📍 ボタンでチェックポイントを設定し、**± diff** ボタンで変更箇所をハイライト表示できます。
+
+---
+
+## 開発
+
+```bash
+bun install
+bun run dev        # API サーバー(:6276) + Vite(:5173) を同時起動
+bun run test       # 単体 + コンポーネントテスト (Vitest)
+bun run test:e2e   # E2E テスト (Playwright)
+bun run build      # プロダクションビルド
 ```
 
 ---
 
 ## Claude Code との連携
-
-Claude Code が Markdown を編集するたびに、コメントのアンカー（行番号）が自動で追従します。
-
-### インストール
 
 ```bash
 claude plugin install github:fillu87gyc/nymph
@@ -121,19 +112,7 @@ Claude Code 上で：
 /nymph:install
 ```
 
-### 仕組み
-
-nymph 起動時にロックファイル (`{file}.nymph-lock`) を作成します。Claude Code の PostToolUse フックがこのファイルを検知し、Edit ツールの `old_string` / `new_string` を `/edit-op` エンドポイントに送信します。サーバーは変更前のキャッシュから編集位置を特定し、影響を受けるコメントの行番号を即時更新します。
-
-nymph が起動していないときはフックが即座にスキップするため、通常の Claude Code の動作に影響しません。
-
----
-
-## 要件
-
-- Python 3.8 以上
-- 依存パッケージなし（標準ライブラリのみ）
-- ブラウザ：Chrome / Edge / Safari（mermaid.js の CDN を使用）
+Edit ツールの `old_string` / `new_string` を `/edit-op` エンドポイントに送信し、コメントの行番号を自動追従させます。
 
 ---
 

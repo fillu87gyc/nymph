@@ -5,13 +5,20 @@ interface DrawioModalProps {
   onToast: (msg: string) => void;
 }
 
-export function DrawioModal({ open, code, onClose, onToast }: DrawioModalProps) {
+export function DrawioModal({
+  open,
+  code,
+  onClose,
+  onToast,
+}: DrawioModalProps) {
   if (!open || code === null) return null;
 
   function downloadDrawio() {
     if (!code) return;
     const mdata = JSON.stringify({ code, config: {} })
-      .replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <mxfile host="nymph" version="1.0">
   <diagram id="mermaid-${Date.now()}" name="Mermaid Export">
@@ -41,24 +48,53 @@ export function DrawioModal({ open, code, onClose, onToast }: DrawioModalProps) 
   }
 
   function copyCode() {
-    navigator.clipboard.writeText(code || '').then(() => onToast('コードをコピーしました'));
+    navigator.clipboard
+      .writeText(code || '')
+      .then(() => onToast('コードをコピーしました'));
   }
 
   return (
-    <div id="drawio-modal" className="open" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      id="drawio-modal"
+      className="open"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div id="drawio-box">
         <div className="dbox-head">
           <span className="dbox-title">draw.io エクスポート</span>
-          <button className="btn icon" id="btn-close-drawio" onClick={onClose}>✕</button>
+          <button
+            type="button"
+            className="btn icon"
+            id="btn-close-drawio"
+            onClick={onClose}
+          >
+            ✕
+          </button>
         </div>
         <div className="dbox-hint">
           <strong>.drawio ファイルをダウンロード</strong>して draw.io で開くか、
           コードをコピーして draw.io の <code>挿入 › Mermaid</code> にペースト。
         </div>
-        <div className="dbox-code" id="drawio-code">{code}</div>
+        <div className="dbox-code" id="drawio-code">
+          {code}
+        </div>
         <div className="dbox-foot">
-          <button className="btn primary" id="btn-dl-drawio" onClick={downloadDrawio}>⬇ .drawio ダウンロード</button>
-          <button className="btn" id="btn-copy-mermaid" onClick={copyCode}>コードをコピー</button>
+          <button
+            type="button"
+            className="btn primary"
+            id="btn-dl-drawio"
+            onClick={downloadDrawio}
+          >
+            ⬇ .drawio ダウンロード
+          </button>
+          <button
+            type="button"
+            className="btn"
+            id="btn-copy-mermaid"
+            onClick={copyCode}
+          >
+            コードをコピー
+          </button>
           <span className="spacer" />
         </div>
       </div>

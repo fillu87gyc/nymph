@@ -1,5 +1,5 @@
-import { statSync, existsSync, readFileSync, writeFileSync } from 'fs';
-import { basename, join } from 'path';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { diffArrays } from 'diff';
 
 interface State {
@@ -26,12 +26,16 @@ export function initState(paths: string[]) {
   state.filePaths = paths;
   if (paths.length > 0) {
     state.activeFile = paths[0];
-    state.commentsPath = paths[0] + '.comments.json';
+    state.commentsPath = `${paths[0]}.comments.json`;
   }
 }
 
 function activePaths(): string[] {
-  return state.filePaths.length ? state.filePaths : (state.activeFile ? [state.activeFile] : []);
+  return state.filePaths.length
+    ? state.filePaths
+    : state.activeFile
+      ? [state.activeFile]
+      : [];
 }
 
 function json(data: unknown, status = 200): Response {
@@ -56,10 +60,18 @@ function handleContent(url: URL): Response {
     if (target) {
       const text = readFileSync(target, 'utf-8');
       state.cachedContent = text;
-      return json({ content: text, filename: basename(target), mtime: statSync(target).mtimeMs });
+      return json({
+        content: text,
+        filename: basename(target),
+        mtime: statSync(target).mtimeMs,
+      });
     }
     if (state.droppedContent !== null) {
-      return json({ content: state.droppedContent, filename: state.droppedName, mtime: 0 });
+      return json({
+        content: state.droppedContent,
+        filename: state.droppedName,
+        mtime: 0,
+      });
     }
     return json({ content: '', filename: null, mtime: 0 });
   } catch (e) {
@@ -72,7 +84,11 @@ function handleWatch(): Response {
   const encoder = new TextEncoder();
   const mtimes = new Map<string, number>();
   for (const p of paths) {
-    try { mtimes.set(p, statSync(p).mtimeMs); } catch { mtimes.set(p, 0); }
+    try {
+      mtimes.set(p, statSync(p).mtimeMs);
+    } catch {
+      mtimes.set(p, 0);
+    }
   }
 
   let timer: ReturnType<typeof setInterval>;
@@ -84,10 +100,14 @@ function handleWatch(): Response {
             const mtime = statSync(p).mtimeMs;
             const prev = mtimes.get(p);
             if (prev !== undefined && mtime !== prev) {
-              ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ file: p })}\n\n`));
+              ctrl.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ file: p })}\n\n`),
+              );
             }
             mtimes.set(p, mtime);
-          } catch { /* ignore deleted files */ }
+          } catch {
+            /* ignore deleted files */
+          }
         }
       }, 500);
     },
@@ -100,7 +120,7 @@ function handleWatch(): Response {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
     },
   });
 }
@@ -111,7 +131,7 @@ function handleGetComments(url: URL): Response {
 
   if (fileParam && !allowed.has(fileParam)) return err('Forbidden', 403);
 
-  const cp = fileParam ? fileParam + '.comments.json' : state.commentsPath;
+  const cp = fileParam ? `${fileParam}.comments.json` : state.commentsPath;
   if (!cp) return json([]);
   try {
     return new Response(existsSync(cp) ? readFileSync(cp, 'utf-8') : '[]', {
@@ -135,16 +155,17 @@ async function handleSaveComments(req: Request): Promise<Response> {
 
 function handleFiles(): Response {
   const paths = activePaths();
-  return json(paths.map(p => ({ path: p, name: basename(p) })));
+  return json(paths.map((p) => ({ path: p, name: basename(p) })));
 }
 
 async function handleSetActiveFile(req: Request): Promise<Response> {
   try {
-    const { path } = await req.json() as { path: string };
+    const { path } = (await req.json()) as { path: string };
     const allowed = new Set(activePaths());
-    if (!path || !allowed.has(path)) return json({ error: 'invalid path' }, 400);
+    if (!path || !allowed.has(path))
+      return json({ error: 'invalid path' }, 400);
     state.activeFile = path;
-    state.commentsPath = path + '.comments.json';
+    state.commentsPath = `${path}.comments.json`;
     return json({});
   } catch (e) {
     return err(String(e));
@@ -153,7 +174,10 @@ async function handleSetActiveFile(req: Request): Promise<Response> {
 
 async function handleSwitchFile(req: Request): Promise<Response> {
   try {
-    const { content, filename } = await req.json() as { content: string; filename: string };
+    const { content, filename } = (await req.json()) as {
+      content: string;
+      filename: string;
+    };
     state.droppedContent = content;
     state.droppedName = filename;
     return json({});
@@ -166,7 +190,10 @@ function handleSetCheckpoint(): Response {
   try {
     if (!state.activeFile) return json({ ok: true, lines: 0 });
     state.checkpointContent = readFileSync(state.activeFile, 'utf-8');
-    return json({ ok: true, lines: state.checkpointContent.split('\n').length });
+    return json({
+      ok: true,
+      lines: state.checkpointContent.split('\n').length,
+    });
   } catch (e) {
     return err(String(e));
   }
@@ -174,7 +201,8 @@ function handleSetCheckpoint(): Response {
 
 function handleDiff(): Response {
   try {
-    if (!state.checkpointContent || !state.activeFile) return json({ lines: [] });
+    if (!state.checkpointContent || !state.activeFile)
+      return json({ lines: [] });
     const current = readFileSync(state.activeFile, 'utf-8');
     return json({ lines: computeDiff(state.checkpointContent, current) });
   } catch (e) {
@@ -186,7 +214,12 @@ function computeDiff(checkpoint: string, current: string) {
   const aLines = checkpoint.split('\n');
   const bLines = current.split('\n');
   const changes = diffArrays(aLines, bLines);
-  const result: Array<{ n: number | null; type: string; content: string; g: number | null }> = [];
+  const result: Array<{
+    n: number | null;
+    type: string;
+    content: string;
+    g: number | null;
+  }> = [];
   let currentN = 0;
   let groupId = 0;
   let i = 0;
@@ -202,17 +235,30 @@ function computeDiff(checkpoint: string, current: string) {
     } else if (change.removed) {
       const next = changes[i + 1];
       if (next?.added) {
-        for (const line of change.value) result.push({ n: null, type: 'delete', content: line, g: groupId });
-        for (const line of next.value) { currentN++; result.push({ n: currentN, type: 'insert', content: line, g: groupId }); }
+        for (const line of change.value)
+          result.push({ n: null, type: 'delete', content: line, g: groupId });
+        for (const line of next.value) {
+          currentN++;
+          result.push({
+            n: currentN,
+            type: 'insert',
+            content: line,
+            g: groupId,
+          });
+        }
         groupId++;
         i += 2;
       } else {
-        for (const line of change.value) result.push({ n: null, type: 'delete', content: line, g: groupId });
+        for (const line of change.value)
+          result.push({ n: null, type: 'delete', content: line, g: groupId });
         groupId++;
         i++;
       }
     } else {
-      for (const line of change.value) { currentN++; result.push({ n: currentN, type: 'insert', content: line, g: groupId }); }
+      for (const line of change.value) {
+        currentN++;
+        result.push({ n: currentN, type: 'insert', content: line, g: groupId });
+      }
       groupId++;
       i++;
     }
@@ -222,7 +268,11 @@ function computeDiff(checkpoint: string, current: string) {
 
 async function handleEditOp(req: Request): Promise<Response> {
   try {
-    const op = await req.json() as { tool_input?: { old_string?: string; new_string?: string }; old_string?: string; new_string?: string };
+    const op = (await req.json()) as {
+      tool_input?: { old_string?: string; new_string?: string };
+      old_string?: string;
+      new_string?: string;
+    };
     const ti = op.tool_input ?? op;
     const oldString = ti.old_string ?? '';
     const newString = ti.new_string ?? '';
@@ -234,7 +284,9 @@ async function handleEditOp(req: Request): Promise<Response> {
     }
     const idx = state.cachedContent.indexOf(oldString);
     if (idx !== -1) {
-      const startLine = state.cachedContent.substring(0, idx).split('\n').length;
+      const startLine = state.cachedContent
+        .substring(0, idx)
+        .split('\n').length;
       const oldLineCount = oldString.split('\n').length;
       const newLineCount = newString.split('\n').length;
       const delta = newLineCount - oldLineCount;
@@ -250,21 +302,36 @@ async function handleEditOp(req: Request): Promise<Response> {
 function remapComments(editLine: number, oldLineCount: number, delta: number) {
   if (!state.commentsPath || !existsSync(state.commentsPath)) return;
   try {
-    const comments = JSON.parse(readFileSync(state.commentsPath, 'utf-8')) as Array<{ ls: number; le: number }>;
+    const comments = JSON.parse(
+      readFileSync(state.commentsPath, 'utf-8'),
+    ) as Array<{ ls: number; le: number }>;
     const editEnd = editLine + oldLineCount - 1;
     for (const c of comments) {
-      if (c.ls > editEnd) { c.ls += delta; c.le += delta; }
-      else if (c.le > editEnd) { c.le += delta; }
+      if (c.ls > editEnd) {
+        c.ls += delta;
+        c.le += delta;
+      } else if (c.le > editEnd) {
+        c.le += delta;
+      }
     }
-    writeFileSync(state.commentsPath, JSON.stringify(comments, null, 2), 'utf-8');
-  } catch { /* ignore */ }
+    writeFileSync(
+      state.commentsPath,
+      JSON.stringify(comments, null, 2),
+      'utf-8',
+    );
+  } catch {
+    /* ignore */
+  }
 }
 
 function serveStatic(url: URL): Response | null {
   const distDir = join(import.meta.dir, '..', 'dist');
   if (!existsSync(distDir)) return null;
 
-  let filePath = join(distDir, url.pathname === '/' ? 'index.html' : url.pathname);
+  let filePath = join(
+    distDir,
+    url.pathname === '/' ? 'index.html' : url.pathname,
+  );
   if (!existsSync(filePath)) filePath = join(distDir, 'index.html');
 
   try {

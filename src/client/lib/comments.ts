@@ -1,4 +1,4 @@
-import type { Comment, TableContext, CodeContext } from '../types.ts';
+import type { CodeContext, Comment, TableContext } from '../types.ts';
 
 export function ctxDisplay(c: Comment): string {
   const ctx = c.context;

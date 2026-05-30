@@ -22,13 +22,15 @@ export function FileTabs({ files, activeFile, onSwitch }: FileTabsProps) {
 
   return (
     <div id="file-tabs">
-      {files.map(f => (
+      {files.map((f) => (
         <button
           key={f.path}
-          className={'tab' + (f.path === activeFile ? ' active' : '')}
+          className={`tab${f.path === activeFile ? ' active' : ''}`}
           onClick={() => f.path !== activeFile && onSwitch(f.path)}
         >
-          {f.path === activeFile && <span className="watch-dot" id="watch-dot" />}
+          {f.path === activeFile && (
+            <span className="watch-dot" id="watch-dot" />
+          )}
           {f.name}
         </button>
       ))}

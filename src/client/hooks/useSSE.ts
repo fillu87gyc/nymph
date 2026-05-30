@@ -10,7 +10,9 @@ export function useSSE(onFileChange: (file: string) => void) {
       try {
         const msg = JSON.parse(e.data);
         if (msg.file) cbRef.current(msg.file);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
     return () => sse.close();
   }, []);

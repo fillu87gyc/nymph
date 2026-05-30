@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { existsSync, writeFileSync, unlinkSync } from 'fs';
-import { resolve, join } from 'path';
+import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Glob } from 'bun';
 import { createServer, initState } from './server.ts';
 
@@ -10,7 +10,9 @@ async function findPort(start = 6276): Promise<number> {
       const test = Bun.serve({ port, fetch: () => new Response() });
       await test.stop(true);
       return port;
-    } catch { /* port in use */ }
+    } catch {
+      /* port in use */
+    }
   }
   return start;
 }
@@ -38,7 +40,7 @@ async function main() {
         }
       }
     }
-    paths = [...new Set(paths)].filter(p => existsSync(p));
+    paths = [...new Set(paths)].filter((p) => existsSync(p));
     if (paths.length === 0) {
       console.error('エラー: Markdownファイルが見つかりません');
       process.exit(1);
@@ -50,7 +52,7 @@ async function main() {
   const port = await findPort();
   const server = createServer(port);
 
-  const lockPath = paths.length > 0 ? paths[0] + '.nymph-lock' : null;
+  const lockPath = paths.length > 0 ? `${paths[0]}.nymph-lock` : null;
   if (lockPath) writeFileSync(lockPath, String(port));
 
   const url = `http://localhost:${port}`;
@@ -67,13 +69,25 @@ async function main() {
   }
 
   process.on('SIGINT', () => {
-    if (lockPath) { try { unlinkSync(lockPath); } catch { /* ignore */ } }
+    if (lockPath) {
+      try {
+        unlinkSync(lockPath);
+      } catch {
+        /* ignore */
+      }
+    }
     server.stop();
     console.log('\n停止しました。');
     process.exit(0);
   });
   process.on('SIGTERM', () => {
-    if (lockPath) { try { unlinkSync(lockPath); } catch { /* ignore */ } }
+    if (lockPath) {
+      try {
+        unlinkSync(lockPath);
+      } catch {
+        /* ignore */
+      }
+    }
     server.stop();
     process.exit(0);
   });

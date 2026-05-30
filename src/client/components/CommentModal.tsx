@@ -11,7 +11,15 @@ interface CommentModalProps {
   onClose: () => void;
 }
 
-export function CommentModal({ open, pending, editingId, displayCtx, initialText, onSubmit, onClose }: CommentModalProps) {
+export function CommentModal({
+  open,
+  pending,
+  editingId,
+  displayCtx,
+  initialText,
+  onSubmit,
+  onClose,
+}: CommentModalProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -23,11 +31,17 @@ export function CommentModal({ open, pending, editingId, displayCtx, initialText
 
   if (!open || !pending) return null;
 
-  const lineLabel = pending.ls === pending.le ? `L${pending.ls}` : `L${pending.ls}–${pending.le}`;
+  const lineLabel =
+    pending.ls === pending.le
+      ? `L${pending.ls}`
+      : `L${pending.ls}–${pending.le}`;
   const short = displayCtx.length <= 20 ? `「${displayCtx}」` : null;
-  const headText = editingId !== null
-    ? `${lineLabel} のコメントを編集`
-    : (short ? `${short} にコメント追加` : `${lineLabel} にコメント追加`);
+  const headText =
+    editingId !== null
+      ? `${lineLabel} のコメントを編集`
+      : short
+        ? `${short} にコメント追加`
+        : `${lineLabel} にコメント追加`;
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -46,8 +60,12 @@ export function CommentModal({ open, pending, editingId, displayCtx, initialText
     <div id="comment-modal" className="open">
       <div id="modal-backdrop" onClick={onClose} />
       <div id="modal-box">
-        <div className="modal-head" id="modal-line">{headText}</div>
-        <div className="modal-ctx" id="modal-ctx">{displayCtx}</div>
+        <div className="modal-head" id="modal-line">
+          {headText}
+        </div>
+        <div className="modal-ctx" id="modal-ctx">
+          {displayCtx}
+        </div>
         <textarea
           ref={taRef}
           id="comment-ta"
@@ -56,8 +74,20 @@ export function CommentModal({ open, pending, editingId, displayCtx, initialText
           onKeyDown={handleKeyDown}
         />
         <div className="modal-foot">
-          <button className="btn" id="btn-cancel" onClick={onClose}>キャンセル</button>
-          <button className="btn primary" id="btn-submit" onClick={handleSubmit}>
+          <button
+            type="button"
+            className="btn"
+            id="btn-cancel"
+            onClick={onClose}
+          >
+            キャンセル
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            id="btn-submit"
+            onClick={handleSubmit}
+          >
             {editingId !== null ? '更新' : '追加'}
           </button>
         </div>

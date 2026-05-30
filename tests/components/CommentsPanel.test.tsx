@@ -1,15 +1,27 @@
-import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CommentsPanel } from '../../src/client/components/CommentsPanel.tsx';
 import { useRef } from 'react';
+import { describe, expect, test, vi } from 'vitest';
+import { CommentsPanel } from '../../src/client/components/CommentsPanel.tsx';
 import type { Comment } from '../../src/client/types.ts';
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
-  return { id: 1, ls: 3, le: 5, block_type: 'paragraph', context: 'Hello world', text: 'test comment', ...overrides };
+  return {
+    id: 1,
+    ls: 3,
+    le: 5,
+    block_type: 'paragraph',
+    context: 'Hello world',
+    text: 'test comment',
+    ...overrides,
+  };
 }
 
-function Wrapper({ comments, onEdit, onDelete }: {
+function Wrapper({
+  comments,
+  onEdit,
+  onDelete,
+}: {
   comments: Comment[];
   onEdit?: (c: Comment) => void;
   onDelete?: (id: number) => void;
@@ -46,7 +58,9 @@ describe('CommentsPanel', () => {
 
   test('削除ボタンで onDelete が呼ばれる', async () => {
     const onDelete = vi.fn();
-    render(<Wrapper comments={[makeComment({ id: 42 })]} onDelete={onDelete} />);
+    render(
+      <Wrapper comments={[makeComment({ id: 42 })]} onDelete={onDelete} />,
+    );
     await userEvent.click(screen.getByTitle('削除'));
     expect(onDelete).toHaveBeenCalledWith(42);
   });

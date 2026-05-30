@@ -6,6 +6,17 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    name: Lint & Format (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun run lint
+
   unit:
     name: Unit & Component tests
     runs-on: ubuntu-latest

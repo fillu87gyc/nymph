@@ -1,6 +1,9 @@
-import { describe, test, expect } from 'vitest';
 import { marked } from 'marked';
-import { assignLines, getBlockTokensDFS } from '../../src/client/lib/markdown.ts';
+import { describe, expect, test } from 'vitest';
+import {
+  assignLines,
+  getBlockTokensDFS,
+} from '../../src/client/lib/markdown.ts';
 
 describe('assignLines', () => {
   test('段落に正しい行番号が付く', () => {
@@ -8,7 +11,7 @@ describe('assignLines', () => {
     const tokens = marked.lexer(src);
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
-    const paras = blocks.filter(t => t.type === 'paragraph');
+    const paras = blocks.filter((t) => t.type === 'paragraph');
     expect(paras[0].ls).toBe(1);
     expect(paras[0].le).toBe(1);
     expect(paras[1].ls).toBe(3);
@@ -20,7 +23,7 @@ describe('assignLines', () => {
     const tokens = marked.lexer(src);
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
-    const heading = blocks.find(t => t.type === 'heading');
+    const heading = blocks.find((t) => t.type === 'heading');
     expect(heading?.ls).toBe(1);
     expect(heading?.le).toBe(1);
   });
@@ -30,7 +33,7 @@ describe('assignLines', () => {
     const tokens = marked.lexer(src);
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
-    const code = blocks.find(t => t.type === 'code');
+    const code = blocks.find((t) => t.type === 'code');
     expect(code?.ls).toBe(3);
     expect(code?.le).toBe(7);
   });
@@ -47,7 +50,7 @@ describe('assignLines', () => {
     const tokens = marked.lexer(src);
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
-    const table = blocks.find(t => t.type === 'table');
+    const table = blocks.find((t) => t.type === 'table');
     expect(table?.ls).toBe(1);
     expect(table?.le).toBe(3);
   });

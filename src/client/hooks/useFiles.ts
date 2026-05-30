@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { FileEntry } from '../types.ts';
 
 export function useFiles() {
@@ -11,7 +11,7 @@ export function useFiles() {
       const data: FileEntry[] = await res.json();
       setFiles(data);
       if (data.length > 0) {
-        setActiveFile(prev => prev ?? data[0].path);
+        setActiveFile((prev) => prev ?? data[0].path);
       }
       return data;
     } catch {

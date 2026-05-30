@@ -1,21 +1,23 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Toolbar } from './components/Toolbar.tsx';
-import { ContentArea } from './components/ContentArea.tsx';
-import { CommentsPanel } from './components/CommentsPanel.tsx';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CommentModal } from './components/CommentModal.tsx';
+import { CommentsPanel } from './components/CommentsPanel.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
+import { ContentArea } from './components/ContentArea.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
+import { Toolbar } from './components/Toolbar.tsx';
 import { useComments } from './hooks/useComments.ts';
-import { useFiles } from './hooks/useFiles.ts';
 import { useDiff } from './hooks/useDiff.ts';
+import { useFiles } from './hooks/useFiles.ts';
 import { useSSE } from './hooks/useSSE.ts';
-import type { Comment, PendingComment } from './types.ts';
 import { ctxDisplay } from './lib/comments.ts';
+import type { Comment, PendingComment } from './types.ts';
 
-const HLJS_DARK = 'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css';
-const HLJS_LIGHT = 'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
+const HLJS_DARK =
+  'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css';
+const HLJS_LIGHT =
+  'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
 
 export function App() {
   const [source, setSource] = useState('');
@@ -35,9 +37,25 @@ export function App() {
   const [drawioCode, setDrawioCode] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
-  const { comments, nextId, loadComments, addComment, updateComment, deleteComment, clearAll } = useComments();
-  const { files, activeFile, setActiveFile, loadFiles, switchFile } = useFiles();
-  const { diffMode, diffData, checkpointSet, setCheckpoint, toggleDiff, loadDiff } = useDiff();
+  const {
+    comments,
+    nextId,
+    loadComments,
+    addComment,
+    updateComment,
+    deleteComment,
+    clearAll,
+  } = useComments();
+  const { files, activeFile, setActiveFile, loadFiles, switchFile } =
+    useFiles();
+  const {
+    diffMode,
+    diffData,
+    checkpointSet,
+    setCheckpoint,
+    toggleDiff,
+    loadDiff,
+  } = useDiff();
 
   function toast(msg: string) {
     toastKey.current++;
@@ -45,7 +63,9 @@ export function App() {
   }
 
   const loadContent = useCallback(async (filePath?: string | null) => {
-    const url = filePath ? `/content?file=${encodeURIComponent(filePath)}` : '/content';
+    const url = filePath
+      ? `/content?file=${encodeURIComponent(filePath)}`
+      : '/content';
     try {
       const res = await fetch(url);
       const { content, filename } = await res.json();
@@ -54,9 +74,15 @@ export function App() {
         if (wm) wm.textContent = '.md ファイルをここにドロップ';
       }
       setSource(content);
-      const now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const now = new Date().toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
       setUpdateTime(`更新: ${now}`);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // Initial load
@@ -66,13 +92,15 @@ export function App() {
       await loadComments();
       await loadFiles();
     })();
-  }, []);
+  }, [loadComments, loadContent, loadFiles]);
 
   // SSE
   useSSE((changedFile) => {
     if (!changedFile || !activeFile) return;
     if (changedFile === activeFile) {
-      loadContent(activeFile).then(() => loadComments()).then(() => toast('ファイルが更新されました'));
+      loadContent(activeFile)
+        .then(() => loadComments())
+        .then(() => toast('ファイルが更新されました'));
     }
   });
 
@@ -96,7 +124,7 @@ export function App() {
     } else {
       applyHljsTheme(true);
     }
-  }, []);
+  }, [applyHljsTheme]);
 
   function handleToggleTheme() {
     const isLight = document.documentElement.dataset.theme === 'light';
@@ -104,14 +132,25 @@ export function App() {
     applyHljsTheme(isLight);
     localStorage.setItem('nymph-theme', document.documentElement.dataset.theme);
     // Re-trigger source to re-render mermaid
-    setSource(s => s + '');
+    setSource((s) => `${s}`);
   }
 
   // Comment modal
   function openCommentModal(
-    ls: number, le: number, displayCtx: string, blockType: string, context: any, selectionOffset: number | null,
+    ls: number,
+    le: number,
+    displayCtx: string,
+    blockType: string,
+    context: any,
+    selectionOffset: number | null,
   ) {
-    setPending({ ls, le, block_type: blockType, context, selection_offset: selectionOffset });
+    setPending({
+      ls,
+      le,
+      block_type: blockType,
+      context,
+      selection_offset: selectionOffset,
+    });
     setEditingId(null);
     setEditingDisplayCtx(displayCtx);
     setEditingInitialText('');
@@ -119,7 +158,13 @@ export function App() {
   }
 
   function openEditModal(c: Comment) {
-    setPending({ ls: c.ls, le: c.le, block_type: c.block_type, context: c.context, selection_offset: c.selection_offset ?? null });
+    setPending({
+      ls: c.ls,
+      le: c.le,
+      block_type: c.block_type,
+      context: c.context,
+      selection_offset: c.selection_offset ?? null,
+    });
     setEditingId(c.id);
     setEditingDisplayCtx(ctxDisplay(c));
     setEditingInitialText(c.text);
@@ -141,8 +186,19 @@ export function App() {
     setEditingId(null);
   }
 
-  function handleSelectionComment(ls: number, le: number, ctx: string, selectionOffset: number | null) {
-    setPending({ ls, le, block_type: 'selection', context: ctx, selection_offset: selectionOffset });
+  function handleSelectionComment(
+    ls: number,
+    le: number,
+    ctx: string,
+    selectionOffset: number | null,
+  ) {
+    setPending({
+      ls,
+      le,
+      block_type: 'selection',
+      context: ctx,
+      selection_offset: selectionOffset,
+    });
     setEditingId(null);
     setEditingDisplayCtx(ctx);
     setEditingInitialText('');
@@ -151,7 +207,10 @@ export function App() {
 
   // Copy review
   function copyReview() {
-    if (!comments.length) { toast('コメントがありません'); return; }
+    if (!comments.length) {
+      toast('コメントがありません');
+      return;
+    }
     const payload = {
       date: new Date().toLocaleDateString('ja-JP'),
       file: activeFile ? activeFile.split('/').pop() : '—',
@@ -166,19 +225,27 @@ export function App() {
       })),
     };
     const out = JSON.stringify(payload, null, 2);
-    navigator.clipboard.writeText(out)
+    navigator.clipboard
+      .writeText(out)
       .then(() => toast('レビューをコピーしました'))
       .catch(() => {
-        const ta = Object.assign(document.createElement('textarea'), { value: out });
-        document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
+        const ta = Object.assign(document.createElement('textarea'), {
+          value: out,
+        });
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
         toast('レビューをコピーしました');
       });
   }
 
   // Clear all
   function handleClearAll() {
-    if (!comments.length) { toast('コメントがありません'); return; }
+    if (!comments.length) {
+      toast('コメントがありません');
+      return;
+    }
     setConfirmOpen(true);
   }
   function confirmClearAll() {
@@ -204,9 +271,15 @@ export function App() {
   // Drag & drop
   useEffect(() => {
     const overlay = document.getElementById('drop-overlay');
-    function onDragOver(e: DragEvent) { e.preventDefault(); overlay?.classList.add('active'); }
+    function onDragOver(e: DragEvent) {
+      e.preventDefault();
+      overlay?.classList.add('active');
+    }
     function onDragLeave(e: DragEvent) {
-      if (!e.relatedTarget || !document.body.contains(e.relatedTarget as Node)) {
+      if (
+        !e.relatedTarget ||
+        !document.body.contains(e.relatedTarget as Node)
+      ) {
         overlay?.classList.remove('active');
       }
     }
@@ -215,7 +288,10 @@ export function App() {
       overlay?.classList.remove('active');
       const file = e.dataTransfer?.files[0];
       if (!file) return;
-      if (!file.name.endsWith('.md')) { toast('Markdownファイルをドロップしてください'); return; }
+      if (!file.name.endsWith('.md')) {
+        toast('Markdownファイルをドロップしてください');
+        return;
+      }
       try {
         const content = await file.text();
         await fetch('/switch-file', {
@@ -237,7 +313,7 @@ export function App() {
       document.body.removeEventListener('dragleave', onDragLeave);
       document.body.removeEventListener('drop', onDrop);
     };
-  }, []);
+  }, [toast, loadContent, loadComments]);
 
   return (
     <div id="app">
@@ -249,7 +325,7 @@ export function App() {
         checkpointSet={checkpointSet}
         files={files}
         activeFile={activeFile}
-        onTogglePanel={() => setPanelOpen(o => !o)}
+        onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
         onClearAll={handleClearAll}
         onCheckpoint={handleCheckpoint}
@@ -264,7 +340,10 @@ export function App() {
           diffMode={diffMode}
           diffData={diffData}
           onAddComment={openCommentModal}
-          onOpenDrawio={(code) => { setDrawioCode(code); setDrawioOpen(true); }}
+          onOpenDrawio={(code) => {
+            setDrawioCode(code);
+            setDrawioOpen(true);
+          }}
           contentRef={contentRef}
         />
       </div>
@@ -283,7 +362,11 @@ export function App() {
         displayCtx={editingDisplayCtx}
         initialText={editingInitialText}
         onSubmit={handleCommentSubmit}
-        onClose={() => { setCommentModalOpen(false); setPending(null); setEditingId(null); }}
+        onClose={() => {
+          setCommentModalOpen(false);
+          setPending(null);
+          setEditingId(null);
+        }}
       />
       <ConfirmModal
         open={confirmOpen}
@@ -293,7 +376,10 @@ export function App() {
       <DrawioModal
         open={drawioOpen}
         code={drawioCode}
-        onClose={() => { setDrawioOpen(false); setDrawioCode(null); }}
+        onClose={() => {
+          setDrawioOpen(false);
+          setDrawioCode(null);
+        }}
         onToast={toast}
       />
       <SelectionPopup contentId="content" onComment={handleSelectionComment} />

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { DiffResponse } from '../types.ts';
 
 export function useDiff() {
@@ -14,8 +14,11 @@ export function useDiff() {
   }, []);
 
   const setCheckpoint = useCallback(async (): Promise<number> => {
-    const res = await fetch('/checkpoint', { method: 'POST', headers: { 'Content-Length': '0' } });
-    const data = await res.json() as { ok: boolean; lines: number };
+    const res = await fetch('/checkpoint', {
+      method: 'POST',
+      headers: { 'Content-Length': '0' },
+    });
+    const data = (await res.json()) as { ok: boolean; lines: number };
     setCheckpointSet(true);
     if (diffMode) await loadDiff();
     return data.lines;
@@ -28,5 +31,12 @@ export function useDiff() {
     else setDiffData(null);
   }, [diffMode, loadDiff]);
 
-  return { diffMode, diffData, checkpointSet, loadDiff, setCheckpoint, toggleDiff };
+  return {
+    diffMode,
+    diffData,
+    checkpointSet,
+    loadDiff,
+    setCheckpoint,
+    toggleDiff,
+  };
 }

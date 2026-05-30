@@ -1,6 +1,6 @@
 import { marked, Renderer } from 'marked';
-import { assignLines, esc, getBlockTokensDFS } from './markdown.ts';
 import type { CodeContext, TableContext } from '../types.ts';
+import { assignLines, esc, getBlockTokensDFS } from './markdown.ts';
 
 export interface CommentContext {
   displayCtx: string;
@@ -34,7 +34,11 @@ export function parseBlocks(src: string): BlockData[] {
 
   const renderer = new Renderer();
 
-  function wrap(inner: string, type: string, commentContext?: CommentContext): string {
+  function wrap(
+    inner: string,
+    type: string,
+    commentContext?: CommentContext,
+  ): string {
     const t = blockTokens[idx++] || {};
     if ((t as any).__nested) return inner;
     const ls = t.ls || 1,
@@ -50,12 +54,17 @@ export function parseBlocks(src: string): BlockData[] {
     return '';
   }
 
-  (renderer as any).paragraph = (text: string) => wrap(`<p>${text}</p>`, 'paragraph');
+  (renderer as any).paragraph = (text: string) =>
+    wrap(`<p>${text}</p>`, 'paragraph');
   (renderer as any).heading = (text: string, level: number) =>
     wrap(`<h${level}>${text}</h${level}>`, 'heading');
   (renderer as any).blockquote = (q: string) =>
     wrap(`<blockquote>${q}</blockquote>`, 'blockquote');
-  (renderer as any).list = (body: string, ordered: boolean, start: number | '') => {
+  (renderer as any).list = (
+    body: string,
+    ordered: boolean,
+    start: number | '',
+  ) => {
     const tag = ordered ? `ol${start !== 1 ? ` start="${start}"` : ''}` : 'ul';
     return wrap(`<${tag}>${body}</${tag}>`, 'list');
   };

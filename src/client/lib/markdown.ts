@@ -1,4 +1,4 @@
-import { type Token } from 'marked';
+import type { Token } from 'marked';
 import type { Comment } from '../types.ts';
 
 export const BLOCK_TYPES = new Set([
@@ -79,7 +79,8 @@ export function getBlockTokensDFS(tokens: any[], nested = false): any[] {
   for (const t of tokens) {
     if (!BLOCK_TYPES.has(t.type)) continue;
     const isContainer = t.type === 'blockquote';
-    if (t.tokens) result.push(...getBlockTokensDFS(t.tokens, nested || isContainer));
+    if (t.tokens)
+      result.push(...getBlockTokensDFS(t.tokens, nested || isContainer));
     if (t.type === 'list' && t.items) {
       for (const item of t.items)
         result.push(...getBlockTokensDFS(item.tokens || [], true));
@@ -89,7 +90,6 @@ export function getBlockTokensDFS(tokens: any[], nested = false): any[] {
   }
   return result;
 }
-
 
 export function scrollToLine(container: HTMLElement, c: Comment) {
   const b = container.querySelector(
@@ -197,4 +197,3 @@ function highlightSelectionText(
     return;
   }
 }
-

@@ -1,7 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
-import { MarkdownBlock, type DiffGroup } from '../../src/client/components/MarkdownBlock.tsx';
+import {
+  type DiffGroup,
+  MarkdownBlock,
+} from '../../src/client/components/MarkdownBlock.tsx';
 import type { BlockData } from '../../src/client/lib/parseBlocks.ts';
 
 function makeBlock(overrides: Partial<BlockData> = {}): BlockData {
@@ -59,7 +62,9 @@ describe('コメントボタンの表示制御', () => {
   });
 
   test('hasComment=true ならホバーなしでも opacity:1', () => {
-    const { container } = render(<MarkdownBlock {...makeProps({ hasComment: true })} />);
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ hasComment: true })} />,
+    );
     const btn = container.querySelector('.comment-btn') as HTMLElement;
     expect(btn.style.opacity).toBe('1');
     expect(btn.style.pointerEvents).toBe('auto');
@@ -70,12 +75,16 @@ describe('コメントボタンの表示制御', () => {
 
 describe('has-comment クラス', () => {
   test('hasComment=false のとき has-comment クラスなし', () => {
-    const { container } = render(<MarkdownBlock {...makeProps({ hasComment: false })} />);
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ hasComment: false })} />,
+    );
     expect(container.querySelector('.md-block')).not.toHaveClass('has-comment');
   });
 
   test('hasComment=true のとき has-comment クラスが付く', () => {
-    const { container } = render(<MarkdownBlock {...makeProps({ hasComment: true })} />);
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ hasComment: true })} />,
+    );
     expect(container.querySelector('.md-block')).toHaveClass('has-comment');
   });
 });
@@ -92,9 +101,13 @@ describe('onAddComment コールバック', () => {
       commentContext: { displayCtx: '## 見出し', context: '## 見出し本文' },
     });
     const { container } = render(
-      <MarkdownBlock {...makeProps({ block, hasComment: true, onAddComment })} />,
+      <MarkdownBlock
+        {...makeProps({ block, hasComment: true, onAddComment })}
+      />,
     );
-    await userEvent.click(container.querySelector('.comment-btn') as HTMLElement);
+    await userEvent.click(
+      container.querySelector('.comment-btn') as HTMLElement,
+    );
     expect(onAddComment).toHaveBeenCalledOnce();
     expect(onAddComment).toHaveBeenCalledWith(
       3,
@@ -137,7 +150,9 @@ describe('diff 表示', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ diffGroups, diffMode: false })} />,
     );
-    expect(container.querySelector('.md-block')).not.toHaveClass('diff-changed');
+    expect(container.querySelector('.md-block')).not.toHaveClass(
+      'diff-changed',
+    );
     expect(container.querySelector('.diff-side')).toBeNull();
   });
 
@@ -154,8 +169,12 @@ describe('diff 表示', () => {
     );
     expect(container.querySelector('.diff-side-ins')).toBeInTheDocument();
     expect(container.querySelector('.diff-side-del')).toBeInTheDocument();
-    expect(container.querySelector('.diff-ins')?.textContent).toContain('追加行');
-    expect(container.querySelector('.diff-del')?.textContent).toContain('削除行');
+    expect(container.querySelector('.diff-ins')?.textContent).toContain(
+      '追加行',
+    );
+    expect(container.querySelector('.diff-del')?.textContent).toContain(
+      '削除行',
+    );
   });
 
   test('空白のみの insert は diff-side-ins に含まれない', () => {
@@ -176,7 +195,9 @@ describe('diff 表示', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ diffGroups: [], diffMode: true })} />,
     );
-    expect(container.querySelector('.md-block')).not.toHaveClass('diff-changed');
+    expect(container.querySelector('.md-block')).not.toHaveClass(
+      'diff-changed',
+    );
   });
 });
 
@@ -204,7 +225,9 @@ describe('mermaid ブロック', () => {
   test('draw.io クリックで onOpenDrawio が mermaidCode を引数に呼ばれる', async () => {
     const onOpenDrawio = vi.fn();
     render(
-      <MarkdownBlock {...makeProps({ block: makeMermaidBlock(), onOpenDrawio })} />,
+      <MarkdownBlock
+        {...makeProps({ block: makeMermaidBlock(), onOpenDrawio })}
+      />,
     );
     await userEvent.click(screen.getByText('→ draw.io'));
     expect(onOpenDrawio).toHaveBeenCalledWith('graph TD; A-->B');

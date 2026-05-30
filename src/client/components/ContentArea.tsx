@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { parseBlocks } from '../lib/parseBlocks.ts';
-import { MarkdownBlock, type DiffGroup } from './MarkdownBlock.tsx';
 import type { Comment, DiffLine, DiffResponse } from '../types.ts';
+import { type DiffGroup, MarkdownBlock } from './MarkdownBlock.tsx';
 
 interface ContentAreaProps {
   source: string;
@@ -45,7 +45,10 @@ export function ContentArea({
     const map = new Map<string, DiffGroup[]>();
     if (!diffMode || !diffData) return map;
 
-    const groups = new Map<number, { inserts: DiffLine[]; deletes: DiffLine[] }>();
+    const groups = new Map<
+      number,
+      { inserts: DiffLine[]; deletes: DiffLine[] }
+    >();
     for (const l of diffData.lines) {
       if (l.g == null) continue;
       if (!groups.has(l.g)) groups.set(l.g, { inserts: [], deletes: [] });

@@ -28,7 +28,6 @@ function makeComment(overrides: Partial<Comment> = {}): Comment {
   };
 }
 
-
 describe('scrollToLine', () => {
   test('対応ブロックがない場合は何もしない', () => {
     scrollToLine(makeContainer(), makeComment({ ls: 99 }));

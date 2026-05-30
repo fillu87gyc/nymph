@@ -1,10 +1,7 @@
-import { useEffect, useRef } from 'react';
-import {
-  applyDiffHighlight,
-  renderMarkdown,
-  restoreIndicators,
-} from '../lib/markdown.ts';
-import type { Comment, DiffResponse } from '../types.ts';
+import { useEffect, useMemo } from 'react';
+import { parseBlocks } from '../lib/parseBlocks.ts';
+import { MarkdownBlock, type DiffGroup } from './MarkdownBlock.tsx';
+import type { Comment, DiffLine, DiffResponse } from '../types.ts';
 
 interface ContentAreaProps {
   source: string;
@@ -32,56 +29,100 @@ export function ContentArea({
   onOpenDrawio,
   contentRef,
 }: ContentAreaProps) {
-  const welcomeRef = useRef<HTMLDivElement>(null);
-  const renderVersion = useRef(0);
+  const blocks = useMemo(() => parseBlocks(source), [source]);
 
-  // Full re-render when source changes
+  const hasCommentSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const block of blocks) {
+      if (comments.some((c) => c.ls <= block.le && c.le >= block.ls)) {
+        set.add(block.key);
+      }
+    }
+    return set;
+  }, [blocks, comments]);
+
+  const diffGroupsMap = useMemo<Map<string, DiffGroup[]>>(() => {
+    const map = new Map<string, DiffGroup[]>();
+    if (!diffMode || !diffData) return map;
+
+    const groups = new Map<number, { inserts: DiffLine[]; deletes: DiffLine[] }>();
+    for (const l of diffData.lines) {
+      if (l.g == null) continue;
+      if (!groups.has(l.g)) groups.set(l.g, { inserts: [], deletes: [] });
+      const g = groups.get(l.g)!;
+      if (l.type === 'insert') g.inserts.push(l);
+      else if (l.type === 'delete') g.deletes.push(l);
+    }
+
+    for (const block of blocks) {
+      const matched: DiffGroup[] = [];
+      for (const [, g] of groups) {
+        if (
+          g.inserts.some(
+            (l) =>
+              l.n != null &&
+              l.n >= block.ls &&
+              l.n <= block.le &&
+              l.content.trim() !== '',
+          )
+        ) {
+          matched.push(g);
+        }
+      }
+      if (matched.length) map.set(block.key, matched);
+    }
+
+    return map;
+  }, [blocks, diffMode, diffData]);
+
+  // Run mermaid + hljs after blocks are rendered
   useEffect(() => {
     const container = contentRef.current;
-    const welcome = welcomeRef.current;
-    if (!container || !welcome) return;
+    if (!container) return;
 
-    const ver = ++renderVersion.current;
+    let cancelled = false;
     (async () => {
-      await renderMarkdown(
-        container,
-        welcome,
-        source,
-        onAddComment,
-        onOpenDrawio,
-      );
-      if (ver !== renderVersion.current) return;
-      restoreIndicators(container, comments);
-      applyDiffHighlight(container, diffMode, diffData);
+      try {
+        const { default: mermaid } = await import('mermaid');
+        if (cancelled) return;
+        const dark = document.documentElement.dataset.theme !== 'light';
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: dark ? 'dark' : 'default',
+          securityLevel: 'loose',
+          fontFamily: '"JetBrains Mono", monospace',
+        });
+        await mermaid.run({ querySelector: '#content .mermaid' });
+      } catch (e) {
+        console.warn('mermaid:', e);
+      }
+
+      if (cancelled) return;
+
+      try {
+        const { default: hljs } = await import('highlight.js');
+        container.querySelectorAll('pre code').forEach((el) => {
+          try {
+            hljs.highlightElement(el as HTMLElement);
+          } catch (e) {
+            console.warn('hljs:', e);
+          }
+        });
+      } catch {
+        /* not available */
+      }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    source,
-    onAddComment,
-    contentRef.current,
-    onOpenDrawio,
-    diffMode,
-    diffData,
-    comments,
-  ]);
 
-  // Update indicators when comments change (no full re-render)
-  useEffect(() => {
-    const container = contentRef.current;
-    if (!container) return;
-    restoreIndicators(container, comments);
-  }, [comments, contentRef]);
+    return () => {
+      cancelled = true;
+    };
+  }, [blocks, contentRef]);
 
-  // Update diff highlighting
-  useEffect(() => {
-    const container = contentRef.current;
-    if (!container) return;
-    applyDiffHighlight(container, diffMode, diffData);
-  }, [diffMode, diffData, contentRef]);
+  const isEmpty = !source.trim();
 
   return (
     <div id="content" ref={contentRef as React.RefObject<HTMLDivElement>}>
-      <div id="welcome" ref={welcomeRef}>
+      <div id="welcome" className={isEmpty ? '' : 'hidden'}>
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
           <rect
             x="6"
@@ -101,6 +142,18 @@ export function ContentArea({
         </svg>
         <p id="welcome-msg">ファイルを読み込んでいます…</p>
       </div>
+      {!isEmpty &&
+        blocks.map((block) => (
+          <MarkdownBlock
+            key={block.key}
+            block={block}
+            hasComment={hasCommentSet.has(block.key)}
+            diffGroups={diffGroupsMap.get(block.key) ?? []}
+            diffMode={diffMode}
+            onAddComment={onAddComment}
+            onOpenDrawio={onOpenDrawio}
+          />
+        ))}
     </div>
   );
 }

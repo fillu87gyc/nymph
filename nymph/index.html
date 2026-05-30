@@ -165,7 +165,48 @@ function assignLines(src, tokens) {
     const raw = t.raw.endsWith('\n') ? t.raw.slice(0, -1) : t.raw;
     t.le = t.ls + raw.split('\n').length - 1;
     from = idx + t.raw.length;
+    if (t.type === 'blockquote' && t.tokens) {
+      const innerSrc = t.raw.split('\n').map(l => l.replace(/^>[ ]?/, '')).join('\n');
+      _assignLinesInner(innerSrc, t.tokens, t.ls);
+    }
+    if (t.type === 'list' && t.items) {
+      for (const item of t.items) {
+        if (!item.tokens || !item.raw) continue;
+        const iIdx = src.indexOf(item.raw, 0);
+        if (iIdx === -1) continue;
+        const iLs = src.substring(0, iIdx).split('\n').length;
+        const itemInner = item.raw.split('\n').map((l, i) => i === 0 ? l.replace(/^[-*+\d.]+\s+/, '') : l).join('\n');
+        _assignLinesInner(itemInner, item.tokens, iLs);
+      }
+    }
   }
+}
+
+function _assignLinesInner(innerSrc, tokens, lineOffset) {
+  let from = 0;
+  for (const t of tokens) {
+    if (!t.raw || !BLOCK_TYPES.has(t.type)) continue;
+    const idx = innerSrc.indexOf(t.raw, from);
+    if (idx === -1) continue;
+    const before = innerSrc.substring(0, idx);
+    t.ls = lineOffset + before.split('\n').length - 1;
+    const raw = t.raw.endsWith('\n') ? t.raw.slice(0, -1) : t.raw;
+    t.le = t.ls + raw.split('\n').length - 1;
+    from = idx + t.raw.length;
+  }
+}
+
+function getBlockTokensDFS(tokens) {
+  const result = [];
+  for (const t of tokens) {
+    if (!BLOCK_TYPES.has(t.type)) continue;
+    if (t.tokens) result.push(...getBlockTokensDFS(t.tokens));
+    if (t.type === 'list' && t.items) {
+      for (const item of t.items) result.push(...getBlockTokensDFS(item.tokens || []));
+    }
+    result.push(t);
+  }
+  return result;
 }
 
 const BLOCK_TYPES = new Set(['paragraph','heading','code','blockquote','list','hr','table','html']);
@@ -185,7 +226,7 @@ async function renderSource(src) {
   const tokens = marked.lexer(src);
   assignLines(src, tokens);
 
-  const blockTokens = tokens.filter(t => BLOCK_TYPES.has(t.type));
+  const blockTokens = getBlockTokensDFS(tokens);
   let idx = 0;
 
   const renderer = new marked.Renderer();
@@ -263,7 +304,7 @@ async function renderSource(src) {
 
   restoreIndicators();
   attachHandlers();
-  if (state.diffMode) applyDiffHighlight();
+  if (state.diffMode) { await loadDiff(); applyDiffHighlight(); }
 }
 
 // ── Comment indicators ────────────────────────────────────────────────────────
@@ -752,24 +793,58 @@ async function loadDiff() {
 }
 
 function applyDiffHighlight() {
-  if (!state.diffMode || !state.diffData) {
-    document.querySelectorAll('.md-block').forEach(el => {
-      el.classList.remove('diff-insert', 'diff-delete');
-    });
-    return;
+  document.querySelectorAll('.md-block').forEach(el => {
+    el.classList.remove('diff-changed');
+    el.querySelectorAll('.diff-side').forEach(h => h.remove());
+    delete el._diffGroups;
+  });
+
+  if (!state.diffMode || !state.diffData) return;
+
+  const groups = new Map();
+  for (const l of state.diffData.lines) {
+    if (l.g == null) continue;
+    if (!groups.has(l.g)) groups.set(l.g, { inserts: [], deletes: [] });
+    const g = groups.get(l.g);
+    if (l.type === 'insert') g.inserts.push(l);
+    else if (l.type === 'delete') g.deletes.push(l);
   }
-  const insertLines = new Set(
-    state.diffData.lines.filter(l => l.type === 'insert').map(l => l.n)
-  );
+
   document.querySelectorAll('.md-block').forEach(el => {
     const ls = parseInt(el.dataset.ls, 10);
     const le = parseInt(el.dataset.le, 10);
-    let hasInsert = false;
-    for (let i = ls; i <= le; i++) {
-      if (insertLines.has(i)) { hasInsert = true; break; }
+    const matched = [];
+    for (const [, g] of groups) {
+      if (g.inserts.some(l => l.n != null && l.n >= ls && l.n <= le && l.content.trim() !== '')) {
+        matched.push(g);
+      }
     }
-    el.classList.toggle('diff-insert', hasInsert);
-    el.classList.remove('diff-delete');
+    if (!matched.length) return;
+
+    el.classList.add('diff-changed');
+    el._diffGroups = matched;
+
+    const delSide = document.createElement('div');
+    delSide.className = 'diff-side diff-side-del';
+    const insSide = document.createElement('div');
+    insSide.className = 'diff-side diff-side-ins';
+    for (const g of matched) {
+      for (const d of g.deletes) {
+        const span = document.createElement('span');
+        span.className = 'diff-del';
+        span.textContent = '− ' + (d.content || ' ');
+        delSide.appendChild(span);
+      }
+      for (const ins of g.inserts) {
+        if (!ins.content.trim()) continue;
+        const span = document.createElement('span');
+        span.className = 'diff-ins';
+        span.textContent = '+ ' + ins.content;
+        insSide.appendChild(span);
+      }
+    }
+    if (delSide.children.length) el.appendChild(delSide);
+    if (insSide.children.length) el.appendChild(insSide);
   });
 }
 
@@ -827,10 +902,18 @@ document.getElementById('comment-ta').addEventListener('keydown', e => {
 });
 
 document.getElementById('btn-checkpoint').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-checkpoint');
+  const isUpdate = btn.classList.contains('has-checkpoint');
   const res = await fetch('/checkpoint', { method: 'POST', headers: {'Content-Length': '0'} });
   const data = await res.json();
   toast(`チェックポイントを設定しました（${data.lines}行）`);
-  document.getElementById('btn-checkpoint').classList.add('has-checkpoint');
+  if (isUpdate) {
+    btn.classList.remove('flash');
+    void btn.offsetWidth;
+    btn.classList.add('flash');
+  } else {
+    btn.classList.add('has-checkpoint');
+  }
   if (state.diffMode) {
     await loadDiff();
     applyDiffHighlight();

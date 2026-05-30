@@ -118,6 +118,17 @@ class TestCheckpoint:
         data = json.loads(body)
         assert data == {"lines": []}
 
+    def test_diff_no_change(self, server):
+        base, md_path, _ = server
+        Handler.checkpoint_content = None
+        _post_empty(base + "/checkpoint")
+
+        status, _, body = _get(base + "/diff")
+        assert status == 200
+        data = json.loads(body)
+        types = {item["type"] for item in data["lines"]}
+        assert types == {"equal"}, f"変更なしなのに equal 以外の行が存在: {types}"
+
     def test_diff_with_change(self, server):
         base, md_path, _ = server
         # Set checkpoint with original content
@@ -137,6 +148,27 @@ class TestCheckpoint:
         assert "insert" in types
 
         # Restore original
+        md_path.write_text(original_checkpoint, encoding="utf-8")
+        Handler.checkpoint_content = None
+
+    def test_diff_replace_emits_delete(self, server):
+        base, md_path, _ = server
+        Handler.checkpoint_content = None
+        _post_empty(base + "/checkpoint")
+        original_checkpoint = Handler.checkpoint_content
+
+        replaced = original_checkpoint.replace("# Hello", "# Modified")
+        md_path.write_text(replaced, encoding="utf-8")
+
+        _, _, body = _get(base + "/diff")
+        data = json.loads(body)
+        types = {item["type"] for item in data["lines"]}
+        assert "insert" in types
+        assert "delete" in types
+        insert_groups = {l["g"] for l in data["lines"] if l["type"] == "insert"}
+        delete_groups = {l["g"] for l in data["lines"] if l["type"] == "delete"}
+        assert insert_groups & delete_groups
+
         md_path.write_text(original_checkpoint, encoding="utf-8")
         Handler.checkpoint_content = None
 

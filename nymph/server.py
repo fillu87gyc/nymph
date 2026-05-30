@@ -29,6 +29,10 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
+    def handle_error(self, request, client_address):
+        if not issubclass(sys.exc_info()[0], ConnectionResetError):
+            super().handle_error(request, client_address)
+
     def do_GET(self):
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
@@ -233,21 +237,33 @@ class Handler(BaseHTTPRequestHandler):
             matcher = difflib.SequenceMatcher(None, checkpoint_lines, current_lines)
             result = []
             current_n = 0
+            group_id = 0
             for tag, i1, i2, j1, j2 in matcher.get_opcodes():
                 if tag == "equal":
                     for line in current_lines[j1:j2]:
                         current_n += 1
                         c = line.rstrip("\n")
-                        result.append({"n": current_n, "type": "equal", "content": c})
-                elif tag in ("replace", "insert"):
+                        result.append({"n": current_n, "type": "equal", "content": c, "g": None})
+                elif tag == "replace":
+                    for line in checkpoint_lines[i1:i2]:
+                        c = line.rstrip("\n")
+                        result.append({"n": None, "type": "delete", "content": c, "g": group_id})
                     for line in current_lines[j1:j2]:
                         current_n += 1
                         c = line.rstrip("\n")
-                        result.append({"n": current_n, "type": "insert", "content": c})
+                        result.append({"n": current_n, "type": "insert", "content": c, "g": group_id})
+                    group_id += 1
+                elif tag == "insert":
+                    for line in current_lines[j1:j2]:
+                        current_n += 1
+                        c = line.rstrip("\n")
+                        result.append({"n": current_n, "type": "insert", "content": c, "g": group_id})
+                    group_id += 1
                 elif tag == "delete":
                     for line in checkpoint_lines[i1:i2]:
                         c = line.rstrip("\n")
-                        result.append({"n": None, "type": "delete", "content": c})
+                        result.append({"n": None, "type": "delete", "content": c, "g": group_id})
+                    group_id += 1
             data = json.dumps({"lines": result}).encode()
             self._send(200, "application/json", data)
         except Exception as e:

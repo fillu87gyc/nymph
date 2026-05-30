@@ -1,5 +1,5 @@
-import { memo, useState, type ReactNode } from 'react';
 import { diffChars } from 'diff';
+import { memo, type ReactNode, useState } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { DiffLine } from '../types.ts';
@@ -98,7 +98,6 @@ export function MarkdownBlock({
 
   const showButton = hovered || hasComment;
   const isDiffChanged = diffMode && diffGroups.length > 0;
-
 
   return (
     <div

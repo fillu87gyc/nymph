@@ -97,10 +97,12 @@ export function App() {
   useSSE((changedFile) => {
     if (!changedFile || !activeFile) return;
     if (changedFile === activeFile) {
-      loadContent(activeFile)
-        .then(() => loadComments())
-        .then(() => (diffMode ? loadDiff() : Promise.resolve()))
-        .then(() => toast('ファイルが更新されました'));
+      void (async () => {
+        await loadContent(activeFile);
+        await loadComments();
+        if (diffMode) await loadDiff();
+        toast('ファイルが更新されました');
+      })();
     }
   });
 
@@ -308,9 +310,13 @@ export function App() {
       id="app"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onDrop={(e) => { void handleDrop(e); }}
+      onDrop={(e) => {
+        void handleDrop(e);
+      }}
     >
-      <div id="drop-overlay" className={isDragging ? 'active' : ''}>📂 .md ファイルをドロップ</div>
+      <div id="drop-overlay" className={isDragging ? 'active' : ''}>
+        📂 .md ファイルをドロップ
+      </div>
       <Toolbar
         updateTime={updateTime}
         commentCount={comments.length}

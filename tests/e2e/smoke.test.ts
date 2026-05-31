@@ -36,7 +36,12 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     const connectionStatus = page.locator('#connection-status');
     const connectionDot = connectionStatus.locator('.connection-dot');
 
-    // 接続中は緑色の点が表示される
+    // 起動直後は接続中
+    await expect(connectionDot).not.toHaveClass(/error/);
+    await expect(connectionStatus).not.toHaveClass(/disconnected/);
+
+    // 3秒後もハートビートで接続を維持していること
+    await page.waitForTimeout(3000);
     await expect(connectionDot).not.toHaveClass(/error/);
     await expect(connectionStatus).not.toHaveClass(/disconnected/);
   });

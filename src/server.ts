@@ -112,8 +112,8 @@ function handleWatch(): Response {
         }
       }, 500);
       pingTimer = setInterval(() => {
-        ctrl.enqueue(encoder.encode(': ping\n\n'));
-      }, 5000);
+        ctrl.enqueue(encoder.encode('data: {}\n\n'));
+      }, 1000);
     },
     cancel() {
       clearInterval(timer);

@@ -1019,6 +1019,10 @@ body {
   border-top: 1px solid var(--border);
   justify-content: flex-end;
 }
+.acp-del:hover {
+  color: #b04040;
+  border-color: #b04040;
+}
 
 /* ── Drop overlay ── */
 #drop-overlay {

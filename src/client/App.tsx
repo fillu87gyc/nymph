@@ -470,6 +470,17 @@ export function App() {
               </button>
               <button
                 type="button"
+                className="btn icon acp-del"
+                title="削除"
+                onClick={() => {
+                  deleteComment(anchorPopup.comment.id);
+                  setAnchorPopup(null);
+                }}
+              >
+                🗑
+              </button>
+              <button
+                type="button"
                 className="btn icon"
                 onClick={() => setAnchorPopup(null)}
               >

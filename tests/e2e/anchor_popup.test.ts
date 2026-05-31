@@ -106,7 +106,7 @@ test.describe('コメントアンカークリック', () => {
       timeout: 1000,
     });
 
-    await page.locator('#anchor-comment-popup .btn.icon').click();
+    await page.locator('#anchor-comment-popup').getByText('✕').click();
     await expect(page.locator('#anchor-comment-popup')).not.toBeVisible({
       timeout: 500,
     });
@@ -144,5 +144,24 @@ test.describe('コメントアンカークリック', () => {
     await page.locator('#anchor-comment-popup').getByText('✎ 編集').click();
     await expect(page.locator('#comment-modal')).toBeVisible({ timeout: 1000 });
     await expect(page.locator('#btn-submit')).toContainText('更新');
+  });
+
+  test('ゴミ箱ボタンでコメントが削除される', async ({ page }) => {
+    await addSelectionComment(page, 'delete from popup');
+
+    const supported = await page.evaluate(() => 'highlights' in CSS);
+    if (!supported) return;
+
+    await expect(page.locator('.comment-item')).toHaveCount(1);
+    await clickAnchoredParagraph(page);
+    await expect(page.locator('#anchor-comment-popup')).toBeVisible({
+      timeout: 1000,
+    });
+
+    await page.locator('#anchor-comment-popup .acp-del').click();
+    await expect(page.locator('#anchor-comment-popup')).not.toBeVisible({
+      timeout: 500,
+    });
+    await expect(page.locator('.comment-item')).toHaveCount(0);
   });
 });

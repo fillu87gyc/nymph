@@ -90,15 +90,12 @@ export function getBlockTokensDFS(tokens: any[], nested = false): any[] {
   return result;
 }
 
-export function highlightSelectionText(
+export function findTextRange(
   blocks: HTMLElement[],
-  ls: number,
-  _le: number,
   searchText: string,
   selectionOffset: number | null,
-  onFallback: (ls: number) => void,
-): void {
-  if (!searchText) return;
+): Range | null {
+  if (!searchText) return null;
   const needle = searchText.endsWith('…')
     ? searchText.slice(0, -1)
     : searchText;
@@ -139,21 +136,40 @@ export function highlightSelectionText(
     }
     if (!startNode || !endNode) continue;
 
-    const range = document.createRange();
-    range.setStart(startNode, startOffset);
-    range.setEnd(endNode, endOffset);
     try {
-      // CSS Custom Highlight API — no DOM mutation needed
-      const hl = (CSS as any).highlights as Map<string, unknown> | undefined;
-      if (hl) {
-        hl.set('text-highlight', new (window as any).Highlight(range));
-        setTimeout(() => hl.delete('text-highlight'), 2000);
-      } else {
-        onFallback(ls);
-      }
+      const range = document.createRange();
+      range.setStart(startNode, startOffset);
+      range.setEnd(endNode, endOffset);
+      return range;
     } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+export function highlightSelectionText(
+  blocks: HTMLElement[],
+  ls: number,
+  _le: number,
+  searchText: string,
+  selectionOffset: number | null,
+  onFallback: (ls: number) => void,
+): void {
+  const range = findTextRange(blocks, searchText, selectionOffset);
+  if (!range) return;
+
+  try {
+    const hl = (CSS as any).highlights as Map<string, unknown> | undefined;
+    if (hl) {
+      const h = new (window as any).Highlight(range);
+      h.priority = 1;
+      hl.set('text-highlight', h);
+      setTimeout(() => hl.delete('text-highlight'), 2000);
+    } else {
       onFallback(ls);
     }
-    return;
+  } catch {
+    onFallback(ls);
   }
 }

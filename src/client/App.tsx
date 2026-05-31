@@ -1,5 +1,6 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSWRConfig } from 'swr';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
@@ -10,6 +11,7 @@ import { Toast } from './components/Toast.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
+import { useContent } from './hooks/useContent.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useSSE } from './hooks/useSSE.ts';
@@ -29,12 +31,10 @@ const versionPromise = fetch('/version')
 
 export function App() {
   const appVersion = use(versionPromise);
-  const [source, setSource] = useState('');
-  const [updateTime, setUpdateTime] = useState('');
+  const { mutate } = useSWRConfig();
   const [panelOpen, setPanelOpen] = useState(false);
   const [toastState, setToastState] = useState({ msg: '', v: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [welcomeMsg, setWelcomeMsg] = useState('ファイルを読み込んでいます…');
   const [hljsTheme, setHljsTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('nymph-theme');
     const theme = saved === 'light' ? 'light' : 'dark';
@@ -66,17 +66,10 @@ export function App() {
 
   const contentRef = useRef<HTMLDivElement>(null);
   const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
-  const {
-    comments,
-    nextId,
-    loadComments,
-    addComment,
-    updateComment,
-    deleteComment,
-    clearAll,
-  } = useComments();
-  const { files, activeFile, setActiveFile, loadFiles, switchFile, closeFile } =
-    useFiles();
+  const { comments, addComment, updateComment, deleteComment, clearAll } =
+    useComments();
+  const { files, activeFile, switchFile, closeFile } = useFiles();
+  const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {
     diffMode,
     diffData,
@@ -90,47 +83,14 @@ export function App() {
     setToastState((s) => ({ msg, v: s.v + 1 }));
   }
 
-  const loadContent = useCallback(async (filePath?: string | null) => {
-    const url = filePath
-      ? `/content?file=${encodeURIComponent(filePath)}`
-      : '/content';
-    try {
-      const res = await fetch(url);
-      const { content, filename } = await res.json();
-      if (filename === null) {
-        setWelcomeMsg('.md ファイルをここにドロップ');
-      }
-      setSource(content);
-      const now = new Date().toLocaleTimeString('ja-JP', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-      setUpdateTime(`更新: ${now}`);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  // Initial load
-  useEffect(() => {
-    (async () => {
-      await loadContent();
-      await loadComments();
-      await loadFiles();
-    })();
-  }, [loadComments, loadContent, loadFiles]);
-
   // SSE
   useSSE((changedFile) => {
     if (!changedFile || !activeFile) return;
     if (changedFile === activeFile) {
-      void (async () => {
-        await loadContent(activeFile);
-        await loadComments();
-        if (diffMode) await loadDiff();
-        toast('ファイルが更新されました');
-      })();
+      void mutate(contentKey);
+      void mutate('/comments');
+      if (diffMode) void loadDiff();
+      toast('ファイルが更新されました');
     }
   });
 
@@ -139,7 +99,6 @@ export function App() {
     setHljsTheme(next);
     document.documentElement.dataset.theme = next;
     localStorage.setItem('nymph-theme', next);
-    setSource((s) => `${s}`);
   }
 
   useEffect(() => {
@@ -240,7 +199,7 @@ export function App() {
       updateComment(editingId, text);
       toast('コメントを更新しました');
     } else {
-      addComment(pending, text, nextId);
+      addComment(pending, text);
       setPanelOpen(true);
       toast('コメントを追加しました');
     }
@@ -317,15 +276,13 @@ export function App() {
   // Switch file
   async function handleSwitchFile(path: string) {
     await switchFile(path);
-    await loadContent(path);
-    await loadComments();
+    await mutate('/comments');
   }
 
   // Close file
   async function handleCloseFile(path: string) {
-    const next = await closeFile(path);
-    await loadContent(next ?? undefined);
-    await loadComments();
+    await closeFile(path);
+    await mutate('/comments');
   }
 
   // Drag & drop
@@ -356,9 +313,8 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, filename: file.name }),
       });
-      await loadContent();
-      await loadComments();
-      await loadFiles();
+      await mutate('/files');
+      await mutate('/comments');
     } catch (err: any) {
       toast(err.message || 'ファイルの読み込みに失敗しました');
     }

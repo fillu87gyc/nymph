@@ -9,9 +9,9 @@ description: PRを作成する。fmt/lint/unit testをローカルで実行し�
 
 1. ローカルで fmt / lint / typecheck / unit test を実行し、全部グリーンになるまで修正する
 2. 今回の変更に対応する E2E テストを特定し、PR description に記載する
-3. **UI 変更がある場合**はスクリーンショットを撮影して GitHub にアップロードし、URL を取得する
-4. PR を作成する
-5. CI をモニターしてすべてのジョブがグリーンになるまで待機・修正する
+3. PR を作成する
+4. CI をモニターしてすべてのジョブがグリーンになるまで待機・修正する
+5. E2E グリーン後に CI run の URL を PR description に追記する
 
 ---
 
@@ -63,65 +63,13 @@ E2E テストファイルとカバーするシナリオの対応表：
 
 ---
 
-## Step 2.5 — デモキャプチャ（UI 変更がある場合は必須）
-
-CSS・コンポーネント・レイアウトなど見た目に関わる変更は、**必ずスクリーンショットを撮って PR description に埋め込む**。撮影しないまま PR を作ってはいけない。
-
-### 2.5-a. スクリーンショット撮影
-
-`run-nymph` スキルを使ってアプリを起動・撮影する：
-
-```bash
-# フロントエンドを変更した場合は先にビルドが必要
-bun run build
-
-# スクリーンショット撮影（/tmp/nymph-demo.png に保存）
-bun .claude/skills/run-nymph/driver.mjs tests/fixtures/sample.md \
-  --screenshot /tmp/nymph-demo.png
-```
-
-変更内容に応じてフィクスチャや操作を調整する（コメント追加後の見た目を確認したいなら `--comment "..."` を付けるなど）。
-
-### 2.5-b. GitHub にアップロードして URL を取得
-
-```bash
-OWNER=$(gh repo view --json owner -q .owner.login)
-REPO=$(gh repo view --json name -q .name)
-FILENAME="demo-$(date +%s).png"
-
-# screenshots タグがなければ作成（初回のみ）
-gh release view screenshots &>/dev/null || \
-  gh release create screenshots \
-    --title "PR Screenshots (auto-generated)" \
-    --notes "PR デモスクリーンショット置き場。手動削除しないこと。" \
-    --prerelease
-
-# アップロード
-cp /tmp/nymph-demo.png "/tmp/${FILENAME}"
-gh release upload screenshots "/tmp/${FILENAME}" --name "$FILENAME"
-
-# PR description に使う URL
-DEMO_URL="https://github.com/${OWNER}/${REPO}/releases/download/screenshots/${FILENAME}"
-echo "DEMO_URL=$DEMO_URL"
-```
-
-取得した `$DEMO_URL` を次の Step 3 の `## デモ` セクションに埋め込む。
-
-> **UI 変更がない場合**（ロジック修正・リファクタ・CI 設定など）は `## デモ` セクションごと削除する。
-
----
-
 ## Step 3 — PR 作成
 
 PR の body は以下のテンプレートを使う。`gh pr create` の `--body` に渡す。
-`$DEMO_URL` には Step 2.5 で取得した実際の URL を埋め込むこと（プレースホルダーのまま作ってはいけない）。
 
 ```
 ## Summary
 - <変更点を箇条書き>
-
-## デモ
-![デモ]($DEMO_URL)
 
 ## E2Eカバレッジ
 <!-- 今回の開発に対応するE2Eテストを列挙する -->
@@ -139,28 +87,25 @@ PR の body は以下のテンプレートを使う。`gh pr create` の `--body
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
-実際のコマンド例（`DEMO_URL` 変数を使いまわす）：
+実際のコマンド例：
 
 ```bash
 gh pr create \
   --title "feat: ..." \
-  --body "$(cat <<EOF
+  --body "$(cat <<'EOF'
 ## Summary
 - ...
-
-## デモ
-![デモ](${DEMO_URL})
 
 ## E2Eカバレッジ
 | テストファイル | シナリオ |
 |---|---|
-| \`tests/e2e/smoke.test.ts\` | \`smoke: 起動 → コンテンツ表示 > ページが正常に読み込まれる\` — ... |
+| `tests/e2e/smoke.test.ts` | `smoke: 起動 → コンテンツ表示 > ページが正常に読み込まれる` — ... |
 
 ## Test plan
-- [x] \`bun run fmt\` グリーン
-- [x] \`bun run lint\` グリーン
-- [x] \`bunx tsc --noEmit\` グリーン
-- [x] \`bun run test\` グリーン
+- [x] `bun run fmt` グリーン
+- [x] `bun run lint` グリーン
+- [x] `bunx tsc --noEmit` グリーン
+- [x] `bun run test` グリーン
 - [ ] CI 全ジョブ グリーン
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
@@ -186,7 +131,25 @@ gh run view <run-id> --log-failed
 CI ジョブは5つ：`typecheck` / `lint` / `build` / `unit` / `e2e`
 
 - 失敗したジョブのログを確認し、ローカルで再現・修正してプッシュする
-- 全ジョブがグリーンになったら完了を報告する
+- 全ジョブがグリーンになったら以下の手順で PR description を更新して完了を報告する
+
+### E2E グリーン後 — CI run URL を PR description に追記
+
+```bash
+# E2E run の URL を取得
+E2E_RUN_URL=$(gh run list --branch "$(git branch --show-current)" \
+  --json url,name --jq '.[] | select(.name == "E2E (Playwright)") | .url' | head -1)
+
+# 現在の PR body を取得して E2E リンクを追記
+CURRENT_BODY=$(gh pr view --json body -q .body)
+gh pr edit --body "$(cat <<EOF
+${CURRENT_BODY}
+
+## CI E2E
+[E2E (Playwright) — Actions run](${E2E_RUN_URL})
+EOF
+)"
+```
 
 ### E2E 失敗時の追加確認
 

@@ -11,7 +11,7 @@ description: PRを作成する。fmt/lint/unit testをローカルで実行し�
 2. 今回の変更に対応する E2E テストを特定し、PR description に記載する
 3. PR を作成する
 4. CI をモニターしてすべてのジョブがグリーンになるまで待機・修正する
-5. E2E グリーン後に CI run の URL を PR description に追記する
+5. E2E グリーン後に CI artifact のスクリーンショットを GitHub Release に転送し、PR description に image タグで埋め込む
 
 ---
 
@@ -133,23 +133,43 @@ CI ジョブは5つ：`typecheck` / `lint` / `build` / `unit` / `e2e`
 - 失敗したジョブのログを確認し、ローカルで再現・修正してプッシュする
 - 全ジョブがグリーンになったら以下の手順で PR description を更新して完了を報告する
 
-### E2E グリーン後 — CI run URL を PR description に追記
+### E2E グリーン後 — スクリーンショットを PR description に画像として埋め込む
+
+CI の `e2e-screenshots` artifact をダウンロードし、GitHub Release 経由で公開 URL を取得して image タグで埋め込む。
 
 ```bash
-# E2E run の URL を取得
-E2E_RUN_URL=$(gh run list --branch "$(git branch --show-current)" \
-  --json url,name --jq '.[] | select(.name == "E2E (Playwright)") | .url' | head -1)
+OWNER=$(gh repo view --json owner -q .owner.login)
+REPO=$(gh repo view --json name -q .name)
+RUN_ID=$(gh run list --branch "$(git branch --show-current)" \
+  --json databaseId,name --jq '.[] | select(.name == "CI") | .databaseId' | head -1)
 
-# 現在の PR body を取得して E2E リンクを追記
+# artifact をダウンロード
+mkdir -p /tmp/e2e-screenshots
+gh run download "$RUN_ID" --name e2e-screenshots --dir /tmp/e2e-screenshots/
+
+# screenshots タグがなければ作成（初回のみ）
+gh release view screenshots &>/dev/null || \
+  gh release create screenshots \
+    --title "PR Screenshots (auto-generated)" \
+    --notes "PR デモスクリーンショット置き場。手動削除しないこと。" \
+    --prerelease
+
+# GitHub Release にアップロードして URL を収集
+IMAGE_TAGS=""
+for f in /tmp/e2e-screenshots/*.png; do
+  [ -f "$f" ] || continue
+  FNAME="${RUN_ID}-$(basename "$f")"
+  gh release upload screenshots "$f" --name "$FNAME" --clobber
+  URL="https://github.com/${OWNER}/${REPO}/releases/download/screenshots/${FNAME}"
+  IMAGE_TAGS="${IMAGE_TAGS}![$(basename "$f" .png)](${URL})\n"
+done
+
+# PR description に ## デモ セクションとして追記
 CURRENT_BODY=$(gh pr view --json body -q .body)
-gh pr edit --body "$(cat <<EOF
-${CURRENT_BODY}
-
-## CI E2E
-[E2E (Playwright) — Actions run](${E2E_RUN_URL})
-EOF
-)"
+gh pr edit --body "$(printf '%s\n\n## デモ\n%b' "$CURRENT_BODY" "$IMAGE_TAGS")"
 ```
+
+> スクリーンショットが存在しない場合（E2E が撮影していない変更の PR）はこのステップをスキップする。
 
 ### E2E 失敗時の追加確認
 

@@ -17,7 +17,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .tool-versions
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
 
   lint:
@@ -31,7 +31,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .tool-versions
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bun run lint
 
   build:
@@ -45,7 +45,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .tool-versions
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bun run build
       - uses: actions/upload-artifact@v7
         with:
@@ -63,7 +63,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .tool-versions
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bun run test:coverage
       - uses: actions/upload-artifact@v7
         if: always()
@@ -84,7 +84,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .tool-versions
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - uses: actions/download-artifact@v8
         with:
           name: dist

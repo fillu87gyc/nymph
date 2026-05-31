@@ -154,12 +154,13 @@ gh release view screenshots &>/dev/null || \
     --notes "PR デモスクリーンショット置き場。手動削除しないこと。" \
     --prerelease
 
-# GitHub Release にアップロードして URL を収集
+# GitHub Release にアップロードして URL を収集（gh release upload は --name 非対応のためリネームして渡す）
 IMAGE_TAGS=""
 for f in /tmp/e2e-screenshots/*.png; do
   [ -f "$f" ] || continue
   FNAME="${RUN_ID}-$(basename "$f")"
-  gh release upload screenshots "$f" --name "$FNAME" --clobber
+  cp "$f" "/tmp/$FNAME"
+  gh release upload screenshots "/tmp/$FNAME" --clobber
   URL="https://github.com/${OWNER}/${REPO}/releases/download/screenshots/${FNAME}"
   IMAGE_TAGS="${IMAGE_TAGS}![$(basename "$f" .png)](${URL})\n"
 done

@@ -6,9 +6,11 @@ const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
 const COMMENTS_FILE = `${FIXTURE}.comments.json`;
 
 async function addComment(page: import('@playwright/test').Page, text: string) {
-  const firstBlock = page.locator('#content .md-block').first();
-  await firstBlock.hover();
-  await firstBlock.locator('.comment-btn').click();
+  const tableBlock = page
+    .locator('#content .md-block[data-block-type="table"]')
+    .first();
+  await tableBlock.hover();
+  await tableBlock.locator('.comment-btn').click();
   await page.locator('#comment-ta').fill(text);
   await page.locator('#btn-submit').click();
   await expect(page.locator('.comment-item').first()).toBeVisible({
@@ -118,8 +120,10 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
   }) => {
     await addComment(page, 'highlight test');
 
-    const firstBlock = page.locator('#content .md-block').first();
-    const ls = await firstBlock.getAttribute('data-ls');
+    const tableBlock = page
+      .locator('#content .md-block[data-block-type="table"]')
+      .first();
+    const ls = await tableBlock.getAttribute('data-ls');
 
     await page.locator('.comment-item').first().click();
 
@@ -131,8 +135,10 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
   test('highlighted クラスはしばらく後に消える', async ({ page }) => {
     await addComment(page, 'transient highlight');
 
-    const firstBlock = page.locator('#content .md-block').first();
-    const ls = await firstBlock.getAttribute('data-ls');
+    const tableBlock = page
+      .locator('#content .md-block[data-block-type="table"]')
+      .first();
+    const ls = await tableBlock.getAttribute('data-ls');
 
     await page.locator('.comment-item').first().click();
     await expect(
@@ -149,8 +155,10 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
     page,
   }) => {
     await addComment(page, 'scroll test');
-    const firstBlock = page.locator('#content .md-block').first();
-    const ls = await firstBlock.getAttribute('data-ls');
+    const tableBlock = page
+      .locator('#content .md-block[data-block-type="table"]')
+      .first();
+    const ls = await tableBlock.getAttribute('data-ls');
     await page.locator('.comment-item').first().click();
     await expect(
       page.locator(`#content .md-block[data-ls="${ls}"]`),
@@ -240,9 +248,11 @@ test.describe('テーマ切替', () => {
 test.describe('複数コメント', () => {
   test('コメントが ls 順に並ぶ', async ({ page }) => {
     await addComment(page, 'first comment');
-    const secondBlock = page.locator('#content .md-block').nth(1);
-    await secondBlock.hover();
-    await secondBlock.locator('.comment-btn').click();
+    const mermaidBlock = page
+      .locator('#content .md-block[data-block-type="mermaid"]')
+      .first();
+    await mermaidBlock.hover();
+    await mermaidBlock.locator('.comment-btn').click();
     await page.locator('#comment-ta').fill('second comment');
     await page.locator('#btn-submit').click();
     await expect(page.locator('.comment-item')).toHaveCount(2);

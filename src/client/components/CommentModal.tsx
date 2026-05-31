@@ -57,7 +57,7 @@ export function CommentModal({
   }
 
   return (
-    <div id="comment-modal" className="open">
+    <div id="comment-modal">
       <div id="modal-backdrop" onClick={onClose} />
       <div id="modal-box">
         <div className="modal-head" id="modal-line">

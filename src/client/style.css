@@ -156,7 +156,7 @@ body {
   padding: 5px 8px;
 }
 #comment-count {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 17px;
@@ -166,9 +166,6 @@ body {
   color: #fff;
   font-size: 10px;
   font-weight: 700;
-}
-#comment-count.visible {
-  display: inline-flex;
 }
 
 /* ── File tabs ── */
@@ -246,9 +243,6 @@ body {
   height: 60vh;
   opacity: 0.4;
   pointer-events: none;
-}
-#welcome.hidden {
-  display: none;
 }
 #welcome svg {
   opacity: 0.5;
@@ -617,12 +611,9 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: none;
+  display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-}
-#comment-modal.open {
-  display: flex;
 }
 #modal-backdrop {
   position: absolute;
@@ -682,14 +673,11 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1010;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(2px);
-}
-#confirm-modal.open {
-  display: flex;
 }
 #confirm-backdrop {
   position: absolute;
@@ -728,14 +716,11 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(2px);
-}
-#drawio-modal.open {
-  display: flex;
 }
 #drawio-box {
   width: 520px;
@@ -801,20 +786,6 @@ body {
 #selection-popup {
   position: fixed;
   z-index: 600;
-  visibility: hidden;
-  opacity: 0;
-  transform: translateY(5px);
-  transition:
-    opacity 0.13s,
-    transform 0.13s,
-    visibility 0.13s;
-  pointer-events: none;
-}
-#selection-popup.visible {
-  visibility: visible;
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 #btn-selection-comment {
   display: flex;
@@ -952,7 +923,7 @@ mark.text-highlight {
 
 /* ── Drop overlay ── */
 #drop-overlay {
-  display: none;
+  display: flex;
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -963,9 +934,6 @@ mark.text-highlight {
   justify-content: center;
   font-size: 1.5rem;
   color: var(--accent);
-}
-#drop-overlay.active {
-  display: flex;
 }
 
 /* ── Toast ── */
@@ -980,13 +948,6 @@ mark.text-highlight {
   border-radius: 8px;
   font-size: 13px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  transform: translateY(50px);
-  opacity: 0;
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 9999;
   pointer-events: none;
-}
-#toast.show {
-  transform: translateY(0);
-  opacity: 1;
 }

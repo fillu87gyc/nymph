@@ -35,18 +35,65 @@ function makeProps(
   };
 }
 
+// ── ボタンのレンダリング制御 ──────────────────────────────────
+
+describe('コメントボタンのレンダリング制御', () => {
+  test('paragraph ブロックにはボタンが描画されない', () => {
+    const { container } = render(<MarkdownBlock {...makeProps()} />);
+    expect(container.querySelector('.comment-btn')).toBeNull();
+  });
+
+  test('heading ブロックにはボタンが描画されない', () => {
+    const { container } = render(
+      <MarkdownBlock
+        {...makeProps({ block: makeBlock({ type: 'heading' }) })}
+      />,
+    );
+    expect(container.querySelector('.comment-btn')).toBeNull();
+  });
+
+  test('table ブロックにはボタンが描画される', () => {
+    const { container } = render(
+      <MarkdownBlock
+        {...makeProps({ block: makeBlock({ type: 'table' }) })}
+      />,
+    );
+    expect(container.querySelector('.comment-btn')).toBeInTheDocument();
+  });
+
+  test('mermaid ブロックにはボタンが描画される', () => {
+    const { container } = render(
+      <MarkdownBlock
+        {...makeProps({
+          block: makeBlock({
+            type: 'mermaid',
+            html: '',
+            mermaidCode: 'graph TD; A-->B',
+            mermaidId: 'mermaid-1',
+          }),
+        })}
+      />,
+    );
+    expect(container.querySelector('.comment-btn')).toBeInTheDocument();
+  });
+});
+
 // ── ボタンの表示・非表示 ──────────────────────────────────────
 
 describe('コメントボタンの表示制御', () => {
   test('デフォルトで opacity:0 / pointerEvents:none', () => {
-    const { container } = render(<MarkdownBlock {...makeProps()} />);
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
+    );
     const btn = container.querySelector('.comment-btn') as HTMLElement;
     expect(btn.style.opacity).toBe('0');
     expect(btn.style.pointerEvents).toBe('none');
   });
 
   test('ホバーで opacity:1 になる', async () => {
-    const { container } = render(<MarkdownBlock {...makeProps()} />);
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
+    );
     const wrapper = container.querySelector('.md-block') as HTMLElement;
     await userEvent.hover(wrapper);
     const btn = container.querySelector('.comment-btn') as HTMLElement;
@@ -55,7 +102,9 @@ describe('コメントボタンの表示制御', () => {
   });
 
   test('ホバー解除で opacity:0 に戻る', async () => {
-    const { container } = render(<MarkdownBlock {...makeProps()} />);
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
+    );
     const wrapper = container.querySelector('.md-block') as HTMLElement;
     await userEvent.hover(wrapper);
     await userEvent.unhover(wrapper);
@@ -65,7 +114,9 @@ describe('コメントボタンの表示制御', () => {
 
   test('hasComment=true ならホバーなしでも opacity:1', () => {
     const { container } = render(
-      <MarkdownBlock {...makeProps({ hasComment: true })} />,
+      <MarkdownBlock
+        {...makeProps({ block: makeBlock({ type: 'table' }), hasComment: true })}
+      />,
     );
     const btn = container.querySelector('.comment-btn') as HTMLElement;
     expect(btn.style.opacity).toBe('1');
@@ -99,8 +150,8 @@ describe('onAddComment コールバック', () => {
     const block = makeBlock({
       ls: 3,
       le: 5,
-      type: 'heading',
-      commentContext: { displayCtx: '## 見出し', context: '## 見出し本文' },
+      type: 'table',
+      commentContext: { displayCtx: 'Name | Value', context: 'Name | Value' },
     });
     const { container } = render(
       <MarkdownBlock
@@ -114,9 +165,9 @@ describe('onAddComment コールバック', () => {
     expect(onAddComment).toHaveBeenCalledWith(
       3,
       5,
-      '## 見出し',
-      'heading',
-      '## 見出し本文',
+      'Name | Value',
+      'table',
+      'Name | Value',
       null,
     );
   });

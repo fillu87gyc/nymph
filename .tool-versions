@@ -1,2 +1,3 @@
-uv  latest
-bun 1.3.14
+uv     latest
+nodejs 24
+bun    1.3.14

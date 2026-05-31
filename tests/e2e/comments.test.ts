@@ -267,3 +267,56 @@ test.describe('複数コメント', () => {
     await expect(page.locator('#comment-count')).toContainText('1');
   });
 });
+
+test.describe('削除済みコメントの表示', () => {
+  test('対象テキストが存在しない selection コメントに「削除済み」バッジが表示される', async ({
+    page,
+  }) => {
+    // /files でアクティブファイルのフルパスを取得（reuseExistingServer で別ファイルの可能性あり）
+    const filesRes = await page.request.get('/files');
+    const { activeFile } = await filesRes.json();
+    const activeCommentsFile = activeFile
+      ? `${activeFile}.comments.json`
+      : COMMENTS_FILE;
+
+    const orphanedComment = [
+      {
+        id: 1,
+        ls: 3,
+        le: 3,
+        block_type: 'selection',
+        context: '【NYMPH_TEST_ORPHAN_DOES_NOT_EXIST_XYZ_99999】',
+        selection_offset: 0,
+        text: '孤立コメント',
+      },
+    ];
+    writeFileSync(activeCommentsFile, JSON.stringify(orphanedComment));
+
+    await page.reload();
+    await expect(page.locator('#content .md-block').first()).toBeVisible({
+      timeout: 5000,
+    });
+
+    await page.locator('#btn-comments').click();
+    await expect(page.locator('#comments-panel.open')).toBeVisible();
+    await expect(page.locator('.comment-item')).toHaveCount(1);
+    await expect(page.locator('.c-deleted')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.c-deleted')).toContainText('削除済み');
+
+    try {
+      rmSync(activeCommentsFile);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  test('対象ブロックが存在する block コメントには「削除済み」バッジが表示されない', async ({
+    page,
+  }) => {
+    // UI 経由で block コメントを追加（ls/le が正しく設定され、ブロックが存在する）
+    await addComment(page, '有効コメント');
+    // useEffect の反映を待つ
+    await page.waitForTimeout(600);
+    await expect(page.locator('.c-deleted')).not.toBeVisible();
+  });
+});

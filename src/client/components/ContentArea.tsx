@@ -22,6 +22,7 @@ interface ContentAreaProps {
   ) => void;
   onOpenDrawio: (code: string) => void;
   onClickCommentAnchor: (c: Comment, x: number, y: number) => void;
+  onOrphanedIds?: (ids: Set<number>) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
   blockRefsMapRef: React.MutableRefObject<Map<string, HTMLElement>>;
 }
@@ -37,6 +38,7 @@ export function ContentArea({
   onAddComment,
   onOpenDrawio,
   onClickCommentAnchor,
+  onOrphanedIds,
   contentRef,
   blockRefsMapRef,
 }: ContentAreaProps) {
@@ -112,10 +114,23 @@ export function ContentArea({
     hl.delete('comment-anchor');
     commentRangesRef.current = [];
 
+    const orphaned = new Set<number>();
+
+    // Block-level comments: orphaned if no block starts at c.ls
+    for (const c of comments) {
+      if (c.block_type === 'selection') continue;
+      const found = blocks.some((b) => b.ls === c.ls);
+      if (!found) orphaned.add(c.id);
+    }
+
     const selComments = comments.filter(
       (c) => c.block_type === 'selection' && typeof c.context === 'string',
     );
-    if (!selComments.length) return;
+
+    if (!selComments.length) {
+      onOrphanedIds?.(orphaned);
+      return;
+    }
 
     const ranges: Range[] = [];
     for (const c of selComments) {
@@ -134,8 +149,12 @@ export function ContentArea({
       if (range) {
         ranges.push(range);
         commentRangesRef.current.push({ comment: c, range });
+      } else {
+        orphaned.add(c.id);
       }
     }
+
+    onOrphanedIds?.(orphaned);
 
     if (!ranges.length) return;
     hl.set('comment-anchor', new (window as any).Highlight(...ranges));
@@ -143,7 +162,7 @@ export function ContentArea({
     return () => {
       hl.delete('comment-anchor');
     };
-  }, [comments, blocks, contentRef]);
+  }, [comments, blocks, contentRef, onOrphanedIds]);
 
   function getCommentAtPoint(x: number, y: number): Comment | null {
     for (const { comment, range } of commentRangesRef.current) {

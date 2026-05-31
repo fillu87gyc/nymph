@@ -38,6 +38,9 @@ export function App() {
   const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
     null,
   );
+  const [orphanedCommentIds, setOrphanedCommentIds] = useState<Set<number>>(
+    new Set(),
+  );
   const [anchorPopup, setAnchorPopup] = useState<{
     comment: Comment;
     x: number;
@@ -403,6 +406,7 @@ export function App() {
             setDrawioOpen(true);
           }}
           onClickCommentAnchor={handleClickCommentAnchor}
+          onOrphanedIds={setOrphanedCommentIds}
           contentRef={contentRef}
           blockRefsMapRef={blockRefsMapRef}
           welcomeMsg={welcomeMsg}
@@ -411,6 +415,7 @@ export function App() {
       <CommentsPanel
         open={panelOpen}
         comments={comments}
+        orphanedIds={orphanedCommentIds}
         onScrollToComment={scrollToComment}
         onEdit={openEditModal}
         onDelete={deleteComment}

@@ -154,7 +154,9 @@ body {
   100% {
     opacity: 1;
     transform: scale(1.4);
-    box-shadow: 0 0 10px rgba(224, 80, 80, 1), 0 0 20px rgba(224, 80, 80, 0.5);
+    box-shadow:
+      0 0 10px rgba(224, 80, 80, 1),
+      0 0 20px rgba(224, 80, 80, 0.5);
   }
   50% {
     opacity: 0.15;

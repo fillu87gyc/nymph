@@ -357,6 +357,18 @@ body {
   background: var(--accent);
 }
 
+.md-block::after {
+  /* ボタン（left: -34px）と .md-block 左端（0）の 12px ギャップを透明領域で埋め、
+     マウスがギャップを通過しても mouseleave が .md-block 外に出ないようにする。
+     上方向にも少し余裕を持たせてテーブル上端からのアクセスを容易にする。 */
+  content: "";
+  position: absolute;
+  left: -36px;
+  top: -6px;
+  width: 36px;
+  bottom: 0;
+}
+
 .comment-btn {
   position: absolute;
   left: -34px;
@@ -375,6 +387,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
 }
 .md-block.has-comment .comment-btn {
   background: var(--accent-dim);

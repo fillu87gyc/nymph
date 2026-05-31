@@ -68,10 +68,8 @@ test.describe('blockRefsMap 経由のスクロール', () => {
   });
 
   test('複数ブロックにコメントして別々にスクロールできる', async ({ page }) => {
-    const tableSelector =
-      '#content .md-block[data-block-type="table"]';
-    const mermaidSelector =
-      '#content .md-block[data-block-type="mermaid"]';
+    const tableSelector = '#content .md-block[data-block-type="table"]';
+    const mermaidSelector = '#content .md-block[data-block-type="mermaid"]';
 
     await addCommentToBlock(page, tableSelector, 'table block');
     await addCommentToBlock(page, mermaidSelector, 'mermaid block');

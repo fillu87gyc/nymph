@@ -54,9 +54,7 @@ describe('コメントボタンのレンダリング制御', () => {
 
   test('table ブロックにはボタンが描画される', () => {
     const { container } = render(
-      <MarkdownBlock
-        {...makeProps({ block: makeBlock({ type: 'table' }) })}
-      />,
+      <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
     );
     expect(container.querySelector('.comment-btn')).toBeInTheDocument();
   });
@@ -115,7 +113,10 @@ describe('コメントボタンの表示制御', () => {
   test('hasComment=true ならホバーなしでも opacity:1', () => {
     const { container } = render(
       <MarkdownBlock
-        {...makeProps({ block: makeBlock({ type: 'table' }), hasComment: true })}
+        {...makeProps({
+          block: makeBlock({ type: 'table' }),
+          hasComment: true,
+        })}
       />,
     );
     const btn = container.querySelector('.comment-btn') as HTMLElement;

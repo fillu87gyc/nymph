@@ -349,9 +349,7 @@ export function App() {
         />,
         document.head,
       )}
-      {isDragging && (
-        <div id="drop-overlay">📂 .md ファイルをドロップ</div>
-      )}
+      {isDragging && <div id="drop-overlay">📂 .md ファイルをドロップ</div>}
       <Toolbar
         updateTime={updateTime}
         commentCount={comments.length}

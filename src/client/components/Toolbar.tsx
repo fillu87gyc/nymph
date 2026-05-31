@@ -15,6 +15,7 @@ interface ToolbarProps {
   onToggleDiff: () => void;
   onToggleTheme: () => void;
   onSwitchFile: (path: string) => void;
+  onCloseFile: (path: string) => void;
 }
 
 export function Toolbar({
@@ -31,6 +32,7 @@ export function Toolbar({
   onToggleDiff,
   onToggleTheme,
   onSwitchFile,
+  onCloseFile,
 }: ToolbarProps) {
   return (
     <header id="toolbar">
@@ -41,7 +43,12 @@ export function Toolbar({
         </span>
       )}
       <span className="sep" />
-      <FileTabs files={files} activeFile={activeFile} onSwitch={onSwitchFile} />
+      <FileTabs
+        files={files}
+        activeFile={activeFile}
+        onSwitch={onSwitchFile}
+        onClose={onCloseFile}
+      />
       <span className="spacer" />
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>
         コメント{' '}

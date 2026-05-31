@@ -116,6 +116,16 @@ bun run test:e2e   # E2E テスト (Playwright)
 bun run build      # プロダクションビルド (Vite 7)
 ```
 
+**ghq を使っている場合の開発用ショートカット（`~/.zshrc`）**
+
+```zsh
+nymphx() { NYMPH_FILES="$*" bun run --cwd "$(ghq root)/github.com/fillu87gyc/nymph" dev; }
+```
+
+```bash
+nymphx *.md   # HMR 有効な開発モードで起動
+```
+
 ---
 
 ## Claude Code との連携

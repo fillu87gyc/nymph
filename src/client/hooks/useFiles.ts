@@ -8,12 +8,13 @@ export function useFiles() {
   const loadFiles = useCallback(async () => {
     try {
       const res = await fetch('/files');
-      const data: FileEntry[] = await res.json();
-      setFiles(data);
-      if (data.length > 0) {
-        setActiveFile((prev) => prev ?? data[0].path);
+      const data: { files: FileEntry[]; activeFile: string | null } =
+        await res.json();
+      setFiles(data.files);
+      if (data.files.length > 0) {
+        setActiveFile(data.activeFile ?? data.files[0].path);
       }
-      return data;
+      return data.files;
     } catch {
       return [];
     }
@@ -28,5 +29,17 @@ export function useFiles() {
     setActiveFile(path);
   }, []);
 
-  return { files, activeFile, setActiveFile, loadFiles, switchFile };
+  const closeFile = useCallback(async (path: string) => {
+    const res = await fetch('/close-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    const data = await res.json();
+    setFiles(data.files);
+    setActiveFile(data.activeFile);
+    return data.activeFile as string | null;
+  }, []);
+
+  return { files, activeFile, setActiveFile, loadFiles, switchFile, closeFile };
 }

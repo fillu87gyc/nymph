@@ -18,6 +18,7 @@ export default defineConfig({
       '/checkpoint':  'http://localhost:6276',
       '/active-file': 'http://localhost:6276',
       '/switch-file': 'http://localhost:6276',
+      '/close-file':  'http://localhost:6276',
       '/edit-op':     'http://localhost:6276',
     },
   },

@@ -160,7 +160,13 @@ async function handleSaveComments(req: Request): Promise<Response> {
 
 function handleFiles(): Response {
   const paths = activePaths();
-  return json(paths.map((p) => ({ path: p, name: basename(p) })));
+  const files = paths.map((p) => ({ path: p, name: basename(p) }));
+  if (files.length === 0 && state.droppedName) {
+    files.push({ path: '__dropped__', name: state.droppedName });
+  }
+  const activeFile =
+    state.activeFile ?? (state.droppedName ? '__dropped__' : null);
+  return json({ files, activeFile });
 }
 
 async function handleSetActiveFile(req: Request): Promise<Response> {
@@ -172,6 +178,26 @@ async function handleSetActiveFile(req: Request): Promise<Response> {
     state.activeFile = path;
     state.commentsPath = `${path}.comments.json`;
     return json({});
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
+async function handleCloseFile(req: Request): Promise<Response> {
+  try {
+    const { path } = (await req.json()) as { path: string };
+    const idx = state.filePaths.indexOf(path);
+    if (idx === -1) return json({ error: 'not found' }, 404);
+    state.filePaths.splice(idx, 1);
+    if (state.activeFile === path) {
+      const next = state.filePaths[idx] ?? state.filePaths[idx - 1] ?? null;
+      state.activeFile = next;
+      state.commentsPath = next ? `${next}.comments.json` : null;
+    }
+    return json({
+      activeFile: state.activeFile,
+      files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
+    });
   } catch (e) {
     return err(String(e));
   }
@@ -372,6 +398,7 @@ export function createServer(port: number) {
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/switch-file') return handleSwitchFile(req);
         if (path === '/active-file') return handleSetActiveFile(req);
+        if (path === '/close-file') return handleCloseFile(req);
       }
 
       return new Response('Not found', { status: 404 });

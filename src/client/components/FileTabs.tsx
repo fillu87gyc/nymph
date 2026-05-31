@@ -4,36 +4,57 @@ interface FileTabsProps {
   files: FileEntry[];
   activeFile: string | null;
   onSwitch: (path: string) => void;
+  onClose: (path: string) => void;
 }
 
-export function FileTabs({ files, activeFile, onSwitch }: FileTabsProps) {
+export function FileTabs({
+  files,
+  activeFile,
+  onSwitch,
+  onClose,
+}: FileTabsProps) {
   if (files.length === 0) return null;
-
-  if (files.length === 1) {
-    return (
-      <div id="file-tabs">
-        <span className="tab active">
-          <span className="watch-dot" id="watch-dot" />
-          {files[0].name}
-        </span>
-      </div>
-    );
-  }
 
   return (
     <div id="file-tabs">
-      {files.map((f) => (
-        <button
-          key={f.path}
-          className={`tab${f.path === activeFile ? ' active' : ''}`}
-          onClick={() => f.path !== activeFile && onSwitch(f.path)}
-        >
-          {f.path === activeFile && (
-            <span className="watch-dot" id="watch-dot" />
-          )}
-          {f.name}
-        </button>
-      ))}
+      {files.map((f) => {
+        const isActive = f.path === activeFile;
+        return (
+          <button
+            key={f.path}
+            className={`tab${isActive ? ' active' : ''}`}
+            onClick={() => !isActive && onSwitch(f.path)}
+          >
+            {isActive && <span className="watch-dot" id="watch-dot" />}
+            {f.name}
+            {f.path !== '__dropped__' && (
+              <span
+                className="tab-close"
+                aria-hidden="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose(f.path);
+                }}
+              >
+                <svg
+                  width="8"
+                  height="8"
+                  viewBox="0 0 8 8"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M1 1l6 6M7 1L1 7"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

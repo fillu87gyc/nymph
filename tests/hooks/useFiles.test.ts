@@ -10,9 +10,10 @@ const mockFiles: FileEntry[] = [
 
 beforeEach(() => {
   vi.spyOn(global, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify(mockFiles), {
-      headers: { 'Content-Type': 'application/json' },
-    }),
+    new Response(
+      JSON.stringify({ files: mockFiles, activeFile: mockFiles[0].path }),
+      { headers: { 'Content-Type': 'application/json' } },
+    ),
   );
 });
 
@@ -85,10 +86,10 @@ describe('useFiles', () => {
     expect(result.current.activeFile).toBe('/manual/path.md');
   });
 
-  test('activeFile が既にある場合は loadFiles で上書きされない', async () => {
+  test('loadFiles でサーバーの activeFile が常に優先される', async () => {
     const { result } = renderHook(() => useFiles());
     act(() => result.current.setActiveFile('/already/set.md'));
     await act(() => result.current.loadFiles());
-    expect(result.current.activeFile).toBe('/already/set.md');
+    expect(result.current.activeFile).toBe(mockFiles[0].path);
   });
 });

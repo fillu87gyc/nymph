@@ -199,6 +199,31 @@ body {
   color: var(--bg);
   border-color: var(--accent);
 }
+#file-tabs .tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition:
+    opacity 0.1s,
+    background 0.1s;
+}
+#file-tabs .tab-close:hover {
+  opacity: 1;
+  background: rgba(128, 128, 128, 0.25);
+}
+#file-tabs .tab.active .tab-close {
+  opacity: 0.75;
+}
+#file-tabs .tab.active .tab-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.2);
+}
 
 /* ── Main scroll area ── */
 #main {

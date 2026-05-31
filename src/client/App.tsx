@@ -1,9 +1,4 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react';
-
-const versionPromise = fetch('/version')
-  .then((r) => r.json())
-  .then((d: { version: string }) => d.version)
-  .catch(() => '');
 import { createPortal } from 'react-dom';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
@@ -26,6 +21,11 @@ const HLJS_DARK =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css';
 const HLJS_LIGHT =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
+
+const versionPromise = fetch('/version')
+  .then((r) => r.json())
+  .then((d: { version: string }) => d.version)
+  .catch(() => '');
 
 export function App() {
   const appVersion = use(versionPromise);

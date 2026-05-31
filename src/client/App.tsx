@@ -114,10 +114,12 @@ export function App() {
   }, [loadComments, loadContent, loadFiles]);
 
   useEffect(() => {
-    fetch('/version')
+    const ac = new AbortController();
+    fetch('/version', { signal: ac.signal })
       .then((r) => r.json())
       .then((d: { version: string }) => setAppVersion(d.version))
       .catch(() => {});
+    return () => ac.abort();
   }, []);
 
   // SSE

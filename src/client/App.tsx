@@ -38,6 +38,11 @@ export function App() {
   const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
     null,
   );
+  const [anchorPopup, setAnchorPopup] = useState<{
+    comment: Comment;
+    x: number;
+    y: number;
+  } | null>(null);
   const { isConnected } = useConnectionStatus();
 
   // Modal state
@@ -126,6 +131,21 @@ export function App() {
     document.documentElement.dataset.theme = next;
     localStorage.setItem('nymph-theme', next);
     setSource((s) => `${s}`);
+  }
+
+  useEffect(() => {
+    if (!anchorPopup) return;
+    function close(e: MouseEvent) {
+      const popup = document.getElementById('anchor-comment-popup');
+      if (popup?.contains(e.target as Node)) return;
+      setAnchorPopup(null);
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [anchorPopup]);
+
+  function handleClickCommentAnchor(c: Comment, x: number, y: number) {
+    setAnchorPopup({ comment: c, x, y });
   }
 
   const flashBlockHighlight = useCallback((ls: number) => {
@@ -382,6 +402,7 @@ export function App() {
             setDrawioCode(code);
             setDrawioOpen(true);
           }}
+          onClickCommentAnchor={handleClickCommentAnchor}
           contentRef={contentRef}
           blockRefsMapRef={blockRefsMapRef}
           welcomeMsg={welcomeMsg}
@@ -426,6 +447,49 @@ export function App() {
         contentRef={contentRef}
         onComment={handleSelectionComment}
       />
+      {anchorPopup &&
+        createPortal(
+          <div
+            id="anchor-comment-popup"
+            style={{
+              left: Math.min(anchorPopup.x, window.innerWidth - 290),
+              top: Math.min(anchorPopup.y + 20, window.innerHeight - 180),
+            }}
+          >
+            <div className="acp-text">{anchorPopup.comment.text}</div>
+            <div className="acp-foot">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  openEditModal(anchorPopup.comment);
+                  setAnchorPopup(null);
+                }}
+              >
+                ✎ 編集
+              </button>
+              <button
+                type="button"
+                className="btn icon acp-del"
+                title="削除"
+                onClick={() => {
+                  deleteComment(anchorPopup.comment.id);
+                  setAnchorPopup(null);
+                }}
+              >
+                🗑
+              </button>
+              <button
+                type="button"
+                className="btn icon"
+                onClick={() => setAnchorPopup(null)}
+              >
+                ✕
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
       <Toast message={toastState.msg} version={toastState.v} />
     </div>
   );

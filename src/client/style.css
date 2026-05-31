@@ -993,6 +993,37 @@ body {
   font-style: normal;
 }
 
+/* ── Anchor comment popup ── */
+#anchor-comment-popup {
+  position: fixed;
+  width: 270px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  z-index: 700;
+  overflow: hidden;
+}
+.acp-text {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.acp-foot {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+}
+.acp-del:hover {
+  color: #b04040;
+  border-color: #b04040;
+}
+
 /* ── Drop overlay ── */
 #drop-overlay {
   display: flex;

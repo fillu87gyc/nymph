@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { findTextRange } from '../lib/markdown.ts';
 import { parseBlocks } from '../lib/parseBlocks.ts';
 import type { Comment, DiffLine, DiffResponse } from '../types.ts';
@@ -21,6 +21,7 @@ interface ContentAreaProps {
     selectionOffset: number | null,
   ) => void;
   onOpenDrawio: (code: string) => void;
+  onClickCommentAnchor: (c: Comment, x: number, y: number) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
   blockRefsMapRef: React.MutableRefObject<Map<string, HTMLElement>>;
 }
@@ -35,9 +36,13 @@ export function ContentArea({
   welcomeMsg = 'ファイルを読み込んでいます…',
   onAddComment,
   onOpenDrawio,
+  onClickCommentAnchor,
   contentRef,
   blockRefsMapRef,
 }: ContentAreaProps) {
+  const commentRangesRef = useRef<Array<{ comment: Comment; range: Range }>>(
+    [],
+  );
   const blocks = useMemo(() => parseBlocks(source), [source]);
 
   const handleRef = useCallback(
@@ -105,6 +110,7 @@ export function ContentArea({
     if (!container || !hl) return;
 
     hl.delete('comment-anchor');
+    commentRangesRef.current = [];
 
     const selComments = comments.filter(
       (c) => c.block_type === 'selection' && typeof c.context === 'string',
@@ -125,7 +131,10 @@ export function ContentArea({
         c.context as string,
         c.selection_offset ?? null,
       );
-      if (range) ranges.push(range);
+      if (range) {
+        ranges.push(range);
+        commentRangesRef.current.push({ comment: c, range });
+      }
     }
 
     if (!ranges.length) return;
@@ -135,6 +144,37 @@ export function ContentArea({
       hl.delete('comment-anchor');
     };
   }, [comments, blocks, contentRef]);
+
+  function getCommentAtPoint(x: number, y: number): Comment | null {
+    for (const { comment, range } of commentRangesRef.current) {
+      const rects = range.getClientRects();
+      for (const rect of rects) {
+        if (
+          x >= rect.left &&
+          x <= rect.right &&
+          y >= rect.top &&
+          y <= rect.bottom
+        ) {
+          return comment;
+        }
+      }
+    }
+    return null;
+  }
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const c = getCommentAtPoint(e.clientX, e.clientY);
+    e.currentTarget.style.cursor = c ? 'pointer' : '';
+  }
+
+  function handleContentClick(e: React.MouseEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (target.closest('a, button, input, textarea, select')) return;
+    const c = getCommentAtPoint(e.clientX, e.clientY);
+    if (c) {
+      onClickCommentAnchor(c, e.clientX, e.clientY);
+    }
+  }
 
   // Run mermaid + hljs after blocks are rendered
   useEffect(() => {
@@ -182,7 +222,12 @@ export function ContentArea({
   const isEmpty = !source.trim();
 
   return (
-    <div id="content" ref={contentRef as React.RefObject<HTMLDivElement>}>
+    <div
+      id="content"
+      ref={contentRef as React.RefObject<HTMLDivElement>}
+      onMouseMove={handleMouseMove}
+      onClick={handleContentClick}
+    >
       {isEmpty && (
         <div id="welcome">
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">

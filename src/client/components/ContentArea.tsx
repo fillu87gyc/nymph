@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
+import { findTextRange } from '../lib/markdown.ts';
 import { parseBlocks } from '../lib/parseBlocks.ts';
 import type { Comment, DiffLine, DiffResponse } from '../types.ts';
 import { type DiffGroup, MarkdownBlock } from './MarkdownBlock.tsx';
@@ -96,6 +97,44 @@ export function ContentArea({
 
     return map;
   }, [blocks, diffMode, diffData]);
+
+  // Persistent comment-anchor highlight for selection comments
+  useEffect(() => {
+    const container = contentRef.current;
+    const hl = (CSS as any).highlights as Map<string, unknown> | undefined;
+    if (!container || !hl) return;
+
+    hl.delete('comment-anchor');
+
+    const selComments = comments.filter(
+      (c) => c.block_type === 'selection' && typeof c.context === 'string',
+    );
+    if (!selComments.length) return;
+
+    const ranges: Range[] = [];
+    for (const c of selComments) {
+      const blockEls = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-block="true"]'),
+      ).filter((el) => {
+        const bls = +(el.dataset.ls ?? 0);
+        const ble = +(el.dataset.le ?? 0);
+        return bls <= c.le && ble >= c.ls;
+      });
+      const range = findTextRange(
+        blockEls,
+        c.context as string,
+        c.selection_offset ?? null,
+      );
+      if (range) ranges.push(range);
+    }
+
+    if (!ranges.length) return;
+    hl.set('comment-anchor', new (window as any).Highlight(...ranges));
+
+    return () => {
+      hl.delete('comment-anchor');
+    };
+  }, [comments, blocks, contentRef]);
 
   // Run mermaid + hljs after blocks are rendered
   useEffect(() => {

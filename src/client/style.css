@@ -345,16 +345,11 @@ body {
   width: 2px;
   border-radius: 1px;
   background: transparent;
-  transition: background 0.2s;
 }
-.md-block.has-comment::before {
-  background: var(--accent);
-}
-.md-block:hover::before {
-  background: var(--border-light);
-}
-.md-block.has-comment:hover::before {
-  background: var(--accent);
+.md-block.has-comment[data-block-type="table"] > div,
+.md-block.has-comment[data-block-type="mermaid"] > div {
+  background: rgba(194, 112, 48, 0.07);
+  border-radius: 6px;
 }
 
 .md-block::after {
@@ -894,44 +889,34 @@ body {
   filter: brightness(1.12);
 }
 
-/* ── Text highlight ── */
-mark.text-highlight {
-  background: rgba(194, 112, 48, 0.38);
-  color: inherit;
-  border-radius: 2px;
-  padding: 0 1px;
-  animation: highlight-fade 2s ease forwards;
+/* ── Block highlight (scroll-to-comment, table/mermaid only) ── */
+.md-block.highlighted[data-block-type="table"] > div,
+.md-block.highlighted[data-block-type="mermaid"] > div {
+  animation: comment-block-flash 1.4s ease forwards;
 }
-@keyframes highlight-fade {
+@keyframes comment-block-flash {
   0%,
-  60% {
-    background: rgba(194, 112, 48, 0.38);
+  55% {
+    background: rgba(194, 112, 48, 0.22);
   }
   100% {
-    background: transparent;
+    background: rgba(194, 112, 48, 0.07);
   }
 }
 
-/* ── Block highlight (scroll-to-comment) ── */
-.md-block.highlighted {
-  animation: block-highlight-fade 1.4s ease forwards;
+/* ── CSS Custom Highlight API ── */
+::highlight(comment-anchor) {
+  background-color: rgba(194, 112, 48, 0.14);
+  text-decoration: underline;
+  text-decoration-color: rgba(194, 112, 48, 0.45);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
-@keyframes block-highlight-fade {
-  0%,
-  60% {
-    outline: 2px solid var(--accent);
-    outline-offset: 4px;
-  }
-  100% {
-    outline: 2px solid transparent;
-    outline-offset: 4px;
-  }
-}
-
-/* ── CSS Custom Highlight API — text selection highlight ── */
 ::highlight(text-highlight) {
   background-color: rgba(194, 112, 48, 0.45);
   color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(194, 112, 48, 0.9);
 }
 
 /* ── Checkpoint / Diff ── */

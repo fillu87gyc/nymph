@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
@@ -22,7 +22,13 @@ const HLJS_DARK =
 const HLJS_LIGHT =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
 
+const versionPromise = fetch('/version')
+  .then((r) => r.json())
+  .then((d: { version: string }) => d.version)
+  .catch(() => '');
+
 export function App() {
+  const appVersion = use(versionPromise);
   const [source, setSource] = useState('');
   const [updateTime, setUpdateTime] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
@@ -376,6 +382,7 @@ export function App() {
       )}
       {isDragging && <div id="drop-overlay">📂 .md ファイルをドロップ</div>}
       <Toolbar
+        version={appVersion}
         updateTime={updateTime}
         commentCount={comments.length}
         diffMode={diffMode}

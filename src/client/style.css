@@ -82,6 +82,16 @@ body {
   letter-spacing: 0.02em;
   user-select: none;
   margin-right: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.brand-version {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--fg-muted, color-mix(in srgb, var(--accent) 60%, transparent));
+  letter-spacing: 0;
 }
 .watch-dot {
   display: inline-block;

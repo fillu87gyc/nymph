@@ -11,6 +11,14 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     await expect(page.locator('.brand')).toContainText('nymph');
   });
 
+  test('ブランドロゴ横にバージョンが表示される', async ({ page }) => {
+    await page.goto('/');
+    const versionBadge = page.locator('.brand-version');
+    await expect(versionBadge).toBeVisible({ timeout: 5000 });
+    const text = await versionBadge.textContent();
+    expect(text?.trim().length).toBeGreaterThan(0);
+  });
+
   test('Markdown コンテンツが表示される', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#content h1')).toContainText('Sample', {

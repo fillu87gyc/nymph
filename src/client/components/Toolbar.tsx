@@ -2,6 +2,7 @@ import type { FileEntry } from '../types.ts';
 import { FileTabs } from './FileTabs.tsx';
 
 interface ToolbarProps {
+  version: string;
   updateTime: string;
   commentCount: number;
   diffMode: boolean;
@@ -20,6 +21,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({
+  version,
   updateTime,
   commentCount,
   diffMode,
@@ -38,7 +40,10 @@ export function Toolbar({
 }: ToolbarProps) {
   return (
     <header id="toolbar">
-      <span className="brand">nymph</span>
+      <span className="brand">
+        nymph
+        {version && <span className="brand-version">{version}</span>}
+      </span>
       {updateTime && (
         <span className="update-time" id="update-time">
           {updateTime}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
 import {
@@ -83,6 +83,19 @@ describe('コメントボタンの表示制御', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
     );
+    const btn = container.querySelector('.comment-btn') as HTMLElement;
+    expect(btn.style.opacity).toBe('0');
+    expect(btn.style.pointerEvents).toBe('none');
+  });
+
+  test('mouseenter だけでは opacity:0 のまま（ファーストビューでの誤表示を防ぐ）', () => {
+    // Chrome はカーソル下に要素が現れると mouseenter を発火するが、
+    // mousemove を伴わない限りホバー状態にしてはいけない。
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
+    );
+    const wrapper = container.querySelector('.md-block') as HTMLElement;
+    fireEvent.mouseEnter(wrapper);
     const btn = container.querySelector('.comment-btn') as HTMLElement;
     expect(btn.style.opacity).toBe('0');
     expect(btn.style.pointerEvents).toBe('none');

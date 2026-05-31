@@ -138,7 +138,14 @@ export function MarkdownBlock({
       data-ls={block.ls}
       data-le={block.le}
       data-block-type={block.type}
-      onMouseEnter={() => setHovered(true)}
+      onMouseMove={(e) => {
+        if (!hovered) {
+          // ::after 擬似要素はブロック左端より外（left: -36px）まで伸びているため、
+          // そこでの mousemove は無視し、ブロック本体上に入ったときのみ hovered にする。
+          const rect = e.currentTarget.getBoundingClientRect();
+          if (e.clientX >= rect.left) setHovered(true);
+        }
+      }}
       onMouseLeave={handleMouseLeave}
     >
       {showPlusButton && (

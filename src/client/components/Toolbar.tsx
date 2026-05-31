@@ -51,9 +51,14 @@ export function Toolbar({
         onSwitch={onSwitchFile}
         onClose={onCloseFile}
       />
-      <span id="connection-status" className={`connection-badge${isConnected ? '' : ' disconnected'}`}>
+      <span
+        id="connection-status"
+        className={`connection-badge${isConnected ? '' : ' disconnected'}`}
+      >
         <span className={`connection-dot${isConnected ? '' : ' error'}`} />
-        <span className="connection-label">{isConnected ? 'コネクション' : '切断'}</span>
+        <span className="connection-label">
+          {isConnected ? 'コネクション' : '切断'}
+        </span>
       </span>
       <span className="spacer" />
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>

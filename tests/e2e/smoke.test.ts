@@ -26,7 +26,9 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
   test('コネクションステータスバッジが表示されている', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#connection-status')).toBeVisible();
-    await expect(page.locator('#connection-status')).toContainText('コネクション');
+    await expect(page.locator('#connection-status')).toContainText(
+      'コネクション',
+    );
   });
 
   test('コネクションステータスバッジが接続状態を表示', async ({ page }) => {

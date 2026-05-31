@@ -92,6 +92,12 @@ jobs:
       - run: bunx playwright install chromium --with-deps
       - run: bun run test:e2e
       - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: test-results/screenshots/
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-traces

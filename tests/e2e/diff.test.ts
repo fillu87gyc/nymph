@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
@@ -86,6 +92,11 @@ test.describe('diff 表示', () => {
     // At least one of ins or del side-panel must be present
     const sideCount = await page.locator('.diff-side').count();
     expect(sideCount).toBeGreaterThan(0);
+
+    mkdirSync('test-results/screenshots', { recursive: true });
+    await page.screenshot({
+      path: 'test-results/screenshots/diff-side-panels.png',
+    });
   });
 
   test('diff ON のとき diff-side-ins に追加行テキストが含まれる', async ({

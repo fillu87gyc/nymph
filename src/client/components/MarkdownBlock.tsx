@@ -138,7 +138,7 @@ export function MarkdownBlock({
       data-ls={block.ls}
       data-le={block.le}
       data-block-type={block.type}
-      onMouseEnter={() => setHovered(true)}
+      onMouseMove={() => setHovered(true)}
       onMouseLeave={handleMouseLeave}
     >
       {showPlusButton && (

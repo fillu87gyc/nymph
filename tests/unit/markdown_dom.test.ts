@@ -1,57 +1,46 @@
 import { describe, expect, test, vi } from 'vitest';
-import { scrollToLine } from '../../src/client/lib/markdown.ts';
-import type { Comment } from '../../src/client/types.ts';
+import { highlightSelectionText } from '../../src/client/lib/markdown.ts';
 
-function makeBlock(ls: number, le: number): HTMLElement {
+function makeBlock(ls: number, le: number, text = 'sample text'): HTMLElement {
   const el = document.createElement('div');
-  el.className = 'md-block';
   el.dataset.ls = String(ls);
   el.dataset.le = String(le);
+  el.textContent = text;
   return el;
 }
 
-function makeContainer(...blocks: HTMLElement[]): HTMLElement {
-  const div = document.createElement('div');
-  for (const b of blocks) div.appendChild(b);
-  return div;
-}
-
-function makeComment(overrides: Partial<Comment> = {}): Comment {
-  return {
-    id: 1,
-    ls: 1,
-    le: 3,
-    block_type: 'paragraph',
-    context: 'test',
-    text: 'comment',
-    ...overrides,
-  };
-}
-
-describe('scrollToLine', () => {
-  test('対応ブロックがない場合は何もしない', () => {
-    scrollToLine(makeContainer(), makeComment({ ls: 99 }));
+describe('highlightSelectionText', () => {
+  test('searchText が空の場合は何もしない', () => {
+    const onFallback = vi.fn();
+    highlightSelectionText([], 1, 1, '', null, onFallback);
+    expect(onFallback).not.toHaveBeenCalled();
   });
 
-  test('ブロックに scrollIntoView を呼び出す', () => {
-    const block = makeBlock(1, 1);
-    const scrollSpy = vi.fn();
-    block.scrollIntoView = scrollSpy;
-    scrollToLine(makeContainer(block), makeComment({ ls: 1, le: 1 }));
-    expect(scrollSpy).toHaveBeenCalledWith({
-      behavior: 'smooth',
-      block: 'center',
-    });
+  test('テキストが見つからない場合は onFallback を呼ばない', () => {
+    const onFallback = vi.fn();
+    const block = makeBlock(1, 1, 'hello world');
+    highlightSelectionText([block], 1, 1, 'not found', null, onFallback);
+    expect(onFallback).not.toHaveBeenCalled();
   });
 
-  test('block コメントでアウトラインが設定される', () => {
-    const block = makeBlock(1, 1);
-    block.scrollIntoView = vi.fn();
-    scrollToLine(
-      makeContainer(block),
-      makeComment({ ls: 1, le: 1, block_type: 'paragraph' }),
-    );
-    expect(block.style.outline).not.toBe('');
-    expect(block.style.outlineOffset).not.toBe('');
+  test('テキストが見つかった場合は CSS Highlight API か onFallback を使う', () => {
+    const onFallback = vi.fn();
+    const block = makeBlock(1, 1, 'hello world');
+    // CSS Highlight API が使えない環境では onFallback が呼ばれる
+    const hasHighlightAPI = typeof (CSS as any).highlights !== 'undefined';
+    highlightSelectionText([block], 1, 1, 'hello', null, onFallback);
+    if (!hasHighlightAPI) {
+      expect(onFallback).toHaveBeenCalledWith(1);
+    }
+  });
+
+  test('末尾の … はトリムして検索する', () => {
+    const onFallback = vi.fn();
+    const block = makeBlock(1, 1, 'hello world');
+    const hasHighlightAPI = typeof (CSS as any).highlights !== 'undefined';
+    highlightSelectionText([block], 1, 1, 'hello…', null, onFallback);
+    if (!hasHighlightAPI) {
+      expect(onFallback).toHaveBeenCalledWith(1);
+    }
   });
 });

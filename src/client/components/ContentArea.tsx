@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { parseBlocks } from '../lib/parseBlocks.ts';
 import type { Comment, DiffLine, DiffResponse } from '../types.ts';
 import { type DiffGroup, MarkdownBlock } from './MarkdownBlock.tsx';
@@ -8,6 +8,8 @@ interface ContentAreaProps {
   comments: Comment[];
   diffMode: boolean;
   diffData: DiffResponse | null;
+  isDarkTheme: boolean;
+  highlightedBlockLs: number | null;
   welcomeMsg?: string;
   onAddComment: (
     ls: number,
@@ -19,6 +21,7 @@ interface ContentAreaProps {
   ) => void;
   onOpenDrawio: (code: string) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  blockRefsMapRef: React.MutableRefObject<Map<string, HTMLElement>>;
 }
 
 export function ContentArea({
@@ -26,12 +29,26 @@ export function ContentArea({
   comments,
   diffMode,
   diffData,
+  isDarkTheme,
+  highlightedBlockLs,
   welcomeMsg = 'ファイルを読み込んでいます…',
   onAddComment,
   onOpenDrawio,
   contentRef,
+  blockRefsMapRef,
 }: ContentAreaProps) {
   const blocks = useMemo(() => parseBlocks(source), [source]);
+
+  const handleRef = useCallback(
+    (key: string, el: HTMLElement | null) => {
+      if (el) {
+        blockRefsMapRef.current.set(key, el);
+      } else {
+        blockRefsMapRef.current.delete(key);
+      }
+    },
+    [blockRefsMapRef],
+  );
 
   const hasCommentSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
@@ -90,7 +107,7 @@ export function ContentArea({
       try {
         const { default: mermaid } = await import('mermaid');
         if (cancelled) return;
-        const dark = document.documentElement.dataset.theme !== 'light';
+        const dark = isDarkTheme;
         mermaid.initialize({
           startOnLoad: false,
           theme: dark ? 'dark' : 'default',
@@ -121,7 +138,7 @@ export function ContentArea({
     return () => {
       cancelled = true;
     };
-  }, [blocks, contentRef]);
+  }, [blocks, contentRef, isDarkTheme]);
 
   const isEmpty = !source.trim();
 
@@ -153,10 +170,12 @@ export function ContentArea({
             key={block.key}
             block={block}
             hasComment={hasCommentSet.has(block.key)}
+            highlighted={highlightedBlockLs === block.ls}
             diffGroups={diffGroupsMap.get(block.key) ?? []}
             diffMode={diffMode}
             onAddComment={onAddComment}
             onOpenDrawio={onOpenDrawio}
+            onRef={handleRef}
           />
         ))}
     </div>

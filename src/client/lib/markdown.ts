@@ -1,5 +1,4 @@
 import type { Token } from 'marked';
-import type { Comment } from '../types.ts';
 
 export const BLOCK_TYPES = new Set([
   'paragraph',
@@ -91,48 +90,18 @@ export function getBlockTokensDFS(tokens: any[], nested = false): any[] {
   return result;
 }
 
-export function scrollToLine(container: HTMLElement, c: Comment) {
-  const b = container.querySelector(
-    `.md-block[data-ls="${c.ls}"]`,
-  ) as HTMLElement | null;
-  if (!b) return;
-  b.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-  if (c.block_type === 'selection' && typeof c.context === 'string') {
-    highlightSelectionText(
-      container,
-      c.ls,
-      c.le,
-      c.context,
-      c.selection_offset ?? null,
-    );
-  } else {
-    b.style.outline = '2px solid var(--accent)';
-    b.style.outlineOffset = '4px';
-    setTimeout(() => {
-      b.style.outline = '';
-      b.style.outlineOffset = '';
-    }, 1400);
-  }
-}
-
-function highlightSelectionText(
-  container: HTMLElement,
+export function highlightSelectionText(
+  blocks: HTMLElement[],
   ls: number,
-  le: number,
+  _le: number,
   searchText: string,
   selectionOffset: number | null,
-) {
+  onFallback: (ls: number) => void,
+): void {
   if (!searchText) return;
   const needle = searchText.endsWith('…')
     ? searchText.slice(0, -1)
     : searchText;
-
-  const blocks = [...container.querySelectorAll('.md-block')].filter((b) => {
-    const bls = +(b as HTMLElement).dataset.ls!,
-      ble = +(b as HTMLElement).dataset.le!;
-    return bls <= le && ble >= ls;
-  });
 
   for (const block of blocks) {
     const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
@@ -157,7 +126,7 @@ function highlightSelectionText(
       endNode: Text | undefined,
       endOffset = 0;
     for (const { node: n, start } of nodes) {
-      const end = start + n.textContent?.length;
+      const end = start + (n.textContent?.length ?? 0);
       if (!startNode && idx < end) {
         startNode = n;
         startOffset = idx - start;
@@ -174,25 +143,16 @@ function highlightSelectionText(
     range.setStart(startNode, startOffset);
     range.setEnd(endNode, endOffset);
     try {
-      const mark = document.createElement('mark');
-      mark.className = 'text-highlight';
-      range.surroundContents(mark);
-      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => {
-        const p = mark.parentNode;
-        if (p) {
-          while (mark.firstChild) p.insertBefore(mark.firstChild, mark);
-          p.removeChild(mark);
-        }
-      }, 2000);
+      // CSS Custom Highlight API — no DOM mutation needed
+      const hl = (CSS as any).highlights as Map<string, unknown> | undefined;
+      if (hl) {
+        hl.set('text-highlight', new (window as any).Highlight(range));
+        setTimeout(() => hl.delete('text-highlight'), 2000);
+      } else {
+        onFallback(ls);
+      }
     } catch {
-      const el = block as HTMLElement;
-      el.style.outline = '2px solid var(--accent)';
-      el.style.outlineOffset = '4px';
-      setTimeout(() => {
-        el.style.outline = '';
-        el.style.outlineOffset = '';
-      }, 1400);
+      onFallback(ls);
     }
     return;
   }

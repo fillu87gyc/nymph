@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 interface DrawioModalProps {
   open: boolean;
   code: string | null;
@@ -11,10 +13,12 @@ export function DrawioModal({
   onClose,
   onToast,
 }: DrawioModalProps) {
+  const dlRef = useRef<HTMLAnchorElement>(null);
+
   if (!open || code === null) return null;
 
   function downloadDrawio() {
-    if (!code) return;
+    if (!code || !dlRef.current) return;
     const mdata = JSON.stringify({ code, config: {} })
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
@@ -38,12 +42,11 @@ export function DrawioModal({
   </diagram>
 </mxfile>`;
     const blob = new Blob([xml], { type: 'application/xml' });
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `mermaid-${Date.now()}.drawio`,
-    });
-    a.click();
-    URL.revokeObjectURL(a.href);
+    const url = URL.createObjectURL(blob);
+    dlRef.current.href = url;
+    dlRef.current.download = `mermaid-${Date.now()}.drawio`;
+    dlRef.current.click();
+    URL.revokeObjectURL(url);
     onToast('.drawio をダウンロードしました');
   }
 
@@ -59,6 +62,9 @@ export function DrawioModal({
       className="open"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
+      {/* biome-ignore lint/a11y/useAnchorContent: hidden download trigger */}
+      {/* biome-ignore lint/a11y/useValidAnchor: href is set programmatically before .click() */}
+      <a ref={dlRef} tabIndex={-1} style={{ display: 'none' }} />
       <div id="drawio-box">
         <div className="dbox-head">
           <span className="dbox-title">draw.io エクスポート</span>

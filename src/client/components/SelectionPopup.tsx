@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface SelectionPopupProps {
-  contentId: string;
+  contentRef: React.RefObject<HTMLElement>;
   onComment: (
     ls: number,
     le: number,
@@ -10,7 +10,7 @@ interface SelectionPopupProps {
   ) => void;
 }
 
-export function SelectionPopup({ contentId, onComment }: SelectionPopupProps) {
+export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ left: 0, top: 0 });
   const popupRef = useRef<HTMLDivElement>(null);
@@ -21,12 +21,12 @@ export function SelectionPopup({ contentId, onComment }: SelectionPopupProps) {
     offset: number | null;
   } | null>(null);
 
-  function hide() {
+  const hide = useCallback(() => {
     setVisible(false);
     selectionRef.current = null;
-  }
+  }, []);
 
-  function show() {
+  const show = useCallback(() => {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || !sel.rangeCount) {
       hide();
@@ -39,8 +39,7 @@ export function SelectionPopup({ contentId, onComment }: SelectionPopupProps) {
       return;
     }
 
-    const content = document.getElementById(contentId);
-    if (!content?.contains(range.commonAncestorContainer)) {
+    if (!contentRef.current?.contains(range.commonAncestorContainer)) {
       hide();
       return;
     }
@@ -55,7 +54,7 @@ export function SelectionPopup({ contentId, onComment }: SelectionPopupProps) {
       (node.nodeType === 3
         ? (node as Text).parentElement
         : (node as Element)
-      )?.closest?.('.md-block') as HTMLElement | null;
+      )?.closest?.('[data-block]') as HTMLElement | null;
 
     const startBlock = toBlock(range.startContainer);
     const endBlock = toBlock(range.endContainer);
@@ -87,7 +86,6 @@ export function SelectionPopup({ contentId, onComment }: SelectionPopupProps) {
 
     selectionRef.current = { ls, le, ctx, offset: selectionOffset };
 
-    // Show temporarily to measure width
     setVisible(true);
     requestAnimationFrame(() => {
       const pw = popupRef.current?.offsetWidth ?? 120;
@@ -97,7 +95,7 @@ export function SelectionPopup({ contentId, onComment }: SelectionPopupProps) {
       if (top + 40 > window.innerHeight) top = rect.top - 40;
       setPos({ left, top });
     });
-  }
+  }, [contentRef, hide]);
 
   useEffect(() => {
     const onMouseUp = () => setTimeout(show, 30);

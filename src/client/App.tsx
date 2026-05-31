@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
+
+const versionPromise = fetch('/version')
+  .then((r) => r.json())
+  .then((d: { version: string }) => d.version)
+  .catch(() => '');
 import { createPortal } from 'react-dom';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
@@ -23,9 +28,9 @@ const HLJS_LIGHT =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
 
 export function App() {
+  const appVersion = use(versionPromise);
   const [source, setSource] = useState('');
   const [updateTime, setUpdateTime] = useState('');
-  const [appVersion, setAppVersion] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
   const [toastState, setToastState] = useState({ msg: '', v: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -112,15 +117,6 @@ export function App() {
       await loadFiles();
     })();
   }, [loadComments, loadContent, loadFiles]);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    fetch('/version', { signal: ac.signal })
-      .then((r) => r.json())
-      .then((d: { version: string }) => setAppVersion(d.version))
-      .catch(() => {});
-    return () => ac.abort();
-  }, []);
 
   // SSE
   useSSE((changedFile) => {

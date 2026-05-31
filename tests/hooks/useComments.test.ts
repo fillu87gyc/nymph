@@ -25,16 +25,36 @@ const pending: PendingComment = {
 const wrapper = ({ children }: { children: React.ReactNode }) =>
   createElement(
     SWRConfig,
-    { value: { provider: () => new Map(), dedupingInterval: 0 } },
+    {
+      value: {
+        provider: () => new Map(),
+        dedupingInterval: 0,
+        // act() が jsdom の focus/reconnect イベントを発火させ SWR が再フェッチするのを防ぐ
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+      },
+    },
     children,
   );
 
-// 初期フェッチは [] を返すようにしておく
+// ---- ステートフル fetch モック ----
+// GET はサーバー状態を返し、POST はサーバー状態を更新する。
+// こうすることで SWR が revalidation を行っても現在の状態が返り、
+// mutate の結果がキャッシュから消えなくなる。
+let serverComments: Comment[] = [];
+
 beforeEach(() => {
-  vi.spyOn(global, 'fetch').mockImplementation(() =>
-    Promise.resolve(
-      new Response('[]', { headers: { 'Content-Type': 'application/json' } }),
-    ),
+  serverComments = [];
+  vi.spyOn(global, 'fetch').mockImplementation(
+    async (url: RequestInfo | URL, init?: RequestInit) => {
+      if ((init as RequestInit | undefined)?.method === 'POST') {
+        serverComments = JSON.parse((init as RequestInit).body as string);
+        return new Response('ok', { status: 200 });
+      }
+      return new Response(JSON.stringify(serverComments), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
   );
 });
 
@@ -49,6 +69,11 @@ async function waitForReady(result: {
   await waitFor(() =>
     expect(Array.isArray(result.current.comments)).toBe(true),
   );
+  // 初回フェッチチェーン (fetch → r.json() → SWR setState) が複数マイクロタスクにまたがる。
+  // macrotask に yield して全チェーンを完結させてから次に進む。
+  await act(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  });
 }
 
 describe('useComments', () => {
@@ -60,13 +85,7 @@ describe('useComments', () => {
   });
 
   test('マウント後 SWR がコメントを取得する', async () => {
-    vi.spyOn(global, 'fetch').mockImplementationOnce(() =>
-      Promise.resolve(
-        new Response(JSON.stringify([mockComment]), {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
-    );
+    serverComments = [mockComment];
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitFor(() => {
       expect(result.current.comments).toEqual([mockComment]);

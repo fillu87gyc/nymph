@@ -8,5 +8,6 @@ build/
 *.nymph-lock
 node_modules/
 bun.lockb
+pnpm-lock.yaml
 coverage/
 test-results/

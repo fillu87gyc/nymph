@@ -1,6 +1,20 @@
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { diffArrays } from 'diff';
+
+function resolveAppVersion(): string {
+  try {
+    return execSync(
+      'git describe --tags --exact-match HEAD 2>/dev/null || git rev-parse --short HEAD',
+      { encoding: 'utf-8' },
+    ).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+const APP_VERSION = resolveAppVersion();
 
 interface State {
   filePaths: string[];
@@ -381,6 +395,7 @@ export function createServer(port: number) {
       const path = url.pathname;
 
       if (req.method === 'GET') {
+        if (path === '/version') return json({ version: APP_VERSION });
         if (path === '/content') return handleContent(url);
         if (path === '/watch') return handleWatch();
         if (path === '/comments') return handleGetComments(url);

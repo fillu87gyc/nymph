@@ -20,6 +20,7 @@ export default defineConfig({
       '/switch-file': 'http://localhost:6276',
       '/close-file':  'http://localhost:6276',
       '/edit-op':     'http://localhost:6276',
+      '/version':     'http://localhost:6276',
     },
   },
 });

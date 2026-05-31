@@ -25,6 +25,7 @@ const HLJS_LIGHT =
 export function App() {
   const [source, setSource] = useState('');
   const [updateTime, setUpdateTime] = useState('');
+  const [appVersion, setAppVersion] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
   const [toastState, setToastState] = useState({ msg: '', v: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -111,6 +112,13 @@ export function App() {
       await loadFiles();
     })();
   }, [loadComments, loadContent, loadFiles]);
+
+  useEffect(() => {
+    fetch('/version')
+      .then((r) => r.json())
+      .then((d: { version: string }) => setAppVersion(d.version))
+      .catch(() => {});
+  }, []);
 
   // SSE
   useSSE((changedFile) => {
@@ -373,6 +381,7 @@ export function App() {
       )}
       {isDragging && <div id="drop-overlay">📂 .md ファイルをドロップ</div>}
       <Toolbar
+        version={appVersion}
         updateTime={updateTime}
         commentCount={comments.length}
         diffMode={diffMode}

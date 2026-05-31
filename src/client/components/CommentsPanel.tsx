@@ -8,6 +8,7 @@ const PANEL_MIN_H = 80;
 interface CommentsPanelProps {
   open: boolean;
   comments: Comment[];
+  orphanedIds?: Set<number>;
   onScrollToComment: (c: Comment) => void;
   onEdit: (c: Comment) => void;
   onDelete: (id: number) => void;
@@ -17,6 +18,7 @@ interface CommentsPanelProps {
 export function CommentsPanel({
   open,
   comments,
+  orphanedIds,
   onScrollToComment,
   onEdit,
   onDelete,
@@ -96,16 +98,20 @@ export function CommentsPanel({
         ) : (
           comments.map((c) => {
             const range = c.ls === c.le ? `L${c.ls}` : `L${c.ls}–${c.le}`;
+            const isOrphaned = orphanedIds?.has(c.id) ?? false;
             return (
               <li
                 key={c.id}
-                className="comment-item"
+                className={`comment-item${isOrphaned ? ' c-orphaned' : ''}`}
                 onClick={() => handleItemClick(c)}
               >
                 <span className="c-line">{range}</span>
                 <div className="c-body">
                   <div className="c-text">{c.text}</div>
-                  <div className="c-ctx">{ctxDisplay(c)}</div>
+                  <div className="c-ctx">
+                    {isOrphaned && <span className="c-deleted">削除済み</span>}
+                    {ctxDisplay(c)}
+                  </div>
                 </div>
                 <div className="c-actions">
                   <button

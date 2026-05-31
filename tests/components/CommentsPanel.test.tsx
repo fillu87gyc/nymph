@@ -18,10 +18,12 @@ function makeComment(overrides: Partial<Comment> = {}): Comment {
 
 function Wrapper({
   comments,
+  orphanedIds,
   onEdit,
   onDelete,
 }: {
   comments: Comment[];
+  orphanedIds?: Set<number>;
   onEdit?: (c: Comment) => void;
   onDelete?: (id: number) => void;
 }) {
@@ -29,6 +31,7 @@ function Wrapper({
     <CommentsPanel
       open={true}
       comments={comments}
+      orphanedIds={orphanedIds}
       onScrollToComment={vi.fn()}
       onEdit={onEdit ?? vi.fn()}
       onDelete={onDelete ?? vi.fn()}
@@ -79,5 +82,30 @@ describe('CommentsPanel', () => {
     render(<Wrapper comments={comments} />);
     expect(screen.getByText('first')).toBeInTheDocument();
     expect(screen.getByText('second')).toBeInTheDocument();
+  });
+
+  test('孤立コメントに「削除済み」バッジが表示される', () => {
+    const c = makeComment({ id: 5, text: 'orphaned comment' });
+    render(<Wrapper comments={[c]} orphanedIds={new Set([5])} />);
+    expect(screen.getByText('削除済み')).toBeInTheDocument();
+  });
+
+  test('孤立していないコメントには「削除済み」バッジが表示されない', () => {
+    const c = makeComment({ id: 5, text: 'normal comment' });
+    render(<Wrapper comments={[c]} orphanedIds={new Set()} />);
+    expect(screen.queryByText('削除済み')).not.toBeInTheDocument();
+  });
+
+  test('orphanedIds 未指定のとき「削除済み」バッジが表示されない', () => {
+    render(<Wrapper comments={[makeComment()]} />);
+    expect(screen.queryByText('削除済み')).not.toBeInTheDocument();
+  });
+
+  test('孤立コメントのアイテムに c-orphaned クラスが付く', () => {
+    const c = makeComment({ id: 7, text: 'orphaned' });
+    const { container } = render(
+      <Wrapper comments={[c]} orphanedIds={new Set([7])} />,
+    );
+    expect(container.querySelector('.comment-item.c-orphaned')).not.toBeNull();
   });
 });

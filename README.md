@@ -119,7 +119,7 @@ bun run build      # プロダクションビルド (Vite 7)
 **ghq を使っている場合の開発用ショートカット（`~/.zshrc`）**
 
 ```zsh
-nymphx() { NYMPH_FILES="$*" bun run --cwd "$(ghq root)/github.com/fillu87gyc/nymph" dev; }
+nymphx() { local f a=(); for f in "$@"; do a+=("${f:a}"); done; NYMPH_FILES="${a[*]}" bun run dev; }
 ```
 
 ```bash

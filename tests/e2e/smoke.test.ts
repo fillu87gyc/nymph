@@ -22,6 +22,24 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     await page.goto('/');
     await expect(page.locator('#file-tabs')).toBeVisible();
   });
+
+  test('コネクションステータスバッジが表示されている', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#connection-status')).toBeVisible();
+    await expect(page.locator('#connection-status')).toContainText(
+      'コネクション',
+    );
+  });
+
+  test('コネクションステータスバッジが接続状態を表示', async ({ page }) => {
+    await page.goto('/');
+    const connectionStatus = page.locator('#connection-status');
+    const connectionDot = connectionStatus.locator('.connection-dot');
+
+    // 接続中は緑色の点が表示される
+    await expect(connectionDot).not.toHaveClass(/error/);
+    await expect(connectionStatus).not.toHaveClass(/disconnected/);
+  });
 });
 
 test.describe('コメント: 追加 → 保存 → リロード後復元', () => {

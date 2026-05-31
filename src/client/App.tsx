@@ -9,6 +9,7 @@ import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 import { useComments } from './hooks/useComments.ts';
+import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useSSE } from './hooks/useSSE.ts';
@@ -37,6 +38,7 @@ export function App() {
   const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
     null,
   );
+  const { isConnected } = useConnectionStatus();
 
   // Modal state
   const [commentModalOpen, setCommentModalOpen] = useState(false);
@@ -355,6 +357,7 @@ export function App() {
         commentCount={comments.length}
         diffMode={diffMode}
         checkpointSet={checkpointSet}
+        isConnected={isConnected}
         files={files}
         activeFile={activeFile}
         onTogglePanel={() => setPanelOpen((o) => !o)}

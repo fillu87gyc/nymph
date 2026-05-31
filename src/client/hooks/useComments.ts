@@ -1,37 +1,39 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import useSWR, { useSWRConfig } from 'swr';
+import { fetcher } from '../lib/fetcher.ts';
 import type { Comment, PendingComment } from '../types.ts';
 
+function postComments(updated: Comment[]) {
+  fetch('/comments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updated),
+  }).catch(() => {});
+}
+
 export function useComments() {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [nextId, setNextId] = useState(1);
+  const { mutate } = useSWRConfig();
 
-  const loadComments = useCallback(async () => {
-    try {
-      const res = await fetch('/comments');
-      const data: Comment[] = await res.json();
-      setComments(data);
-      setNextId(data.length ? Math.max(...data.map((c) => c.id)) + 1 : 1);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const { data: comments = [] } = useSWR<Comment[]>('/comments', fetcher, {
+    fallbackData: [],
+  });
 
-  const saveComments = useCallback((updated: Comment[]) => {
-    fetch('/comments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updated),
-    }).catch(() => {});
-  }, []);
+  const nextId = comments.length
+    ? Math.max(...comments.map((c) => c.id)) + 1
+    : 1;
+
+  const saveComments = useCallback(
+    async (updated: Comment[]) => {
+      await mutate('/comments', updated, { revalidate: false });
+      postComments(updated);
+    },
+    [mutate],
+  );
 
   const addComment = useCallback(
-    (
-      pending: PendingComment,
-      text: string,
-      currentNextId: number,
-    ): [Comment[], number] => {
+    async (pending: PendingComment, text: string) => {
       const c: Comment = {
-        id: currentNextId,
+        id: nextId,
         ls: pending.ls,
         le: pending.le,
         block_type: pending.block_type,
@@ -42,42 +44,34 @@ export function useComments() {
         text,
       };
       const updated = [...comments, c].sort((a, b) => a.ls - b.ls);
-      setComments(updated);
-      setNextId(currentNextId + 1);
-      saveComments(updated);
-      return [updated, currentNextId + 1];
+      await saveComments(updated);
     },
-    [comments, saveComments],
+    [comments, nextId, saveComments],
   );
 
   const updateComment = useCallback(
-    (id: number, text: string) => {
+    async (id: number, text: string) => {
       const updated = comments.map((c) => (c.id === id ? { ...c, text } : c));
-      setComments(updated);
-      saveComments(updated);
+      await saveComments(updated);
     },
     [comments, saveComments],
   );
 
   const deleteComment = useCallback(
-    (id: number) => {
+    async (id: number) => {
       const updated = comments.filter((c) => c.id !== id);
-      setComments(updated);
-      saveComments(updated);
+      await saveComments(updated);
     },
     [comments, saveComments],
   );
 
-  const clearAll = useCallback(() => {
-    setComments([]);
-    setNextId(1);
-    saveComments([]);
+  const clearAll = useCallback(async () => {
+    await saveComments([]);
   }, [saveComments]);
 
   return {
     comments,
     nextId,
-    loadComments,
     addComment,
     updateComment,
     deleteComment,

@@ -1,4 +1,6 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { createElement } from 'react';
+import { SWRConfig } from 'swr';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { useFiles } from '../../src/client/hooks/useFiles.ts';
 import type { FileEntry } from '../../src/client/types.ts';
@@ -8,13 +10,25 @@ const mockFiles: FileEntry[] = [
   { path: '/docs/b.md', name: 'b.md' },
 ];
 
-beforeEach(() => {
-  vi.spyOn(global, 'fetch').mockResolvedValue(
-    new Response(
-      JSON.stringify({ files: mockFiles, activeFile: mockFiles[0].path }),
-      { headers: { 'Content-Type': 'application/json' } },
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  createElement(
+    SWRConfig,
+    { value: { provider: () => new Map(), dedupingInterval: 0 } },
+    children,
+  );
+
+function mockFetch(response: unknown) {
+  vi.spyOn(global, 'fetch').mockImplementation(() =>
+    Promise.resolve(
+      new Response(JSON.stringify(response), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
     ),
   );
+}
+
+beforeEach(() => {
+  mockFetch({ files: mockFiles, activeFile: mockFiles[0].path });
 });
 
 afterEach(() => {
@@ -22,74 +36,92 @@ afterEach(() => {
 });
 
 describe('useFiles', () => {
-  test('初期状態: files=[]・activeFile=null', () => {
-    const { result } = renderHook(() => useFiles());
+  test('初期状態: fallbackData として files=[]・activeFile=null', () => {
+    vi.spyOn(global, 'fetch').mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useFiles(), { wrapper });
     expect(result.current.files).toEqual([]);
     expect(result.current.activeFile).toBeNull();
   });
 
-  test('loadFiles でファイル一覧を取得する', async () => {
-    const { result } = renderHook(() => useFiles());
-    await act(() => result.current.loadFiles());
-    expect(result.current.files).toEqual(mockFiles);
-  });
-
-  test('loadFiles で最初のファイルが activeFile になる', async () => {
-    const { result } = renderHook(() => useFiles());
-    await act(() => result.current.loadFiles());
-    expect(result.current.activeFile).toBe(mockFiles[0].path);
-  });
-
-  test('loadFiles の戻り値はファイル一覧', async () => {
-    const { result } = renderHook(() => useFiles());
-    let returned: FileEntry[] = [];
-    await act(async () => {
-      returned = await result.current.loadFiles();
+  test('マウント後 SWR がファイル一覧を取得する', async () => {
+    const { result } = renderHook(() => useFiles(), { wrapper });
+    await waitFor(() => {
+      expect(result.current.files).toEqual(mockFiles);
     });
-    expect(returned).toEqual(mockFiles);
   });
 
-  test('loadFiles でエラーが起きても空配列を返す', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('network'));
-    const { result } = renderHook(() => useFiles());
-    let returned: FileEntry[] = [];
-    await act(async () => {
-      returned = await result.current.loadFiles();
+  test('SWR fetch 後に activeFile がサーバー値になる', async () => {
+    const { result } = renderHook(() => useFiles(), { wrapper });
+    await waitFor(() => {
+      expect(result.current.activeFile).toBe(mockFiles[0].path);
     });
-    expect(returned).toEqual([]);
-    expect(result.current.files).toEqual([]);
-  });
-
-  test('switchFile で activeFile が更新される', async () => {
-    const { result } = renderHook(() => useFiles());
-    await act(() => result.current.loadFiles());
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce(new Response('{}'));
-    await act(() => result.current.switchFile(mockFiles[1].path));
-    expect(result.current.activeFile).toBe(mockFiles[1].path);
   });
 
   test('switchFile が POST /active-file を呼ぶ', async () => {
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValue(new Response('{}'));
-    const { result } = renderHook(() => useFiles());
-    await act(() => result.current.switchFile('/some/file.md'));
+    const { result } = renderHook(() => useFiles(), { wrapper });
+    await waitFor(() => expect(result.current.files).toEqual(mockFiles));
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response('{}', {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    await act(() => result.current.switchFile(mockFiles[1].path));
     expect(fetchSpy).toHaveBeenCalledWith(
       '/active-file',
       expect.objectContaining({ method: 'POST' }),
     );
   });
 
-  test('setActiveFile で直接 activeFile を変更できる', () => {
-    const { result } = renderHook(() => useFiles());
-    act(() => result.current.setActiveFile('/manual/path.md'));
-    expect(result.current.activeFile).toBe('/manual/path.md');
+  test('switchFile 後に SWR が activeFile をサーバー値に更新する', async () => {
+    mockFetch({ files: mockFiles, activeFile: mockFiles[1].path });
+    const { result } = renderHook(() => useFiles(), { wrapper });
+    await act(() => result.current.switchFile(mockFiles[1].path));
+    await waitFor(() => {
+      expect(result.current.activeFile).toBe(mockFiles[1].path);
+    });
   });
 
-  test('loadFiles でサーバーの activeFile が常に優先される', async () => {
-    const { result } = renderHook(() => useFiles());
-    act(() => result.current.setActiveFile('/already/set.md'));
-    await act(() => result.current.loadFiles());
-    expect(result.current.activeFile).toBe(mockFiles[0].path);
+  test('closeFile が POST /close-file を呼ぶ', async () => {
+    const { result } = renderHook(() => useFiles(), { wrapper });
+    await waitFor(() => expect(result.current.files).toEqual(mockFiles));
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            files: [mockFiles[1]],
+            activeFile: mockFiles[1].path,
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+    await act(() => result.current.closeFile(mockFiles[0].path));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/close-file',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  test('closeFile はサーバーレスポンスの activeFile を返す', async () => {
+    const { result } = renderHook(() => useFiles(), { wrapper });
+    await waitFor(() => expect(result.current.files).toEqual(mockFiles));
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            files: [mockFiles[1]],
+            activeFile: mockFiles[1].path,
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+    let returned: string | null = null;
+    await act(async () => {
+      returned = await result.current.closeFile(mockFiles[0].path);
+    });
+    expect(returned).toBe(mockFiles[1].path);
   });
 });

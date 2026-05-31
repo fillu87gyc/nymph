@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "diff": "^5.2.0",
-    "open": "^10.1.0"
+    "open": "^10.1.0",
+    "swr": "^2.4.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

@@ -33,7 +33,7 @@ test.describe('コンテンツ内テキスト選択 → popup 表示', () => {
   test('段落をトリプルクリックすると popup が現れる', async ({ page }) => {
     // .md-block 内の <p> をトリプルクリックして全選択
     await page.locator('#content .md-block p').first().click({ clickCount: 3 });
-    await expect(page.locator('#selection-popup.visible')).toBeVisible({
+    await expect(page.locator('#selection-popup')).toBeVisible({
       timeout: 1000,
     });
   });
@@ -42,7 +42,7 @@ test.describe('コンテンツ内テキスト選択 → popup 表示', () => {
     page,
   }) => {
     await page.locator('#content .md-block p').first().click({ clickCount: 3 });
-    await expect(page.locator('#selection-popup.visible')).toBeVisible({
+    await expect(page.locator('#selection-popup')).toBeVisible({
       timeout: 1000,
     });
     await page.locator('#btn-selection-comment').click();
@@ -53,7 +53,7 @@ test.describe('コンテンツ内テキスト選択 → popup 表示', () => {
     page,
   }) => {
     await page.locator('#content .md-block p').first().click({ clickCount: 3 });
-    await expect(page.locator('#selection-popup.visible')).toBeVisible({
+    await expect(page.locator('#selection-popup')).toBeVisible({
       timeout: 1000,
     });
     await page.locator('#btn-selection-comment').click();
@@ -66,13 +66,13 @@ test.describe('コンテンツ内テキスト選択 → popup 表示', () => {
 
   test('選択を解除すると popup が消える', async ({ page }) => {
     await page.locator('#content .md-block p').first().click({ clickCount: 3 });
-    await expect(page.locator('#selection-popup.visible')).toBeVisible({
+    await expect(page.locator('#selection-popup')).toBeVisible({
       timeout: 1000,
     });
 
     // シングルクリックで選択を解除
     await page.locator('#content .md-block p').first().click();
-    await expect(page.locator('#selection-popup.visible')).not.toBeVisible({
+    await expect(page.locator('#selection-popup')).not.toBeVisible({
       timeout: 1000,
     });
   });
@@ -95,7 +95,7 @@ test.describe('コンテンツ外の選択では popup が出ない', () => {
     );
     // SelectionPopup の setTimeout(show, 30) を待つ
     await page.waitForTimeout(150);
-    await expect(page.locator('#selection-popup.visible')).not.toBeVisible();
+    await expect(page.locator('#selection-popup')).not.toBeVisible();
   });
 });
 
@@ -104,7 +104,7 @@ test.describe('選択コメントのワークフロー', () => {
     page,
   }) => {
     await page.locator('#content .md-block p').first().click({ clickCount: 3 });
-    await expect(page.locator('#selection-popup.visible')).toBeVisible({
+    await expect(page.locator('#selection-popup')).toBeVisible({
       timeout: 1000,
     });
     await page.locator('#btn-selection-comment').click();
@@ -124,7 +124,7 @@ test.describe('選択コメントのワークフロー', () => {
 
   test('選択コメントの block_type は selection になる', async ({ page }) => {
     await page.locator('#content .md-block p').first().click({ clickCount: 3 });
-    await expect(page.locator('#selection-popup.visible')).toBeVisible({
+    await expect(page.locator('#selection-popup')).toBeVisible({
       timeout: 1000,
     });
     await page.locator('#btn-selection-comment').click();

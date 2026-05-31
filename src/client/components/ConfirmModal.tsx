@@ -7,7 +7,7 @@ interface ConfirmModalProps {
 export function ConfirmModal({ open, onConfirm, onClose }: ConfirmModalProps) {
   if (!open) return null;
   return (
-    <div id="confirm-modal" className="open">
+    <div id="confirm-modal">
       <div id="confirm-backdrop" onClick={onClose} />
       <div id="confirm-box">
         <div className="modal-head">全コメントを削除</div>

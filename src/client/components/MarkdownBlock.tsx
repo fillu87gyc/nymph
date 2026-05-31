@@ -105,8 +105,21 @@ export function MarkdownBlock({
     [block.key, onRef],
   );
 
-  const showButton = hovered || hasComment;
+  // relatedTarget が自身の子孫（ボタン含む）のときは mouseleave を無視する。
+  // ボタンは left: -34px でボックス外に配置されているが DOM 上は子なので
+  // contains() が true を返し、ボタンへ移動してもホバー状態が維持される。
+  const handleMouseLeave = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const related = e.relatedTarget;
+      if (related instanceof Node && e.currentTarget.contains(related)) return;
+      setHovered(false);
+    },
+    [],
+  );
+
   const isDiffChanged = diffMode && diffGroups.length > 0;
+  const showPlusButton = block.type === 'table' || block.type === 'mermaid';
+  const showButton = hovered || hasComment;
 
   const className = [
     'md-block',
@@ -126,28 +139,30 @@ export function MarkdownBlock({
       data-le={block.le}
       data-block-type={block.type}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={handleMouseLeave}
     >
-      <button
-        className="comment-btn"
-        style={{
-          opacity: showButton ? 1 : 0,
-          pointerEvents: showButton ? 'auto' : 'none',
-        }}
-        aria-label="コメント"
-        onClick={() =>
-          onAddComment(
-            block.ls,
-            block.le,
-            block.commentContext.displayCtx,
-            block.type,
-            block.commentContext.context,
-            null,
-          )
-        }
-      >
-        ＋
-      </button>
+      {showPlusButton && (
+        <button
+          className="comment-btn"
+          style={{
+            opacity: showButton ? 1 : 0,
+            pointerEvents: showButton ? 'auto' : 'none',
+          }}
+          aria-label="コメント"
+          onClick={() =>
+            onAddComment(
+              block.ls,
+              block.le,
+              block.commentContext.displayCtx,
+              block.type,
+              block.commentContext.context,
+              null,
+            )
+          }
+        >
+          ＋
+        </button>
+      )}
 
       {block.type === 'mermaid' ? (
         <div className="mermaid-wrap">

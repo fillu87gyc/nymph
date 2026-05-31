@@ -52,11 +52,7 @@ export function Toolbar({
       <span className="spacer" />
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>
         コメント{' '}
-        {commentCount > 0 && (
-          <span id="comment-count" className="visible">
-            {commentCount}
-          </span>
-        )}
+        {commentCount > 0 && <span id="comment-count">{commentCount}</span>}
       </button>
       <button className="btn primary" id="btn-copy" onClick={onCopyReview}>
         レビューをコピー

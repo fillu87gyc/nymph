@@ -59,7 +59,6 @@ export function DrawioModal({
   return (
     <div
       id="drawio-modal"
-      className="open"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* biome-ignore lint/a11y/useAnchorContent: hidden download trigger */}

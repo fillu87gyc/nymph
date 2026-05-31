@@ -123,12 +123,13 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
     onComment(s.ls, s.le, s.ctx, s.offset);
   }
 
+  if (!visible) return null;
+
   return (
     <div
       ref={popupRef}
       id="selection-popup"
-      className={visible ? 'visible' : ''}
-      style={visible ? { left: pos.left, top: pos.top } : {}}
+      style={{ left: pos.left, top: pos.top }}
     >
       <button
         id="btn-selection-comment"

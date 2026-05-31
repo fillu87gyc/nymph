@@ -1,8 +1,9 @@
-import { rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
 const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
+const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
 
 test.describe('smoke: 起動 → コンテンツ表示', () => {
   test('ページが正常に読み込まれる', async ({ page }) => {
@@ -40,10 +41,12 @@ test.describe('コメント: 追加 → 保存 → リロード後復元', () =>
       timeout: 5000,
     });
 
-    // Hover first block and click comment button
-    const firstBlock = page.locator('#content .md-block').first();
-    await firstBlock.hover();
-    await firstBlock.locator('.comment-btn').click();
+    // Hover table block and click comment button
+    const tableBlock = page
+      .locator('#content .md-block[data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('.comment-btn').click();
 
     // Type and submit
     await page.locator('#comment-ta').fill('E2E test comment');
@@ -70,10 +73,7 @@ test.describe('コメント: 追加 → 保存 → リロード後復元', () =>
 
 test.describe('SSE: ファイル変更で再描画', () => {
   test.afterEach(() => {
-    writeFileSync(
-      FIXTURE,
-      '# Sample\n\nThis is a test file for nymph E2E tests.\n\n## Section\n\nSome content here.\n\n```ts\nconst x = 1;\n```\n\n## Diagram\n\n```mermaid\ngraph TD; A-->B\n```\n',
-    );
+    writeFileSync(FIXTURE, ORIGINAL);
   });
 
   test('外部ファイル書き換えでコンテンツが更新される', async ({ page }) => {

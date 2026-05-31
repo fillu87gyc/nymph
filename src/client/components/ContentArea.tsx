@@ -144,26 +144,28 @@ export function ContentArea({
 
   return (
     <div id="content" ref={contentRef as React.RefObject<HTMLDivElement>}>
-      <div id="welcome" className={isEmpty ? '' : 'hidden'}>
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-          <rect
-            x="6"
-            y="4"
-            width="28"
-            height="32"
-            rx="3"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <path
-            d="M12 13h16M12 19h16M12 25h10"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
-        <p id="welcome-msg">{welcomeMsg}</p>
-      </div>
+      {isEmpty && (
+        <div id="welcome">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect
+              x="6"
+              y="4"
+              width="28"
+              height="32"
+              rx="3"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M12 13h16M12 19h16M12 25h10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          <p id="welcome-msg">{welcomeMsg}</p>
+        </div>
+      )}
       {!isEmpty &&
         blocks.map((block) => (
           <MarkdownBlock

@@ -70,6 +70,11 @@ PR の body は以下のテンプレートを使う。`gh pr create` の `--body
 ## Summary
 - <変更点を箇条書き>
 
+## デモ
+<!-- 動作確認 GIF があれば GitHub にアップロードして URL を貼る。なければこのセクションを削除する -->
+<!-- GIF の取得方法: ブラウザの任意の GitHub issue/PR コメント欄にドラッグ&ドロップ → 生成された URL をコピー -->
+![デモ](https://github.com/user-attachments/assets/xxxx-xxxx-xxxx)
+
 ## E2Eカバレッジ
 <!-- 今回の開発に対応するE2Eテストを列挙する -->
 | テストファイル | シナリオ |
@@ -86,6 +91,14 @@ PR の body は以下のテンプレートを使う。`gh pr create` の `--body
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
+> **GIF URL の取得手順**
+> 1. ブラウザで GitHub の任意の issue/PR コメント欄を開く
+> 2. GIF ファイルをドラッグ&ドロップ
+> 3. 生成された `https://github.com/user-attachments/assets/...` URL をコピー
+> 4. `## デモ` セクションの URL と置き換える
+>
+> GIF がない場合は `## デモ` セクションごと削除する。
+
 実際のコマンド例：
 
 ```bash
@@ -94,6 +107,9 @@ gh pr create \
   --body "$(cat <<'EOF'
 ## Summary
 - ...
+
+## デモ
+![デモ](https://github.com/user-attachments/assets/xxxx-xxxx-xxxx)
 
 ## E2Eカバレッジ
 | テストファイル | シナリオ |

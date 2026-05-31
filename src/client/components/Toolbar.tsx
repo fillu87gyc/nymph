@@ -6,6 +6,7 @@ interface ToolbarProps {
   commentCount: number;
   diffMode: boolean;
   checkpointSet: boolean;
+  isConnected: boolean;
   files: FileEntry[];
   activeFile: string | null;
   onTogglePanel: () => void;
@@ -23,6 +24,7 @@ export function Toolbar({
   commentCount,
   diffMode,
   checkpointSet,
+  isConnected,
   files,
   activeFile,
   onTogglePanel,
@@ -49,6 +51,10 @@ export function Toolbar({
         onSwitch={onSwitchFile}
         onClose={onCloseFile}
       />
+      <span id="connection-status" className={`connection-badge${isConnected ? '' : ' disconnected'}`}>
+        <span className={`connection-dot${isConnected ? '' : ' error'}`} />
+        <span className="connection-label">{isConnected ? 'コネクション' : '切断'}</span>
+      </span>
       <span className="spacer" />
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>
         コメント{' '}

@@ -1,5 +1,5 @@
 ---
-name: create-pr
+name: pr-create
 description: PRを作成する。fmt/lint/unit testをローカルで実行し、関連E2Eをdescriptionに記載してPR作成後にCIをモニターしてgreenになるまで担当する。Use when asked to create a PR, open a pull request, or submit changes for review.
 ---
 

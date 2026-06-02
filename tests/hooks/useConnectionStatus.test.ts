@@ -58,15 +58,24 @@ describe('useConnectionStatus', () => {
     expect(result.current.isConnected).toBe(true);
   });
 
-  test('should update lastHeartbeat on heartbeat event', () => {
+  test('disconnect 後に heartbeat が来ると再接続し、その後も切断判定が出ない', () => {
     const { result } = renderHook(() => useConnectionStatus());
-    const initialHeartbeat = result.current.lastHeartbeat;
 
     act(() => {
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(2500);
+    });
+    expect(result.current.isConnected).toBe(false);
+
+    // 切断後の heartbeat で ref の時刻が更新され、再接続する
+    act(() => {
       window.dispatchEvent(new Event('sse:heartbeat'));
     });
+    expect(result.current.isConnected).toBe(true);
 
-    expect(result.current.lastHeartbeat).toBeGreaterThan(initialHeartbeat);
+    // 直近の heartbeat から 2 秒以内は接続を維持する
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.isConnected).toBe(true);
   });
 });

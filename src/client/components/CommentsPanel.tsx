@@ -25,7 +25,13 @@ export function CommentsPanel({
   onClose,
 }: CommentsPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(PANEL_DEFAULT_H);
+  // 初期値で localStorage の保存高さを復元する（以前は常に既定値で初期化され、
+  // ドラッグで保存した高さがリロード後に反映されない不具合があった）。
+  const [height, setHeight] = useState(
+    () =>
+      parseInt(localStorage.getItem('nymph-panel-height') || '0', 10) ||
+      PANEL_DEFAULT_H,
+  );
 
   const startDrag = useCallback((e: React.MouseEvent) => {
     const startY = e.clientY;
@@ -58,12 +64,7 @@ export function CommentsPanel({
     onScrollToComment(c);
   }
 
-  const savedH =
-    parseInt(localStorage.getItem('nymph-panel-height') || '0', 10) ||
-    PANEL_DEFAULT_H;
-  const panelStyle = open
-    ? { height: `${height || savedH}px` }
-    : { height: '0' };
+  const panelStyle = open ? { height: `${height}px` } : { height: '0' };
 
   return (
     <div

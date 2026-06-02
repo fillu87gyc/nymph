@@ -77,53 +77,35 @@ describe('コメントボタンのレンダリング制御', () => {
 });
 
 // ── ボタンの表示・非表示 ──────────────────────────────────────
+//
+// 表示/非表示は CSS（.md-block:hover / .md-block.has-comment）に委譲した。
+// JS は opacity / pointer-events を一切操作しない。ホバーの視覚挙動は
+// jsdom では :hover が評価できないため E2E（comments.test.ts）で検証する。
 
 describe('コメントボタンの表示制御', () => {
-  test('デフォルトで opacity:0 / pointerEvents:none', () => {
+  test('ボタンの表示/非表示は CSS に委譲し、JS はインラインスタイルを持たない', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
     );
     const btn = container.querySelector('.comment-btn') as HTMLElement;
-    expect(btn.style.opacity).toBe('0');
-    expect(btn.style.pointerEvents).toBe('none');
+    // インラインの opacity / pointer-events が付いていないこと（= CSS が制御）
+    expect(btn.style.opacity).toBe('');
+    expect(btn.style.pointerEvents).toBe('');
   });
 
-  test('mouseenter だけでは opacity:0 のまま（ファーストビューでの誤表示を防ぐ）', () => {
-    // Chrome はカーソル下に要素が現れると mouseenter を発火するが、
-    // mousemove を伴わない限りホバー状態にしてはいけない。
+  test('mouseenter しても JS はインラインスタイルを付けない', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
     );
     const wrapper = container.querySelector('.md-block') as HTMLElement;
     fireEvent.mouseEnter(wrapper);
+    fireEvent.mouseMove(wrapper);
     const btn = container.querySelector('.comment-btn') as HTMLElement;
-    expect(btn.style.opacity).toBe('0');
-    expect(btn.style.pointerEvents).toBe('none');
+    expect(btn.style.opacity).toBe('');
+    expect(btn.style.pointerEvents).toBe('');
   });
 
-  test('ホバーで opacity:1 になる', async () => {
-    const { container } = render(
-      <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
-    );
-    const wrapper = container.querySelector('.md-block') as HTMLElement;
-    await userEvent.hover(wrapper);
-    const btn = container.querySelector('.comment-btn') as HTMLElement;
-    expect(btn.style.opacity).toBe('1');
-    expect(btn.style.pointerEvents).toBe('auto');
-  });
-
-  test('ホバー解除で opacity:0 に戻る', async () => {
-    const { container } = render(
-      <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
-    );
-    const wrapper = container.querySelector('.md-block') as HTMLElement;
-    await userEvent.hover(wrapper);
-    await userEvent.unhover(wrapper);
-    const btn = container.querySelector('.comment-btn') as HTMLElement;
-    expect(btn.style.opacity).toBe('0');
-  });
-
-  test('hasComment=true ならホバーなしでも opacity:1', () => {
+  test('hasComment=true でも JS はインラインスタイルを付けない（has-comment クラスで CSS が制御）', () => {
     const { container } = render(
       <MarkdownBlock
         {...makeProps({
@@ -132,9 +114,10 @@ describe('コメントボタンの表示制御', () => {
         })}
       />,
     );
+    const block = container.querySelector('.md-block') as HTMLElement;
     const btn = container.querySelector('.comment-btn') as HTMLElement;
-    expect(btn.style.opacity).toBe('1');
-    expect(btn.style.pointerEvents).toBe('auto');
+    expect(block).toHaveClass('has-comment');
+    expect(btn.style.opacity).toBe('');
   });
 });
 

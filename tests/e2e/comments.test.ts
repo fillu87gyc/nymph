@@ -222,6 +222,59 @@ test.describe('コメントパネルのリサイズ', () => {
     );
     expect(Number(saved)).toBeGreaterThan(0);
   });
+
+  test('保存したパネル高さがリロード後に復元される', async ({ page }) => {
+    // 既定(210)と十分に異なる高さを localStorage に保存しておく
+    await page.evaluate(() =>
+      localStorage.setItem('nymph-panel-height', '380'),
+    );
+    await page.reload();
+    await expect(page.locator('#content .md-block').first()).toBeVisible({
+      timeout: 5000,
+    });
+
+    await page.locator('#btn-comments').click();
+    await expect(page.locator('#comments-panel.open')).toBeVisible();
+    // open 用の height トランジション(0.2s)が終わるのを待つ
+    await page.waitForTimeout(300);
+
+    const height = await page
+      .locator('#comments-panel')
+      .evaluate((el) => (el as HTMLElement).offsetHeight);
+    // 既定値(210)ではなく保存値(380)付近に復元されていること
+    expect(height).toBeGreaterThan(300);
+  });
+});
+
+test.describe('コメントボタンの表示（CSS hover）', () => {
+  test('既定では非表示、ホバーで表示される', async ({ page }) => {
+    const tableBlock = page
+      .locator('#content .md-block[data-block-type="table"]')
+      .first();
+    const btn = tableBlock.locator('.comment-btn');
+
+    // ホバー前は CSS で opacity:0（= 非表示）
+    await expect(btn).toHaveCSS('opacity', '0');
+
+    await tableBlock.hover();
+    // ホバーで opacity:1 まで遷移する
+    await expect(btn).toHaveCSS('opacity', '1');
+  });
+
+  test('コメントのあるブロックではホバーなしでも表示される', async ({
+    page,
+  }) => {
+    await addComment(page, 'visible without hover');
+    // パネルを閉じてブロックからマウスを離した状態にする
+    await page.locator('#btn-close-panel').click();
+    await page.mouse.move(0, 0);
+
+    const btn = page
+      .locator('#content .md-block[data-block-type="table"]')
+      .first()
+      .locator('.comment-btn');
+    await expect(btn).toHaveCSS('opacity', '1');
+  });
 });
 
 test.describe('テーマ切替', () => {

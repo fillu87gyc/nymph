@@ -1,5 +1,5 @@
 import { diffChars } from 'diff';
-import { memo, type ReactNode, useCallback, useState } from 'react';
+import { memo, type ReactNode, useCallback } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { DiffLine } from '../types.ts';
@@ -58,7 +58,7 @@ interface MarkdownBlockProps {
 }
 
 // Inner content is memoized so React doesn't clobber mermaid SVG or hljs
-// highlights when only hover / comment state changes on the outer wrapper.
+// highlights when only comment / highlight / diff state changes on the wrapper.
 const StableContent = memo(
   ({
     html,
@@ -98,28 +98,13 @@ export function MarkdownBlock({
   onOpenDrawio,
   onRef,
 }: MarkdownBlockProps) {
-  const [hovered, setHovered] = useState(false);
-
   const refCallback = useCallback(
     (el: HTMLElement | null) => onRef(block.key, el),
     [block.key, onRef],
   );
 
-  // relatedTarget が自身の子孫（ボタン含む）のときは mouseleave を無視する。
-  // ボタンは left: -34px でボックス外に配置されているが DOM 上は子なので
-  // contains() が true を返し、ボタンへ移動してもホバー状態が維持される。
-  const handleMouseLeave = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const related = e.relatedTarget;
-      if (related instanceof Node && e.currentTarget.contains(related)) return;
-      setHovered(false);
-    },
-    [],
-  );
-
   const isDiffChanged = diffMode && diffGroups.length > 0;
   const showPlusButton = block.type === 'table' || block.type === 'mermaid';
-  const showButton = hovered || hasComment;
 
   const className = [
     'md-block',
@@ -138,23 +123,10 @@ export function MarkdownBlock({
       data-ls={block.ls}
       data-le={block.le}
       data-block-type={block.type}
-      onMouseMove={(e) => {
-        if (!hovered) {
-          // ::after 擬似要素はブロック左端より外（left: -36px）まで伸びているため、
-          // そこでの mousemove は無視し、ブロック本体上に入ったときのみ hovered にする。
-          const rect = e.currentTarget.getBoundingClientRect();
-          if (e.clientX >= rect.left) setHovered(true);
-        }
-      }}
-      onMouseLeave={handleMouseLeave}
     >
       {showPlusButton && (
         <button
           className="comment-btn"
-          style={{
-            opacity: showButton ? 1 : 0,
-            pointerEvents: showButton ? 'auto' : 'none',
-          }}
           aria-label="コメント"
           onClick={() =>
             onAddComment(

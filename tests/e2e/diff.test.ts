@@ -44,6 +44,19 @@ test.describe('チェックポイント', () => {
       timeout: 3000,
     });
   });
+
+  test('チェックポイント設定でボタンの配色が変わる（has-checkpoint スタイル）', async ({
+    page,
+  }) => {
+    const btn = page.locator('#btn-checkpoint');
+    const before = await btn.evaluate((el) => getComputedStyle(el).borderColor);
+    await btn.click();
+    await expect(btn).toHaveClass(/has-checkpoint/);
+    // .has-checkpoint で枠線がアクセント色に変わること（クラスだけでなく実描画を検証）
+    await expect
+      .poll(async () => btn.evaluate((el) => getComputedStyle(el).borderColor))
+      .not.toBe(before);
+  });
 });
 
 test.describe('diff 表示', () => {

@@ -363,9 +363,9 @@ body {
 }
 
 .md-block::after {
-  /* ボタン（left: -34px）と .md-block 左端（0）の 12px ギャップを透明領域で埋め、
-     マウスがギャップを通過しても mouseleave が .md-block 外に出ないようにする。
-     上方向にも少し余裕を持たせてテーブル上端からのアクセスを容易にする。 */
+  /* ボタン（left: -34px）と .md-block 左端の透明な橋渡し。
+     ::after も .md-block の一部なので、ここをホバーしても :hover が維持され、
+     ブロック本体からボタンへマウスを移す間にボタンが消えない。 */
   content: "";
   position: absolute;
   left: -36px;
@@ -393,6 +393,14 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1;
+  /* 既定は非表示。表示はホバー / コメント有りで CSS が制御する（JS 状態は持たない）。 */
+  opacity: 0;
+  pointer-events: none;
+}
+.md-block:hover .comment-btn,
+.md-block.has-comment .comment-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 .md-block.has-comment .comment-btn {
   background: var(--accent-dim);
@@ -954,25 +962,10 @@ body {
   background: var(--accent);
   color: var(--bg);
 }
-@keyframes checkpoint-flash {
-  0% {
-    opacity: 1;
-  }
-  30% {
-    opacity: 0.2;
-  }
-  60% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-#btn-checkpoint.flash {
-  animation: checkpoint-flash 0.4s ease-out;
+#btn-checkpoint.has-checkpoint {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
 }
 .diff-side {
   position: absolute;

@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 
 export function useConnectionStatus() {
   const [isConnected, setIsConnected] = useState(true);
-  const [lastHeartbeat, setLastHeartbeat] = useState<number>(Date.now());
+  // heartbeat は 1 秒ごとに届く。時刻は ref だけで保持し、state には載せない。
+  // state にすると毎秒アプリ全体が再レンダリングされてしまう（isConnected の
+  // 変化は接続/切断の遷移時だけで十分）。
   const lastHeartbeatRef = useRef<number>(Date.now());
 
   useEffect(() => {
     const handleHeartbeat = () => {
       lastHeartbeatRef.current = Date.now();
-      setLastHeartbeat(Date.now());
       setIsConnected(true);
     };
 
@@ -28,5 +29,5 @@ export function useConnectionStatus() {
     };
   }, []);
 
-  return { isConnected, lastHeartbeat };
+  return { isConnected };
 }

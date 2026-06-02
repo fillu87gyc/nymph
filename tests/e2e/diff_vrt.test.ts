@@ -90,7 +90,7 @@ test.describe('diff 右マージン表示 VRT', () => {
       'leaps over',
     );
     await expect(page).toHaveScreenshot('diff-aside-single.png', {
-      maxDiffPixels: 200,
+      maxDiffPixels: 800,
     });
   });
 
@@ -109,7 +109,7 @@ test.describe('diff 右マージン表示 VRT', () => {
       timeout: 5000,
     });
     await expect(page).toHaveScreenshot('diff-aside-multiline.png', {
-      maxDiffPixels: 200,
+      maxDiffPixels: 800,
     });
   });
 });

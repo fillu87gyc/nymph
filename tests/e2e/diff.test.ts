@@ -282,6 +282,11 @@ test.describe('diff の右マージン表示', () => {
     await expect(aside.locator('.diff-side-del .diff-del')).toHaveCount(1);
     await expect(aside.locator('.diff-side-ins .diff-ins')).toHaveCount(4);
 
+    // 行数が 1:N で対応が曖昧なため、追加 4 行すべて・削除 1 行すべてが
+    // 全体ハイライトされる（「追加したのにハイライトされない」回帰防止）
+    await expect(aside.locator('.diff-side-ins .diff-char-ins')).toHaveCount(4);
+    await expect(aside.locator('.diff-side-del .diff-char-del')).toHaveCount(1);
+
     // 削除(−) ブロックが 追加(+) ブロックの上にある（git と同じ順序）
     const delBox = await aside.locator('.diff-side-del').boundingBox();
     const insBox = await aside.locator('.diff-side-ins').boundingBox();

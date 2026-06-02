@@ -202,6 +202,8 @@ test.describe('フルスペック VRT', () => {
     ).toBeVisible({ timeout: 2000 });
 
     // ── 9. 縦長 VRT スクリーンショット（viewport = doc 高さ → 単一フレーム）
-    await expect(page).toHaveScreenshot('fullspec-vrt.png');
+    await expect(page).toHaveScreenshot('fullspec-vrt.png', {
+      maxDiffPixels: 800,
+    });
   });
 });

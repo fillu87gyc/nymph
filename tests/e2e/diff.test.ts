@@ -83,13 +83,24 @@ test.describe('チェックポイント', () => {
     page,
   }) => {
     const btn = page.locator('#btn-checkpoint');
-    const before = await btn.evaluate((el) => getComputedStyle(el).borderColor);
+    // var(--accent) の実 RGB をプローブ要素で取得（テーマ依存のため固定値にしない）
+    const accentRgb = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.borderColor = 'var(--accent)';
+      document.body.appendChild(probe);
+      const c = getComputedStyle(probe).borderColor;
+      probe.remove();
+      return c;
+    });
     await btn.click();
     await expect(btn).toHaveAttribute('data-has-checkpoint', 'true');
-    // has-checkpoint で枠線がアクセント色に変わること（状態だけでなく実描画を検証）
+    // hover の border-color 変化と切り分けるためマウスをボタンから離す。
+    // その上で枠線が「実際にアクセント色」になっていることを検証する
+    // （hover で色が変わるだけの偽陽性を防ぐ）。
+    await page.mouse.move(0, 0);
     await expect
       .poll(async () => btn.evaluate((el) => getComputedStyle(el).borderColor))
-      .not.toBe(before);
+      .toBe(accentRgb);
   });
 });
 

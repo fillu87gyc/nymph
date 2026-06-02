@@ -1,0 +1,201 @@
+/**
+ * フルスペック VRT
+ *
+ * diff ブロック・コードブロック・Mermaid・複数コメント・
+ * テーブルの選択ハイライトを含む 1 画面を縦長スクリーンショットで比較する。
+ *
+ * - ls/le は fullspec.md の行番号に対応（変更時は要更新）
+ *   L3   intro paragraph
+ *   L7   TypeScript code block (〜L17)
+ *   L32  Feature Table (〜L38) ← クリックしてハイライト対象
+ *   L42  Mermaid Diagram (〜L50)
+ *   L70  Modified Section paragraph (〜L71) ← diff 変更対象
+ */
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { expect, test } from '@playwright/test';
+
+const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
+const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
+const COMMENTS_FILE = `${FIXTURE}.comments.json`;
+
+const FULLSPEC_PATH = join(process.cwd(), 'tests/fixtures/fullspec.md');
+const FULLSPEC = readFileSync(FULLSPEC_PATH, 'utf-8');
+
+const ORIGINAL_LINE =
+  'This specific line will be modified to trigger the diff view highlight.';
+const CHANGED_LINE =
+  'This specific line has been modified to demonstrate the diff highlight feature.';
+const FULLSPEC_MODIFIED = FULLSPEC.replace(ORIGINAL_LINE, CHANGED_LINE);
+
+const PRESEEDED_COMMENTS = JSON.stringify(
+  [
+    {
+      id: 1,
+      ls: 3,
+      le: 3,
+      block_type: 'paragraph',
+      context: 'Introductory paragraph with **bold text**',
+      text: '書式設定の確認: 太字・斜体・インラインコードが正しく表示されている',
+    },
+    {
+      id: 2,
+      ls: 7,
+      le: 17,
+      block_type: 'code',
+      context: { lang: 'typescript', code: 'interface User {\n  id: number;' },
+      text: 'TypeScriptコードブロック: User インターフェースと createUser 関数',
+    },
+    {
+      id: 3,
+      ls: 32,
+      le: 38,
+      block_type: 'table',
+      context: {
+        headers: ['Feature', 'Status', 'Notes'],
+        rows: [
+          {
+            Feature: 'Code highlighting',
+            Status: '✅',
+            Notes: 'Powered by highlight.js',
+          },
+        ],
+      },
+      text: '機能テーブル: 全機能がサポート済み ✅ — このコメントがハイライト対象',
+    },
+    {
+      id: 4,
+      ls: 42,
+      le: 50,
+      block_type: 'mermaid',
+      context: { lang: 'mermaid', code: 'graph TD\n  A[Open nymph]' },
+      text: 'Mermaid フロー図: チェックポイントと diff の分岐フロー',
+    },
+    {
+      id: 5,
+      ls: 70,
+      le: 71,
+      block_type: 'paragraph',
+      context: 'This line remains unchanged in the document.',
+      text: '変更セクション: この段落が diff ビューでハイライトされる予定',
+    },
+  ],
+  null,
+  2,
+);
+
+test.describe('フルスペック VRT', () => {
+  test.beforeEach(() => {
+    writeFileSync(FIXTURE, FULLSPEC, 'utf-8');
+    writeFileSync(COMMENTS_FILE, PRESEEDED_COMMENTS, 'utf-8');
+  });
+
+  test.afterEach(() => {
+    writeFileSync(FIXTURE, ORIGINAL, 'utf-8');
+    try {
+      rmSync(COMMENTS_FILE);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  test('全要素（diff・コード・Mermaid・コメント複数・テーブルハイライト）縦長 VRT', async ({
+    page,
+  }) => {
+    // diff サイドパネル（左右各 260px）が収まる幅に設定
+    await page.setViewportSize({ width: 1600, height: 900 });
+
+    // ── 1. ページ読み込み ──────────────────────────────────────────
+    await page.goto('/');
+    await expect(page.locator('#content .md-block').first()).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Mermaid SVG の描画完了を待つ（hljs もここで完了する）
+    await expect(page.locator('#content .mermaid svg')).toBeVisible({
+      timeout: 15000,
+    });
+
+    // ── 2. チェックポイント設定 ──────────────────────────────────
+    await page.locator('#btn-checkpoint').click();
+    await expect(page.locator('#btn-checkpoint')).toHaveClass(
+      /has-checkpoint/,
+      {
+        timeout: 5000,
+      },
+    );
+
+    // ── 3. ファイルを変更して diff を生成 ─────────────────────────
+    writeFileSync(FIXTURE, FULLSPEC_MODIFIED, 'utf-8');
+    await expect(page.locator('#content')).toContainText(CHANGED_LINE, {
+      timeout: 8000,
+    });
+
+    // ── 4. diff モードを有効化 ────────────────────────────────────
+    await page.locator('#btn-diff').click();
+    await expect(page.locator('#btn-diff')).toHaveClass(/active/, {
+      timeout: 3000,
+    });
+    await expect(page.locator('#content .diff-changed')).toBeVisible({
+      timeout: 5000,
+    });
+    // diff サイドパネルが表示されるまで待機
+    await expect(page.locator('.diff-side')).toBeVisible({ timeout: 5000 });
+
+    // ── 5. コメントパネルを開く ────────────────────────────────────
+    await page.locator('#btn-comments').click();
+    await expect(page.locator('#comments-panel.open')).toBeVisible({
+      timeout: 3000,
+    });
+    // 5 件のコメントがすべてレンダリングされるまで待機
+    await expect(page.locator('.comment-item')).toHaveCount(5, {
+      timeout: 5000,
+    });
+
+    // ── 6. 縦長キャプチャのためレイアウトを展開 ──────────────────
+    // #main の overflow を visible にして #content の全長を DOM に展開し
+    // fullPage スクリーンショットで縦全体を撮影できるようにする
+    await page.evaluate(() => {
+      document.documentElement.style.overflowY = 'auto';
+      document.body.style.overflowY = 'auto';
+      const app = document.getElementById('app') as HTMLElement;
+      const main = document.getElementById('main') as HTMLElement;
+      if (app) app.style.height = 'auto';
+      if (main) {
+        main.style.overflow = 'visible';
+        main.style.height = 'auto';
+      }
+    });
+
+    // ── 7. VRT 安定化用 CSS を注入 ───────────────────────────────
+    // アニメーションを初期フレームで停止し、トースト・接続ドットを固定表示
+    await page.addStyleTag({
+      content: `
+        *, *::before, *::after {
+          animation-play-state: paused !important;
+          transition-duration: 0ms !important;
+        }
+        .connection-dot, .watch-dot { opacity: 1 !important; }
+        #toast { display: none !important; }
+        /* highlighted 状態を明るいオレンジで固定表示（アニメーション無効化） */
+        .md-block.highlighted[data-block-type="table"] > div,
+        .md-block.highlighted[data-block-type="mermaid"] > div {
+          animation: none !important;
+          background: rgba(194, 112, 48, 0.22) !important;
+          border-radius: 6px;
+        }
+      `,
+    });
+
+    // ── 8. テーブルコメント（3 番目）をクリックしてハイライト ───
+    await page.locator('.comment-item').nth(2).click();
+    await expect(
+      page.locator('#content .md-block[data-ls="32"].highlighted'),
+    ).toBeVisible({ timeout: 2000 });
+
+    // ── 9. 縦長 VRT スクリーンショット ───────────────────────────
+    await expect(page).toHaveScreenshot('fullspec-vrt.png', {
+      fullPage: true,
+    });
+  });
+});

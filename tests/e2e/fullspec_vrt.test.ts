@@ -2,14 +2,15 @@
  * フルスペック VRT
  *
  * diff ブロック・コードブロック・Mermaid・複数コメント・
- * テーブルの選択ハイライトを含む 1 画面を縦長スクリーンショットで比較する。
+ * テーブルの選択ハイライト・selection コメント（CSS Highlight API）・
+ * 孤立コメント（削除済みバッジ）を含む 1 画面を縦長スクリーンショットで比較する。
  *
  * - ls/le は fullspec.md の行番号に対応（変更時は要更新）
- *   L3   intro paragraph
+ *   L3   intro paragraph ← selection コメント（安定）
  *   L7   TypeScript code block (〜L17)
  *   L32  Feature Table (〜L38) ← クリックしてハイライト対象
  *   L42  Mermaid Diagram (〜L50)
- *   L70  Modified Section paragraph (〜L71) ← diff 変更対象
+ *   L70  Modified Section paragraph (〜L71) ← diff 変更対象 + 孤立 selection コメント
  */
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -79,6 +80,22 @@ const PRESEEDED_COMMENTS = JSON.stringify(
       context: 'This line remains unchanged in the document.',
       text: '変更セクション: この段落が diff ビューでハイライトされる予定',
     },
+    {
+      id: 6,
+      ls: 3,
+      le: 3,
+      block_type: 'selection',
+      context: 'bold text',
+      text: '選択ハイライト: CSS Highlight API によるインライン書式の選択コメント',
+    },
+    {
+      id: 7,
+      ls: 70,
+      le: 71,
+      block_type: 'selection',
+      context: ORIGINAL_LINE,
+      text: '孤立コメント: diff で変更された行への選択コメント — 削除済みバッジ確認',
+    },
   ],
   null,
   2,
@@ -99,7 +116,7 @@ test.describe('フルスペック VRT', () => {
     }
   });
 
-  test('全要素（diff・コード・Mermaid・コメント複数・テーブルハイライト）縦長 VRT', async ({
+  test('全要素（diff・コード・Mermaid・コメント複数・テーブルハイライト・selection・孤立コメント）縦長 VRT', async ({
     page,
   }) => {
     // diff サイドパネル（左右各 260px）が収まる幅に設定
@@ -149,9 +166,13 @@ test.describe('フルスペック VRT', () => {
     await expect(page.locator('#comments-panel.open')).toBeVisible({
       timeout: 3000,
     });
-    // 5 件のコメントがすべてレンダリングされるまで待機
-    await expect(page.locator('.comment-item')).toHaveCount(5, {
+    // 7 件のコメントがすべてレンダリングされるまで待機
+    await expect(page.locator('.comment-item')).toHaveCount(7, {
       timeout: 5000,
+    });
+    // ORIGINAL_LINE への selection コメントが孤立して「削除済み」バッジが表示されているか確認
+    await expect(page.locator('.c-deleted').first()).toBeVisible({
+      timeout: 3000,
     });
 
     // ── 6. 縦長キャプチャのためレイアウトを展開 ──────────────────

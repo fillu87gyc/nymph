@@ -119,7 +119,16 @@ bun run build      # プロダクションビルド (Vite 7)
 **ghq を使っている場合の開発用ショートカット（`~/.zshrc`）**
 
 ```zsh
-nymphx() { local f a=(); for f in "$@"; do a+=("${f:a}"); done; NYMPH_FILES="${a[*]}" bun run dev; }
+nymphx() {
+  local f a=() nymph_dir
+  if [[ -f package.json ]] && grep -q '"name": "nymph"' package.json; then
+    nymph_dir="$PWD"
+  else
+    nymph_dir="$(ghq list --full-path nymph | grep '/nymph$' | head -1)"
+  fi
+  for f in "$@"; do a+=("${f:a}"); done
+  NYMPH_FILES="${a[*]}" bun --cwd "$nymph_dir" run dev
+}
 ```
 
 ```bash

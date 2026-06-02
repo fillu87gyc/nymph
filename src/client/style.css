@@ -967,30 +967,43 @@ body {
   color: var(--accent);
   background: var(--accent-dim);
 }
+/* Unified diff, rendered like `git diff`: deleted line(s) then inserted
+   line(s), stacked in normal flow and full width. */
 .diff-side {
-  position: absolute;
-  top: 0;
-  width: 260px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   background: var(--bg-surface);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.diff-side-del,
+.diff-side-ins {
+  margin-top: 6px;
   border-radius: 4px;
-  z-index: 10;
 }
 .diff-side-del {
-  right: calc(100% + 12px);
   border-left: 2px solid rgba(239, 154, 154, 0.5);
 }
 .diff-side-ins {
-  left: calc(100% + 12px);
   border-left: 2px solid rgba(165, 214, 167, 0.5);
 }
-.diff-side span {
+/* When a delete line is immediately followed by an insert line, join them into
+   a single git-style hunk (no gap, shared rounded corners). */
+.diff-side-del:has(+ .diff-side-ins) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.diff-side-del + .diff-side-ins {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+/* Only the diff *lines* are blocks; inner char-diff segments stay inline so a
+   single line is not split across multiple rows. */
+.diff-side > span {
   display: block;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  line-height: 1.6;
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
   padding: 1px 2px;
   border-radius: 2px;
 }

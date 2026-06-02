@@ -119,7 +119,7 @@ test.describe('フルスペック VRT', () => {
   test('全要素（diff・コード・Mermaid・コメント複数・テーブルハイライト・selection・孤立コメント）縦長 VRT', async ({
     page,
   }) => {
-    // diff サイドパネル（左右各 260px）が収まる幅に設定
+    // 縦長の全要素スナップショットが収まる幅に設定
     await page.setViewportSize({ width: 1600, height: 900 });
 
     // ── 1. ページ読み込み ──────────────────────────────────────────
@@ -156,7 +156,7 @@ test.describe('フルスペック VRT', () => {
     await expect(page.locator('#content .diff-changed')).toBeVisible({
       timeout: 5000,
     });
-    // diff サイドパネル（del/ins）が表示されるまで待機
+    // diff の unified ブロック（del/ins）が表示されるまで待機
     await expect(page.locator('.diff-side').first()).toBeVisible({
       timeout: 5000,
     });

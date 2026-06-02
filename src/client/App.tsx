@@ -1,6 +1,7 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSWRConfig } from 'swr';
+import styles from './App.module.css';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
@@ -323,6 +324,7 @@ export function App() {
   return (
     <div
       id="app"
+      className={styles.app}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={(e) => {
@@ -336,7 +338,11 @@ export function App() {
         />,
         document.head,
       )}
-      {isDragging && <div id="drop-overlay">📂 .md ファイルをドロップ</div>}
+      {isDragging && (
+        <div id="drop-overlay" className={styles.dropOverlay}>
+          📂 .md ファイルをドロップ
+        </div>
+      )}
       <Toolbar
         version={appVersion}
         updateTime={updateTime}
@@ -355,7 +361,7 @@ export function App() {
         onSwitchFile={handleSwitchFile}
         onCloseFile={handleCloseFile}
       />
-      <div id="main">
+      <div id="main" className={styles.main}>
         <ContentArea
           source={source}
           comments={comments}
@@ -419,13 +425,16 @@ export function App() {
         createPortal(
           <div
             id="anchor-comment-popup"
+            className={styles.anchorPopup}
             style={{
               left: Math.min(anchorPopup.x, window.innerWidth - 290),
               top: Math.min(anchorPopup.y + 20, window.innerHeight - 180),
             }}
           >
-            <div className="acp-text">{anchorPopup.comment.text}</div>
-            <div className="acp-foot">
+            <div className={styles.acpText} data-testid="acp-text">
+              {anchorPopup.comment.text}
+            </div>
+            <div className={styles.acpFoot}>
               <button
                 type="button"
                 className="btn"
@@ -438,7 +447,8 @@ export function App() {
               </button>
               <button
                 type="button"
-                className="btn icon acp-del"
+                className={`btn icon ${styles.acpDel}`}
+                data-testid="acp-del"
                 title="削除"
                 onClick={() => {
                   deleteComment(anchorPopup.comment.id);

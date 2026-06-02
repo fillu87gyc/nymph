@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { findTextRange } from '../lib/markdown.ts';
 import { parseBlocks } from '../lib/parseBlocks.ts';
 import type { Comment, DiffLine, DiffResponse } from '../types.ts';
+import styles from './ContentArea.module.css';
 import { type DiffGroup, MarkdownBlock } from './MarkdownBlock.tsx';
 
 interface ContentAreaProps {
@@ -248,7 +249,7 @@ export function ContentArea({
       onClick={handleContentClick}
     >
       {isEmpty && (
-        <div id="welcome">
+        <div className={styles.welcome}>
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
             <rect
               x="6"

@@ -1,0 +1,192 @@
+.block {
+  position: relative;
+  margin-bottom: 1.35em;
+  padding-left: 20px;
+  margin-left: -20px;
+}
+.block::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+}
+/* テーブル・mermaid のみブロック背景でコメント状態を示す */
+.block[data-has-comment="true"][data-block-type="table"] > div,
+.block[data-has-comment="true"][data-block-type="mermaid"] > div {
+  background: rgba(194, 112, 48, 0.07);
+  border-radius: 6px;
+}
+
+.block::after {
+  /* ボタン（left: -34px）と .block 左端の透明な橋渡し。
+     ::after も .block の一部なので、ここをホバーしても :hover が維持され、
+     ブロック本体からボタンへマウスを移す間にボタンが消えない。 */
+  content: "";
+  position: absolute;
+  left: -36px;
+  top: -6px;
+  width: 36px;
+  bottom: 0;
+}
+
+.commentBtn {
+  position: absolute;
+  left: -34px;
+  top: 0.7em;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+.block:hover .commentBtn,
+.block[data-has-comment="true"] .commentBtn {
+  opacity: 1;
+  pointer-events: auto;
+}
+.block[data-has-comment="true"] .commentBtn {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* diff */
+.block[data-diff-changed="true"]::before {
+  background: rgba(76, 175, 80, 0.55);
+}
+/* ブロックハイライト（scroll-to-comment）*/
+.block[data-highlighted="true"][data-block-type="table"] > div,
+.block[data-highlighted="true"][data-block-type="mermaid"] > div {
+  animation: comment-block-flash 1.4s ease forwards;
+}
+
+/* Mermaid */
+.mermaidWrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mermaidBar {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+.mermaidLabel {
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.mermaidLabel em {
+  color: var(--accent);
+  font-style: normal;
+}
+.mermaidArea {
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+.mermaidArea svg {
+  max-width: 100%;
+}
+.btnDrawio {
+  margin-left: auto;
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btnDrawio:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Diff aside */
+.diffAside {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 16px);
+  width: 260px;
+  z-index: 10;
+}
+.diffSide {
+  padding: 4px 10px;
+  background: var(--bg-surface);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.diffSideDel,
+.diffSideIns {
+  margin-top: 6px;
+  border-radius: 4px;
+}
+.diffSideDel {
+  border-left: 2px solid rgba(239, 154, 154, 0.5);
+}
+.diffSideIns {
+  border-left: 2px solid rgba(165, 214, 167, 0.5);
+}
+.diffSideDel:has(+ .diffSideIns) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.diffSideDel + .diffSideIns {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.diffSide > span {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+.diffDel {
+  color: #ef9a9a;
+  background: rgba(239, 154, 154, 0.08);
+}
+.diffIns {
+  color: #a5d6a7;
+  background: rgba(165, 214, 167, 0.08);
+}
+.diffCharDel {
+  background: rgba(239, 154, 154, 0.45);
+  border-radius: 2px;
+  font-style: normal;
+}
+.diffCharIns {
+  background: rgba(165, 214, 167, 0.45);
+  border-radius: 2px;
+  font-style: normal;
+}

@@ -10,7 +10,9 @@ test.beforeEach(async ({ page }) => {
   if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
   writeFileSync(FIXTURE, ORIGINAL);
   await page.goto('/');
-  await expect(page.locator('#content .md-block').first()).toBeVisible({
+  await expect(
+    page.locator('#content [data-testid="md-block"]').first(),
+  ).toBeVisible({
     timeout: 5000,
   });
 });

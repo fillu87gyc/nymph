@@ -128,7 +128,9 @@ test.describe('フルスペック VRT', () => {
 
     // ── 1. ページ読み込み ──────────────────────────────────────────
     await page.goto('/');
-    await expect(page.locator('#content .md-block').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({
       timeout: 10000,
     });
 
@@ -139,8 +141,9 @@ test.describe('フルスペック VRT', () => {
 
     // ── 2. チェックポイント設定 ──────────────────────────────────
     await page.locator('#btn-checkpoint').click();
-    await expect(page.locator('#btn-checkpoint')).toHaveClass(
-      /has-checkpoint/,
+    await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+      'data-has-checkpoint',
+      'true',
       {
         timeout: 5000,
       },
@@ -155,17 +158,21 @@ test.describe('フルスペック VRT', () => {
 
     // ── 4. コメントパネルを開く ────────────────────────────────────
     await page.locator('#btn-comments').click();
-    await expect(page.locator('#comments-panel.open')).toBeVisible({
-      timeout: 3000,
-    });
+    await expect(page.locator('#comments-panel[data-open="true"]')).toBeVisible(
+      {
+        timeout: 3000,
+      },
+    );
     // 7 件のコメントがすべてレンダリングされるまで待機
-    await expect(page.locator('.comment-item')).toHaveCount(7, {
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(7, {
       timeout: 5000,
     });
     // ORIGINAL_LINE への selection コメントが孤立して「削除済み」バッジが表示されているか確認
-    await expect(page.locator('.c-deleted').first()).toBeVisible({
-      timeout: 3000,
-    });
+    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
+      {
+        timeout: 3000,
+      },
+    );
 
     // ── 5. 縦長キャプチャのためレイアウトを展開 ──────────────────
     // #main は flex:1 の scroll container。fullPage:true + window scroll では
@@ -195,12 +202,12 @@ test.describe('フルスペック VRT', () => {
           animation-play-state: paused !important;
           transition-duration: 0ms !important;
         }
-        .connection-dot, .watch-dot { opacity: 1 !important; }
+        [data-testid="connection-dot"], [data-testid="watch-dot"] { opacity: 1 !important; }
         #toast { display: none !important; }
         #update-time { visibility: hidden !important; }
         /* highlighted 状態を明るいオレンジで固定表示（アニメーション無効化） */
-        .md-block.highlighted[data-block-type="table"] > div,
-        .md-block.highlighted[data-block-type="mermaid"] > div {
+        [data-testid="md-block"][data-highlighted="true"][data-block-type="table"] > div,
+        [data-testid="md-block"][data-highlighted="true"][data-block-type="mermaid"] > div {
           animation: none !important;
           background: rgba(194, 112, 48, 0.22) !important;
           border-radius: 6px;
@@ -209,9 +216,11 @@ test.describe('フルスペック VRT', () => {
     });
 
     // ── 7. テーブルコメント（3 番目）をクリックしてハイライト ───
-    await page.locator('.comment-item').nth(2).click();
+    await page.locator('[data-testid="comment-item"]').nth(2).click();
     await expect(
-      page.locator('#content .md-block[data-ls="32"].highlighted'),
+      page.locator(
+        '#content [data-testid="md-block"][data-ls="32"][data-highlighted="true"]',
+      ),
     ).toBeVisible({ timeout: 2000 });
 
     // ── 8. 縦長 VRT スクリーンショット（viewport = doc 高さ → 単一フレーム）

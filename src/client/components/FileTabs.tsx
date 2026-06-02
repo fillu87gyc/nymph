@@ -1,4 +1,5 @@
 import type { FileEntry } from '../types.ts';
+import styles from './FileTabs.module.css';
 
 interface FileTabsProps {
   files: FileEntry[];
@@ -16,20 +17,27 @@ export function FileTabs({
   if (files.length === 0) return null;
 
   return (
-    <div id="file-tabs">
+    <div id="file-tabs" className={styles.fileTabs}>
       {files.map((f) => {
         const isActive = f.path === activeFile;
         return (
           <button
             key={f.path}
-            className={`tab${isActive ? ' active' : ''}`}
+            className={styles.tab}
+            data-active={String(isActive)}
             onClick={() => !isActive && onSwitch(f.path)}
           >
-            {isActive && <span className="watch-dot" id="watch-dot" />}
+            {isActive && (
+              <span
+                className={styles.watchDot}
+                id="watch-dot"
+                data-testid="watch-dot"
+              />
+            )}
             {f.name}
             {f.path !== '__dropped__' && (
               <span
-                className="tab-close"
+                className={styles.tabClose}
                 aria-hidden="true"
                 onClick={(e) => {
                   e.stopPropagation();

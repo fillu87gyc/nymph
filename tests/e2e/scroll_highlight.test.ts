@@ -19,10 +19,12 @@ async function addCommentToBlock(
 ) {
   const block = page.locator(selector).first();
   await block.hover();
-  await block.locator('.comment-btn').click();
+  await block.locator('[data-testid="comment-btn"]').click();
   await page.locator('#comment-ta').fill(text);
   await page.locator('#btn-submit').click();
-  await expect(page.locator('.comment-item').first()).toBeVisible({
+  await expect(
+    page.locator('[data-testid="comment-item"]').first(),
+  ).toBeVisible({
     timeout: 3000,
   });
 }
@@ -30,7 +32,9 @@ async function addCommentToBlock(
 test.beforeEach(async ({ page }) => {
   if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
   await page.goto('/');
-  await expect(page.locator('#content .md-block').first()).toBeVisible({
+  await expect(
+    page.locator('#content [data-testid="md-block"]').first(),
+  ).toBeVisible({
     timeout: 5000,
   });
 });
@@ -49,13 +53,15 @@ test.describe('blockRefsMap 経由のスクロール', () => {
   }) => {
     // mermaid ブロック（下のほうにある）にコメントを付ける
     const mermaidBlock = page
-      .locator('#content .md-block[data-block-type="mermaid"]')
+      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
       .first();
     await mermaidBlock.hover();
-    await mermaidBlock.locator('.comment-btn').click();
+    await mermaidBlock.locator('[data-testid="comment-btn"]').click();
     await page.locator('#comment-ta').fill('mermaid block comment');
     await page.locator('#btn-submit').click();
-    await expect(page.locator('.comment-item').first()).toBeVisible({
+    await expect(
+      page.locator('[data-testid="comment-item"]').first(),
+    ).toBeVisible({
       timeout: 3000,
     });
 
@@ -63,18 +69,20 @@ test.describe('blockRefsMap 経由のスクロール', () => {
     await page.evaluate(() => window.scrollTo(0, 0));
 
     // コメントクリック → mermaid ブロックまでスクロールされる
-    await page.locator('.comment-item').first().click();
+    await page.locator('[data-testid="comment-item"]').first().click();
     await expect(mermaidBlock).toBeInViewport({ timeout: 3000 });
   });
 
   test('複数ブロックにコメントして別々にスクロールできる', async ({ page }) => {
-    const tableSelector = '#content .md-block[data-block-type="table"]';
-    const mermaidSelector = '#content .md-block[data-block-type="mermaid"]';
+    const tableSelector =
+      '#content [data-testid="md-block"][data-block-type="table"]';
+    const mermaidSelector =
+      '#content [data-testid="md-block"][data-block-type="mermaid"]';
 
     await addCommentToBlock(page, tableSelector, 'table block');
     await addCommentToBlock(page, mermaidSelector, 'mermaid block');
 
-    const items = page.locator('.comment-item');
+    const items = page.locator('[data-testid="comment-item"]');
     await expect(items).toHaveCount(2);
 
     // 2番目のコメントクリック → mermaid ブロックに移動
@@ -83,56 +91,54 @@ test.describe('blockRefsMap 経由のスクロール', () => {
 
     await items.nth(1).click();
     await expect(
-      page.locator(`#content .md-block[data-ls="${mermaidLs}"]`),
+      page.locator(`#content [data-testid="md-block"][data-ls="${mermaidLs}"]`),
     ).toBeInViewport({ timeout: 2000 });
   });
 });
 
-test.describe('ハイライト CSS クラス', () => {
-  test('コメントクリックで .highlighted クラスが付く', async ({ page }) => {
+test.describe('ハイライト状態', () => {
+  test('コメントクリックでブロックがハイライトされる', async ({ page }) => {
     await addCommentToBlock(
       page,
-      '#content .md-block[data-block-type="table"]',
+      '#content [data-testid="md-block"][data-block-type="table"]',
       'highlight check',
     );
 
     const tableBlock = page
-      .locator('#content .md-block[data-block-type="table"]')
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
     const ls = await tableBlock.getAttribute('data-ls');
 
-    await page.locator('.comment-item').first().click();
+    await page.locator('[data-testid="comment-item"]').first().click();
 
     await expect(
       page.locator(`#content [data-block][data-ls="${ls}"]`),
-    ).toHaveClass(/highlighted/, { timeout: 1000 });
+    ).toHaveAttribute('data-highlighted', 'true', { timeout: 1000 });
   });
 
-  test('.highlighted は 1.4s アニメーション後に除去される', async ({
-    page,
-  }) => {
+  test('ハイライトは 1.4s アニメーション後に解除される', async ({ page }) => {
     await addCommentToBlock(
       page,
-      '#content .md-block[data-block-type="table"]',
+      '#content [data-testid="md-block"][data-block-type="table"]',
       'fade check',
     );
 
     const tableBlock = page
-      .locator('#content .md-block[data-block-type="table"]')
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
     const ls = await tableBlock.getAttribute('data-ls');
 
-    await page.locator('.comment-item').first().click();
+    await page.locator('[data-testid="comment-item"]').first().click();
     await expect(
       page.locator(`#content [data-block][data-ls="${ls}"]`),
-    ).toHaveClass(/highlighted/, { timeout: 1000 });
+    ).toHaveAttribute('data-highlighted', 'true', { timeout: 1000 });
 
     await expect(
       page.locator(`#content [data-block][data-ls="${ls}"]`),
-    ).not.toHaveClass(/highlighted/, { timeout: 2500 });
+    ).toHaveAttribute('data-highlighted', 'false', { timeout: 2500 });
   });
 
-  test('data-block 属性がすべての .md-block に付いている', async ({ page }) => {
+  test('data-block 属性がすべてのブロックに付いている', async ({ page }) => {
     const blocks = page.locator('#content [data-block]');
     const count = await blocks.count();
     expect(count).toBeGreaterThan(0);
@@ -148,20 +154,22 @@ test.describe('ハイライト CSS クラス', () => {
     }
   });
 
-  test('同時に複数ブロックが highlighted にならない', async ({ page }) => {
+  test('同時に複数ブロックがハイライトされない', async ({ page }) => {
     await addCommentToBlock(
       page,
-      '#content .md-block[data-block-type="table"]',
+      '#content [data-testid="md-block"][data-block-type="table"]',
       'a',
     );
     await addCommentToBlock(
       page,
-      '#content .md-block[data-block-type="mermaid"]',
+      '#content [data-testid="md-block"][data-block-type="mermaid"]',
       'b',
     );
 
-    await page.locator('.comment-item').first().click();
-    await expect(page.locator('#content .highlighted')).toHaveCount(1, {
+    await page.locator('[data-testid="comment-item"]').first().click();
+    await expect(
+      page.locator('#content [data-highlighted="true"]'),
+    ).toHaveCount(1, {
       timeout: 1000,
     });
   });

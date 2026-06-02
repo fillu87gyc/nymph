@@ -1,6 +1,7 @@
 import { marked } from 'marked';
 import type { CodeContext, TableContext } from '../types.ts';
 import { assignLines, esc, getBlockTokensDFS } from './markdown.ts';
+import { sanitizeHtml } from './sanitize.ts';
 
 export interface CommentContext {
   displayCtx: string;
@@ -82,7 +83,7 @@ export function parseBlocks(src: string): BlockData[] {
       };
       blocks.push({
         key: `block-${blocks.length}`,
-        html: marked.parse(t.raw) as string,
+        html: sanitizeHtml(marked.parse(t.raw) as string),
         ls,
         le,
         type: 'table',
@@ -92,7 +93,7 @@ export function parseBlocks(src: string): BlockData[] {
       // heading, paragraph, blockquote, list, hr, html
       blocks.push({
         key: `block-${blocks.length}`,
-        html: (marked.parse(t.raw) as string).trim(),
+        html: sanitizeHtml((marked.parse(t.raw) as string).trim()),
         ls,
         le,
         type: t.type,

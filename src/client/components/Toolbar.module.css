@@ -1,0 +1,83 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  height: 46px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.brand {
+  font-family: "Playfair Display", serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  user-select: none;
+  margin-right: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.brandVersion {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--fg-muted, color-mix(in srgb, var(--accent) 60%, transparent));
+  letter-spacing: 0;
+}
+.updateTime {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "DM Sans", sans-serif;
+}
+.connectionStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+.connectionStatus[data-connected="false"] {
+  animation: connection-blink 0.6s ease-in-out infinite;
+}
+.connectionDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4a9a4a;
+  box-shadow: 0 0 6px rgba(74, 154, 74, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.connectionStatus[data-connected="false"] .connectionDot {
+  background: #e05050;
+  animation: dot-error-blink 0.6s ease-in-out infinite;
+}
+.connectionLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.connectionStatus[data-connected="false"] .connectionLabel {
+  color: #e05050;
+  font-weight: 700;
+  animation: label-blink 0.6s ease-in-out infinite;
+}
+.commentCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}

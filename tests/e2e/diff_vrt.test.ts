@@ -21,9 +21,9 @@ const STABILIZE = `
     animation-play-state: paused !important;
     transition-duration: 0ms !important;
   }
-  .connection-dot, .watch-dot { opacity: 1 !important; }
+  [data-testid="connection-dot"], [data-testid="watch-dot"] { opacity: 1 !important; }
   #toast { display: none !important; }
-  #update-time, .brand-version { visibility: hidden !important; }
+  #update-time, [data-testid="brand-version"] { visibility: hidden !important; }
 `;
 
 // before を読み込み → checkpoint → after に変更 → diff ON、までを行う。
@@ -37,24 +37,34 @@ async function produceDiff(
 ) {
   writeFileSync(FIXTURE, before, 'utf-8');
   await page.goto('/');
-  await expect(page.locator('#content .md-block').first()).toBeVisible({
+  await expect(
+    page.locator('#content [data-testid="md-block"]').first(),
+  ).toBeVisible({
     timeout: 8000,
   });
 
   await page.locator('#btn-checkpoint').click();
-  await expect(page.locator('#btn-checkpoint')).toHaveClass(/has-checkpoint/, {
-    timeout: 5000,
-  });
+  await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+    'data-has-checkpoint',
+    'true',
+    { timeout: 5000 },
+  );
 
   writeFileSync(FIXTURE, after, 'utf-8');
   await expect(page.locator('#content')).toContainText(afterMarker, {
     timeout: 8000,
   });
   await page.locator('#btn-diff').click();
-  await expect(page.locator('#btn-diff')).toHaveClass(/active/, {
-    timeout: 3000,
-  });
-  await expect(page.locator('.diff-aside .diff-side-del')).toBeVisible({
+  await expect(page.locator('#btn-diff')).toHaveAttribute(
+    'data-active',
+    'true',
+    {
+      timeout: 3000,
+    },
+  );
+  await expect(
+    page.locator('[data-testid="diff-aside"] [data-testid="diff-side-del"]'),
+  ).toBeVisible({
     timeout: 5000,
   });
   await page.addStyleTag({ content: STABILIZE });
@@ -105,7 +115,9 @@ test.describe('diff 右マージン表示 VRT', () => {
       '東海道新幹線が通る',
     );
     // 追加 4 行がすべて描画されるまで待つ
-    await expect(page.locator('.diff-side-ins .diff-ins')).toHaveCount(4, {
+    await expect(
+      page.locator('[data-testid="diff-side-ins"] [data-testid="diff-ins"]'),
+    ).toHaveCount(4, {
       timeout: 5000,
     });
     await expect(page).toHaveScreenshot('diff-aside-multiline.png', {

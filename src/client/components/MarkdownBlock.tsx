@@ -3,6 +3,7 @@ import { memo, type ReactNode, useCallback } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { DiffLine } from '../types.ts';
+import styles from './MarkdownBlock.module.css';
 
 export interface DiffGroup {
   inserts: DiffLine[];
@@ -21,14 +22,22 @@ function renderCharDiff(
     offset += part.value.length;
     if (part.removed) {
       return side === 'del' ? (
-        <mark key={key} className="diff-char-del">
+        <mark
+          key={key}
+          className={styles.diffCharDel}
+          data-testid="diff-char-del"
+        >
           {part.value}
         </mark>
       ) : null;
     }
     if (part.added) {
       return side === 'ins' ? (
-        <mark key={key} className="diff-char-ins">
+        <mark
+          key={key}
+          className={styles.diffCharIns}
+          data-testid="diff-char-ins"
+        >
           {part.value}
         </mark>
       ) : null;
@@ -76,12 +85,12 @@ const StableContent = memo(
         <div
           className="mermaid"
           id={mermaidId}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: mermaid code from our own parser
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: mermaid code from our own parser, escaped via esc()
           dangerouslySetInnerHTML={{ __html: esc(mermaidCode ?? '') }}
         />
       );
     }
-    // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML from our own markdown renderer
+    // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML sanitized by DOMPurify in parseBlocks
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
   },
   (prev, next) =>
@@ -106,27 +115,23 @@ export function MarkdownBlock({
   const isDiffChanged = diffMode && diffGroups.length > 0;
   const showPlusButton = block.type === 'table' || block.type === 'mermaid';
 
-  const className = [
-    'md-block',
-    hasComment && 'has-comment',
-    isDiffChanged && 'diff-changed',
-    highlighted && 'highlighted',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
   return (
     <div
       ref={refCallback}
-      className={className}
+      className={styles.block}
+      data-testid="md-block"
       data-block="true"
       data-ls={block.ls}
       data-le={block.le}
       data-block-type={block.type}
+      data-has-comment={String(hasComment)}
+      data-diff-changed={String(isDiffChanged)}
+      data-highlighted={String(highlighted)}
     >
       {showPlusButton && (
         <button
-          className="comment-btn"
+          className={styles.commentBtn}
+          data-testid="comment-btn"
           aria-label="コメント"
           onClick={() =>
             onAddComment(
@@ -144,19 +149,20 @@ export function MarkdownBlock({
       )}
 
       {block.type === 'mermaid' ? (
-        <div className="mermaid-wrap">
-          <div className="mermaid-bar">
-            <span className="mermaid-label">
+        <div className={styles.mermaidWrap} data-testid="mermaid-wrap">
+          <div className={styles.mermaidBar}>
+            <span className={styles.mermaidLabel}>
               <em>Mermaid</em> Diagram
             </span>
             <button
-              className="btn-drawio"
+              className={styles.btnDrawio}
+              data-testid="btn-drawio"
               onClick={() => onOpenDrawio(block.mermaidCode!)}
             >
               → draw.io
             </button>
           </div>
-          <div className="mermaid-area">
+          <div className={styles.mermaidArea}>
             <StableContent
               html={block.html}
               type={block.type}
@@ -170,11 +176,8 @@ export function MarkdownBlock({
       )}
 
       {isDiffChanged && (
-        <div className="diff-aside">
+        <div className={styles.diffAside} data-testid="diff-aside">
           {diffGroups.map((group, gi) => {
-            // 削除行と追加行が同数のときだけ、行を対にして文字単位 diff を出す。
-            // 数が異なる（例: 1 行 → 複数行）の場合は対応関係が曖昧なので、
-            // git のように削除行は全体を赤、追加行は全体を緑でハイライトする。
             const oneToOne =
               group.deletes.length === group.inserts.length &&
               group.deletes.length > 0;
@@ -183,17 +186,27 @@ export function MarkdownBlock({
               // biome-ignore lint/suspicious/noArrayIndexKey: diff groups have no stable id
               <div key={gi}>
                 {group.deletes.length > 0 && (
-                  <div className="diff-side diff-side-del">
+                  <div
+                    className={`${styles.diffSide} ${styles.diffSideDel}`}
+                    data-testid="diff-side-del"
+                  >
                     {group.deletes.map((d, i) => {
                       const paired = oneToOne ? group.inserts[i] : undefined;
+                      const delKey = `g${gi}d${i}`;
                       return (
-                        // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-                        <span key={i} className="diff-del">
+                        <span
+                          key={delKey}
+                          className={styles.diffDel}
+                          data-testid="diff-del"
+                        >
                           −{' '}
                           {paired ? (
                             renderCharDiff(d.content, paired.content, 'del')
                           ) : (
-                            <mark className="diff-char-del">
+                            <mark
+                              className={styles.diffCharDel}
+                              data-testid="diff-char-del"
+                            >
                               {d.content || ' '}
                             </mark>
                           )}
@@ -203,17 +216,29 @@ export function MarkdownBlock({
                   </div>
                 )}
                 {validIns.length > 0 && (
-                  <div className="diff-side diff-side-ins">
+                  <div
+                    className={`${styles.diffSide} ${styles.diffSideIns}`}
+                    data-testid="diff-side-ins"
+                  >
                     {validIns.map((ins, i) => {
                       const paired = oneToOne ? group.deletes[i] : undefined;
+                      const insKey = `g${gi}i${i}`;
                       return (
-                        // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-                        <span key={i} className="diff-ins">
+                        <span
+                          key={insKey}
+                          className={styles.diffIns}
+                          data-testid="diff-ins"
+                        >
                           +{' '}
                           {paired ? (
                             renderCharDiff(paired.content, ins.content, 'ins')
                           ) : (
-                            <mark className="diff-char-ins">{ins.content}</mark>
+                            <mark
+                              className={styles.diffCharIns}
+                              data-testid="diff-char-ins"
+                            >
+                              {ins.content}
+                            </mark>
                           )}
                         </span>
                       );

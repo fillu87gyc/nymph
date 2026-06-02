@@ -8,12 +8,12 @@ const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
 test.describe('smoke: 起動 → コンテンツ表示', () => {
   test('ページが正常に読み込まれる', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('.brand')).toContainText('nymph');
+    await expect(page.locator('[data-testid="brand"]')).toContainText('nymph');
   });
 
   test('ブランドロゴ横にバージョンが表示される', async ({ page }) => {
     await page.goto('/');
-    const versionBadge = page.locator('.brand-version');
+    const versionBadge = page.locator('[data-testid="brand-version"]');
     await expect(versionBadge).toBeVisible({ timeout: 5000 });
     const text = await versionBadge.textContent();
     expect(text?.trim().length).toBeGreaterThan(0);
@@ -42,16 +42,18 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
   test('コネクションステータスバッジが接続状態を表示', async ({ page }) => {
     await page.goto('/');
     const connectionStatus = page.locator('#connection-status');
-    const connectionDot = connectionStatus.locator('.connection-dot');
+    const connectionDot = connectionStatus.locator(
+      '[data-testid="connection-dot"]',
+    );
 
     // 起動直後は接続中
-    await expect(connectionDot).not.toHaveClass(/error/);
-    await expect(connectionStatus).not.toHaveClass(/disconnected/);
+    await expect(connectionDot).toHaveAttribute('data-connected', 'true');
+    await expect(connectionStatus).toHaveAttribute('data-connected', 'true');
 
     // 3秒後もハートビートで接続を維持していること
     await page.waitForTimeout(3000);
-    await expect(connectionDot).not.toHaveClass(/error/);
-    await expect(connectionStatus).not.toHaveClass(/disconnected/);
+    await expect(connectionDot).toHaveAttribute('data-connected', 'true');
+    await expect(connectionStatus).toHaveAttribute('data-connected', 'true');
   });
 });
 
@@ -68,37 +70,41 @@ test.describe('コメント: 追加 → 保存 → リロード後復元', () =>
 
   test('コメントを追加してリロード後も残る', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('#content .md-block').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({
       timeout: 5000,
     });
 
     // Hover table block and click comment button
     const tableBlock = page
-      .locator('#content .md-block[data-block-type="table"]')
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
     await tableBlock.hover();
-    await tableBlock.locator('.comment-btn').click();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
 
     // Type and submit
     await page.locator('#comment-ta').fill('E2E test comment');
     await page.locator('#btn-submit').click();
 
     // Verify visible in panel
-    await expect(page.locator('.comment-item .c-text')).toContainText(
-      'E2E test comment',
-    );
+    await expect(
+      page.locator('[data-testid="comment-item"] [data-testid="c-text"]'),
+    ).toContainText('E2E test comment');
 
     // Reload and verify persistence
     await page.reload();
-    await expect(page.locator('#content .md-block').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({
       timeout: 5000,
     });
 
     // Open comments panel
     await page.locator('#btn-comments').click();
-    await expect(page.locator('.comment-item .c-text')).toContainText(
-      'E2E test comment',
-    );
+    await expect(
+      page.locator('[data-testid="comment-item"] [data-testid="c-text"]'),
+    ).toContainText('E2E test comment');
   });
 });
 

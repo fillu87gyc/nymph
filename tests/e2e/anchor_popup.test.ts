@@ -16,13 +16,18 @@ async function addSelectionComment(
   text: string,
 ): Promise<void> {
   // 段落をトリプルクリックして選択 → selection popup → コメント追加
-  await page.locator('#content .md-block p').first().click({ clickCount: 3 });
+  await page
+    .locator('#content [data-testid="md-block"] p')
+    .first()
+    .click({ clickCount: 3 });
   await expect(page.locator('#selection-popup')).toBeVisible({ timeout: 1000 });
   await page.locator('#btn-selection-comment').click();
   await expect(page.locator('#comment-modal')).toBeVisible();
   await page.locator('#comment-ta').fill(text);
   await page.locator('#btn-submit').click();
-  await expect(page.locator('.comment-item').first()).toBeVisible({
+  await expect(
+    page.locator('[data-testid="comment-item"]').first(),
+  ).toBeVisible({
     timeout: 3000,
   });
   // CSS Custom Highlight が設定されるまで待つ
@@ -40,7 +45,7 @@ async function clickAnchoredParagraph(
   page: import('@playwright/test').Page,
 ): Promise<void> {
   const pRect = await page
-    .locator('#content .md-block p')
+    .locator('#content [data-testid="md-block"] p')
     .first()
     .boundingBox();
   if (!pRect) throw new Error('paragraph not found');
@@ -51,7 +56,9 @@ async function clickAnchoredParagraph(
 test.beforeEach(async ({ page }) => {
   if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
   await page.goto('/');
-  await expect(page.locator('#content .md-block p').first()).toBeVisible({
+  await expect(
+    page.locator('#content [data-testid="md-block"] p').first(),
+  ).toBeVisible({
     timeout: 5000,
   });
 });
@@ -89,10 +96,9 @@ test.describe('コメントアンカークリック', () => {
 
     await clickAnchoredParagraph(page);
 
-    await expect(page.locator('#anchor-comment-popup .acp-text')).toContainText(
-      'popup text check',
-      { timeout: 1000 },
-    );
+    await expect(
+      page.locator('#anchor-comment-popup [data-testid="acp-text"]'),
+    ).toContainText('popup text check', { timeout: 1000 });
   });
 
   test('✕ ボタンでポップアップが閉じる', async ({ page }) => {
@@ -152,16 +158,16 @@ test.describe('コメントアンカークリック', () => {
     const supported = await page.evaluate(() => 'highlights' in CSS);
     if (!supported) return;
 
-    await expect(page.locator('.comment-item')).toHaveCount(1);
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
     await clickAnchoredParagraph(page);
     await expect(page.locator('#anchor-comment-popup')).toBeVisible({
       timeout: 1000,
     });
 
-    await page.locator('#anchor-comment-popup .acp-del').click();
+    await page.locator('#anchor-comment-popup [data-testid="acp-del"]').click();
     await expect(page.locator('#anchor-comment-popup')).not.toBeVisible({
       timeout: 500,
     });
-    await expect(page.locator('.comment-item')).toHaveCount(0);
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0);
   });
 });

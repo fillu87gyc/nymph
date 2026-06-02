@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import styles from './DrawioModal.module.css';
 
 interface DrawioModalProps {
   open: boolean;
@@ -59,14 +60,15 @@ export function DrawioModal({
   return (
     <div
       id="drawio-modal"
+      className={styles.modal}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* biome-ignore lint/a11y/useAnchorContent: hidden download trigger */}
       {/* biome-ignore lint/a11y/useValidAnchor: href is set programmatically before .click() */}
       <a ref={dlRef} tabIndex={-1} style={{ display: 'none' }} />
-      <div id="drawio-box">
-        <div className="dbox-head">
-          <span className="dbox-title">draw.io エクスポート</span>
+      <div id="drawio-box" className={styles.box}>
+        <div className={styles.head}>
+          <span className={styles.title}>draw.io エクスポート</span>
           <button
             type="button"
             className="btn icon"
@@ -76,14 +78,14 @@ export function DrawioModal({
             ✕
           </button>
         </div>
-        <div className="dbox-hint">
+        <div className={styles.hint}>
           <strong>.drawio ファイルをダウンロード</strong>して draw.io で開くか、
           コードをコピーして draw.io の <code>挿入 › Mermaid</code> にペースト。
         </div>
-        <div className="dbox-code" id="drawio-code">
+        <div className={styles.code} id="drawio-code">
           {code}
         </div>
-        <div className="dbox-foot">
+        <div className={styles.foot}>
           <button
             type="button"
             className="btn primary"

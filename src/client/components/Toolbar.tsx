@@ -1,5 +1,6 @@
 import type { FileEntry } from '../types.ts';
 import { FileTabs } from './FileTabs.tsx';
+import styles from './Toolbar.module.css';
 
 interface ToolbarProps {
   version: string;
@@ -39,13 +40,17 @@ export function Toolbar({
   onCloseFile,
 }: ToolbarProps) {
   return (
-    <header id="toolbar">
-      <span className="brand">
+    <header id="toolbar" className={styles.toolbar}>
+      <span className={styles.brand} data-testid="brand">
         nymph
-        {version && <span className="brand-version">{version}</span>}
+        {version && (
+          <span className={styles.brandVersion} data-testid="brand-version">
+            {version}
+          </span>
+        )}
       </span>
       {updateTime && (
-        <span className="update-time" id="update-time">
+        <span className={styles.updateTime} id="update-time">
           {updateTime}
         </span>
       )}
@@ -58,17 +63,26 @@ export function Toolbar({
       />
       <span
         id="connection-status"
-        className={`connection-badge${isConnected ? '' : ' disconnected'}`}
+        className={styles.connectionStatus}
+        data-connected={String(isConnected)}
       >
-        <span className={`connection-dot${isConnected ? '' : ' error'}`} />
-        <span className="connection-label">
+        <span
+          className={styles.connectionDot}
+          data-testid="connection-dot"
+          data-connected={String(isConnected)}
+        />
+        <span className={styles.connectionLabel}>
           {isConnected ? 'コネクション' : '切断'}
         </span>
       </span>
       <span className="spacer" />
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>
         コメント{' '}
-        {commentCount > 0 && <span id="comment-count">{commentCount}</span>}
+        {commentCount > 0 && (
+          <span id="comment-count" className={styles.commentCount}>
+            {commentCount}
+          </span>
+        )}
       </button>
       <button className="btn primary" id="btn-copy" onClick={onCopyReview}>
         レビューをコピー
@@ -98,7 +112,8 @@ export function Toolbar({
       <span className="sep" />
       <button
         id="btn-checkpoint"
-        className={`btn${checkpointSet ? ' has-checkpoint' : ''}`}
+        className="btn"
+        data-has-checkpoint={String(checkpointSet)}
         title="チェックポイントを設定"
         onClick={onCheckpoint}
       >
@@ -106,7 +121,8 @@ export function Toolbar({
       </button>
       <button
         id="btn-diff"
-        className={`btn${diffMode ? ' active' : ''}`}
+        className="btn"
+        data-active={String(diffMode)}
         title="diff表示切替"
         onClick={onToggleDiff}
       >

@@ -249,6 +249,53 @@ describe('diff 表示', () => {
       'diff-changed',
     );
   });
+
+  test('1 行 → 複数行の変更では追加行すべて・削除行すべてが全体ハイライトされる', () => {
+    // 削除 1 行・追加 3 行（行数が 1:N）。対応が曖昧なので文字単位 diff ではなく
+    // 行全体を mark で囲んでハイライトする。
+    const groups: DiffGroup[] = [
+      {
+        deletes: [
+          { n: null, type: 'delete', content: '- ここは岐阜県です', g: 0 },
+        ],
+        inserts: [
+          { n: 1, type: 'insert', content: '- ここは', g: 0 },
+          { n: 2, type: 'insert', content: '- 水と山が綺麗な', g: 0 },
+          { n: 3, type: 'insert', content: '- 静岡県です', g: 0 },
+        ],
+      },
+    ];
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ diffGroups: groups, diffMode: true })} />,
+    );
+    // 追加 3 行すべてに緑ハイライト、削除 1 行に赤ハイライト
+    expect(
+      container.querySelectorAll('.diff-side-ins .diff-char-ins'),
+    ).toHaveLength(3);
+    expect(
+      container.querySelectorAll('.diff-side-del .diff-char-del'),
+    ).toHaveLength(1);
+  });
+
+  test('1 行 → 1 行の変更では変更箇所だけ文字単位ハイライトされる', () => {
+    const groups: DiffGroup[] = [
+      {
+        deletes: [
+          { n: null, type: 'delete', content: 'Some content here.', g: 0 },
+        ],
+        inserts: [{ n: 1, type: 'insert', content: 'Some XYZ here.', g: 0 }],
+      },
+    ];
+    const { container } = render(
+      <MarkdownBlock {...makeProps({ diffGroups: groups, diffMode: true })} />,
+    );
+    // 共通部分はハイライトされず、変更箇所のみ mark が付く
+    expect(container.querySelectorAll('.diff-char-del')).toHaveLength(1);
+    expect(container.querySelectorAll('.diff-char-ins')).toHaveLength(1);
+    expect(container.querySelector('.diff-del')?.textContent).toContain(
+      'Some content here.',
+    );
+  });
 });
 
 // ── mermaid ──────────────────────────────────────────────────

@@ -169,48 +169,62 @@ export function MarkdownBlock({
         <StableContent html={block.html} type={block.type} />
       )}
 
-      {isDiffChanged &&
-        diffGroups.map((group, gi) => {
-          const hasBoth = group.deletes.length > 0 && group.inserts.length > 0;
-          const validIns = group.inserts.filter((l) => l.content.trim());
-          return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: diff groups have no stable id
-            <div key={gi}>
-              {group.deletes.length > 0 && (
-                <div className="diff-side diff-side-del">
-                  {group.deletes.map((d, i) => {
-                    const paired = hasBoth ? group.inserts[i] : undefined;
-                    return (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-                      <span key={i} className="diff-del">
-                        −{' '}
-                        {paired
-                          ? renderCharDiff(d.content, paired.content, 'del')
-                          : d.content || ' '}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              {validIns.length > 0 && (
-                <div className="diff-side diff-side-ins">
-                  {validIns.map((ins, i) => {
-                    const paired = hasBoth ? group.deletes[i] : undefined;
-                    return (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-                      <span key={i} className="diff-ins">
-                        +{' '}
-                        {paired
-                          ? renderCharDiff(paired.content, ins.content, 'ins')
-                          : ins.content}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {isDiffChanged && (
+        <div className="diff-aside">
+          {diffGroups.map((group, gi) => {
+            // 削除行と追加行が同数のときだけ、行を対にして文字単位 diff を出す。
+            // 数が異なる（例: 1 行 → 複数行）の場合は対応関係が曖昧なので、
+            // git のように削除行は全体を赤、追加行は全体を緑でハイライトする。
+            const oneToOne =
+              group.deletes.length === group.inserts.length &&
+              group.deletes.length > 0;
+            const validIns = group.inserts.filter((l) => l.content.trim());
+            return (
+              // biome-ignore lint/suspicious/noArrayIndexKey: diff groups have no stable id
+              <div key={gi}>
+                {group.deletes.length > 0 && (
+                  <div className="diff-side diff-side-del">
+                    {group.deletes.map((d, i) => {
+                      const paired = oneToOne ? group.inserts[i] : undefined;
+                      return (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
+                        <span key={i} className="diff-del">
+                          −{' '}
+                          {paired ? (
+                            renderCharDiff(d.content, paired.content, 'del')
+                          ) : (
+                            <mark className="diff-char-del">
+                              {d.content || ' '}
+                            </mark>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {validIns.length > 0 && (
+                  <div className="diff-side diff-side-ins">
+                    {validIns.map((ins, i) => {
+                      const paired = oneToOne ? group.deletes[i] : undefined;
+                      return (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
+                        <span key={i} className="diff-ins">
+                          +{' '}
+                          {paired ? (
+                            renderCharDiff(paired.content, ins.content, 'ins')
+                          ) : (
+                            <mark className="diff-char-ins">{ins.content}</mark>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

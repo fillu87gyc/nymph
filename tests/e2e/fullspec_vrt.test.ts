@@ -155,19 +155,24 @@ test.describe('フルスペック VRT', () => {
     });
 
     // ── 6. 縦長キャプチャのためレイアウトを展開 ──────────────────
-    // #main の overflow を visible にして #content の全長を DOM に展開し
-    // fullPage スクリーンショットで縦全体を撮影できるようにする
+    // #main は flex:1 の scroll container。fullPage:true + window scroll では
+    // #main 内部のコンテンツが viewport 分しか撮影されないため、
+    // viewport 自体をドキュメント全高さに拡張して単一フレームで撮影する。
     await page.evaluate(() => {
-      document.documentElement.style.overflowY = 'auto';
-      document.body.style.overflowY = 'auto';
       const app = document.getElementById('app') as HTMLElement;
       const main = document.getElementById('main') as HTMLElement;
-      if (app) app.style.height = 'auto';
-      if (main) {
-        main.style.overflow = 'visible';
-        main.style.height = 'auto';
-      }
+      if (!main || !app) return;
+      const h = main.scrollHeight; // コンテンツ全高さ（変更前）
+      app.style.height = 'auto';
+      main.style.flex = 'none'; // flex:1 (flex-basis:0) を解除
+      main.style.height = `${h}px`; // スクロール不要な高さに固定
     });
+
+    // ビューポートをドキュメント全高さに合わせて単一フレームで全体を撮影する
+    const docHeight = await page.evaluate(
+      () => document.documentElement.scrollHeight,
+    );
+    await page.setViewportSize({ width: 1600, height: docHeight });
 
     // ── 7. VRT 安定化用 CSS を注入 ───────────────────────────────
     // アニメーションを初期フレームで停止し、トースト・接続ドットを固定表示
@@ -179,6 +184,7 @@ test.describe('フルスペック VRT', () => {
         }
         .connection-dot, .watch-dot { opacity: 1 !important; }
         #toast { display: none !important; }
+        #update-time { visibility: hidden !important; }
         /* highlighted 状態を明るいオレンジで固定表示（アニメーション無効化） */
         .md-block.highlighted[data-block-type="table"] > div,
         .md-block.highlighted[data-block-type="mermaid"] > div {
@@ -195,9 +201,7 @@ test.describe('フルスペック VRT', () => {
       page.locator('#content .md-block[data-ls="32"].highlighted'),
     ).toBeVisible({ timeout: 2000 });
 
-    // ── 9. 縦長 VRT スクリーンショット ───────────────────────────
-    await expect(page).toHaveScreenshot('fullspec-vrt.png', {
-      fullPage: true,
-    });
+    // ── 9. 縦長 VRT スクリーンショット（viewport = doc 高さ → 単一フレーム）
+    await expect(page).toHaveScreenshot('fullspec-vrt.png');
   });
 });

@@ -76,8 +76,13 @@ jobs:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .tool-versions
@@ -90,6 +95,18 @@ jobs:
           name: dist
           path: dist/
       - run: bunx playwright install chromium --with-deps
+      - name: Generate missing VRT baselines
+        if: github.event_name == 'pull_request'
+        run: |
+          SNAPSHOT="tests/e2e/fullspec_vrt.test.ts-snapshots/fullspec-vrt-linux.png"
+          if [ ! -f "$SNAPSHOT" ]; then
+            bunx playwright test tests/e2e/fullspec_vrt.test.ts --update-snapshots
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add "$SNAPSHOT"
+            git diff --staged --quiet || git commit -m "test: generate VRT baseline in CI environment [skip ci]"
+            git push origin HEAD
+          fi
       - run: bun run test:e2e
       - uses: actions/upload-artifact@v7
         if: always()

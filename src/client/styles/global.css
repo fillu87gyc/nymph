@@ -1,0 +1,326 @@
+/* nymph グローバルスタイル（プレーン CSS）。
+ *
+ * ここに残すのは「CSS Modules でローカルスコープ化できない/すべきでない」もの:
+ *  - デザイントークン（CSS 変数）とテーマ
+ *  - リセット・スクロールバー
+ *  - marked が dangerouslySetInnerHTML で注入する Markdown 本文の体裁
+ *    （#content 配下。JSX 由来ではないためモジュールでスコープできない）
+ *  - highlight.js のクラス（pre code.hljs）
+ *  - CSS Custom Highlight API（::highlight）
+ *  - 複数モジュールから参照される共有 @keyframes
+ *  - 共有ユーティリティ（.btn 系 / .sep / .spacer）
+ *
+ * コンポーネント固有の構造スタイルは各 *.module.css に分割している。
+ */
+
+/* ── Design tokens / theme ── */
+:root {
+  --bg: #0d0c0a;
+  --bg-surface: #161410;
+  --bg-hover: #1e1c18;
+  --border: #252218;
+  --border-light: #302d25;
+  --text: #e4ddc8;
+  --text-muted: #6b6454;
+  --text-dim: #302d20;
+  --accent: #c27030;
+  --accent-dim: rgba(194, 112, 48, 0.13);
+  --accent-glow: rgba(194, 112, 48, 0.06);
+  --code-bg: #131210;
+  --sb: #252218;
+}
+[data-theme="light"] {
+  --bg: #f8f5ee;
+  --bg-surface: #eeeade;
+  --bg-hover: #e8e3d4;
+  --border: #d4cfc0;
+  --border-light: #cac4b2;
+  --text: #28241c;
+  --text-muted: #887f6a;
+  --text-dim: #cac4b0;
+  --accent: #a85e20;
+  --accent-dim: rgba(168, 94, 32, 0.1);
+  --accent-glow: rgba(168, 94, 32, 0.05);
+  --code-bg: #eee9dc;
+  --sb: #cac4b2;
+}
+
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+}
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--sb);
+  border-radius: 3px;
+}
+
+/* ── Shared keyframes（複数モジュールから animation 名で参照） ── */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes connection-blink {
+  0%,
+  100% {
+    background: rgba(192, 64, 64, 0.4);
+    border-color: rgba(192, 64, 64, 1);
+    box-shadow: 0 0 8px rgba(192, 64, 64, 0.5);
+  }
+  50% {
+    background: rgba(192, 64, 64, 0.04);
+    border-color: rgba(192, 64, 64, 0.35);
+    box-shadow: none;
+  }
+}
+@keyframes dot-error-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1.4);
+    box-shadow:
+      0 0 10px rgba(224, 80, 80, 1),
+      0 0 20px rgba(224, 80, 80, 0.5);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(0.8);
+    box-shadow: none;
+  }
+}
+@keyframes label-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes comment-block-flash {
+  0%,
+  55% {
+    background: rgba(194, 112, 48, 0.22);
+  }
+  100% {
+    background: rgba(194, 112, 48, 0.07);
+  }
+}
+
+/* ── Shared utilities ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border-light);
+}
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.btn.primary:hover {
+  filter: brightness(1.1);
+}
+.btn.icon {
+  padding: 5px 8px;
+}
+.btn.danger {
+  background: #c94444;
+  color: #fff;
+  border-color: transparent;
+}
+.btn.danger:hover {
+  background: #b03535;
+}
+.sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.spacer {
+  flex: 1;
+}
+
+/* ── Markdown body（#content 配下に marked が注入する HTML の体裁） ── */
+#content {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 48px 64px 80px;
+}
+#content h1 {
+  font-family: "Playfair Display", serif;
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4em;
+  margin-bottom: 0.1em;
+}
+#content h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 1.45em;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 0.3em;
+}
+#content h3 {
+  font-family: "Lora", serif;
+  font-size: 1.15em;
+  font-weight: 500;
+  color: var(--text);
+}
+#content h4,
+#content h5,
+#content h6 {
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.9em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+#content p {
+  font-family: "Lora", serif;
+  font-size: 1em;
+  line-height: 1.82;
+  color: var(--text);
+}
+#content ul,
+#content ol {
+  font-family: "Lora", serif;
+  font-size: 1em;
+  line-height: 1.8;
+  padding-left: 1.5em;
+}
+#content li {
+  margin-bottom: 0.15em;
+}
+#content code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.83em;
+  background: var(--code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  color: var(--accent);
+}
+#content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin-bottom: 0;
+}
+#content pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.84em;
+  color: var(--text);
+}
+#content pre code.hljs {
+  background: transparent;
+  padding: 0;
+}
+#content blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 16px;
+  margin-left: 0;
+  color: var(--text-muted);
+  font-family: "Lora", serif;
+  font-style: italic;
+}
+#content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+#content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.9em;
+}
+#content th {
+  background: var(--bg-surface);
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+  text-align: left;
+}
+#content td {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+}
+#content a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+#content img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+#content strong {
+  font-weight: 700;
+}
+#content em {
+  font-style: italic;
+}
+
+/* ── CSS Custom Highlight API（選択ハイライト・コメントアンカー） ── */
+::highlight(comment-anchor) {
+  background-color: rgba(194, 112, 48, 0.14);
+  text-decoration: underline;
+  text-decoration-color: rgba(194, 112, 48, 0.45);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+::highlight(text-highlight) {
+  background-color: rgba(194, 112, 48, 0.45);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(194, 112, 48, 0.9);
+}

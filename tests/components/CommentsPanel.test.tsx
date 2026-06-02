@@ -101,11 +101,15 @@ describe('CommentsPanel', () => {
     expect(screen.queryByText('削除済み')).not.toBeInTheDocument();
   });
 
-  test('孤立コメントのアイテムに c-orphaned クラスが付く', () => {
+  test('孤立コメントのアイテムに data-orphaned="true" が付く', () => {
     const c = makeComment({ id: 7, text: 'orphaned' });
     const { container } = render(
       <Wrapper comments={[c]} orphanedIds={new Set([7])} />,
     );
-    expect(container.querySelector('.comment-item.c-orphaned')).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-testid="comment-item"][data-orphaned="true"]',
+      ),
+    ).not.toBeNull();
   });
 });

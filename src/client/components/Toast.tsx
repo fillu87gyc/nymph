@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import styles from './Toast.module.css';
 
 interface ToastProps {
   message: string;
@@ -17,5 +18,9 @@ export function Toast({ message, version }: ToastProps) {
 
   if (!current) return null;
 
-  return <div id="toast">{current}</div>;
+  return (
+    <div id="toast" className={styles.toast}>
+      {current}
+    </div>
+  );
 }

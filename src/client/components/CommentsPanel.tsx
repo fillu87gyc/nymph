@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { ctxDisplay } from '../lib/comments.ts';
 import type { Comment } from '../types.ts';
+import styles from './CommentsPanel.module.css';
 
 const PANEL_DEFAULT_H = 210;
 const PANEL_MIN_H = 80;
@@ -25,8 +26,6 @@ export function CommentsPanel({
   onClose,
 }: CommentsPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  // 初期値で localStorage の保存高さを復元する（以前は常に既定値で初期化され、
-  // ドラッグで保存した高さがリロード後に反映されない不具合があった）。
   const [height, setHeight] = useState(
     () =>
       parseInt(localStorage.getItem('nymph-panel-height') || '0', 10) ||
@@ -60,26 +59,23 @@ export function CommentsPanel({
     e.preventDefault();
   }, []);
 
-  function handleItemClick(c: Comment) {
-    onScrollToComment(c);
-  }
-
   const panelStyle = open ? { height: `${height}px` } : { height: '0' };
 
   return (
     <div
       id="comments-panel"
       ref={panelRef}
-      className={open ? 'open' : ''}
+      className={styles.panel}
+      data-open={String(open)}
       style={panelStyle}
     >
       <div
-        className="panel-resize-handle"
+        className={styles.resizeHandle}
         id="panel-resize-handle"
         onMouseDown={startDrag}
       />
-      <div className="cpanel-head">
-        <span className="cpanel-title">レビューコメント</span>
+      <div className={styles.head}>
+        <span className={styles.title}>レビューコメント</span>
         <span className="spacer" />
         <button
           type="button"
@@ -90,9 +86,9 @@ export function CommentsPanel({
           ✕
         </button>
       </div>
-      <ul id="comments-list">
+      <ul id="comments-list" className={styles.list}>
         {comments.length === 0 ? (
-          <li id="no-comments">
+          <li id="no-comments" className={styles.empty}>
             コメントはまだありません。ブロックにカーソルを合わせて ＋
             をクリック。
           </li>
@@ -103,21 +99,33 @@ export function CommentsPanel({
             return (
               <li
                 key={c.id}
-                className={`comment-item${isOrphaned ? ' c-orphaned' : ''}`}
-                onClick={() => handleItemClick(c)}
+                className={styles.item}
+                data-testid="comment-item"
+                data-orphaned={String(isOrphaned)}
+                onClick={() => onScrollToComment(c)}
               >
-                <span className="c-line">{range}</span>
-                <div className="c-body">
-                  <div className="c-text">{c.text}</div>
-                  <div className="c-ctx">
-                    {isOrphaned && <span className="c-deleted">削除済み</span>}
+                <span className={styles.lineRef}>{range}</span>
+                <div className={styles.body}>
+                  <div className={styles.text} data-testid="c-text">
+                    {c.text}
+                  </div>
+                  <div className={styles.ctx} data-testid="c-ctx">
+                    {isOrphaned && (
+                      <span
+                        className={styles.deletedBadge}
+                        data-testid="c-deleted"
+                      >
+                        削除済み
+                      </span>
+                    )}
                     {ctxDisplay(c)}
                   </div>
                 </div>
-                <div className="c-actions">
+                <div className={styles.actions}>
                   <button
                     type="button"
-                    className="c-edit"
+                    className={styles.editBtn}
+                    data-testid="c-edit"
                     title="編集"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -128,7 +136,8 @@ export function CommentsPanel({
                   </button>
                   <button
                     type="button"
-                    className="c-del"
+                    className={styles.delBtn}
+                    data-testid="c-del"
                     title="削除"
                     onClick={(e) => {
                       e.stopPropagation();

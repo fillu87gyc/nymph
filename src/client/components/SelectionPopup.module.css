@@ -1,0 +1,23 @@
+.popup {
+  position: fixed;
+  z-index: 600;
+}
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.45);
+}
+.btn:hover {
+  filter: brightness(1.12);
+}

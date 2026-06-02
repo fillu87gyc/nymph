@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PendingComment } from '../types.ts';
+import styles from './CommentModal.module.css';
 
 interface CommentModalProps {
   open: boolean;
@@ -57,23 +58,24 @@ export function CommentModal({
   }
 
   return (
-    <div id="comment-modal">
-      <div id="modal-backdrop" onClick={onClose} />
-      <div id="modal-box">
-        <div className="modal-head" id="modal-line">
+    <div id="comment-modal" className={styles.modal}>
+      <div id="modal-backdrop" className={styles.backdrop} onClick={onClose} />
+      <div id="modal-box" className={styles.box}>
+        <div className={styles.head} id="modal-line">
           {headText}
         </div>
-        <div className="modal-ctx" id="modal-ctx">
+        <div className={styles.ctx} id="modal-ctx">
           {displayCtx}
         </div>
         <textarea
           ref={taRef}
           id="comment-ta"
+          className={styles.textarea}
           placeholder="コメントを入力… (Cmd+Enter で追加)"
           rows={4}
           onKeyDown={handleKeyDown}
         />
-        <div className="modal-foot">
+        <div className={styles.foot}>
           <button
             type="button"
             className="btn"

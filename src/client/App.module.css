@@ -1,0 +1,52 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.main {
+  flex: 1;
+  overflow-y: auto;
+}
+.dropOverlay {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.55);
+  border: 3px dashed var(--accent);
+  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--accent);
+}
+/* アンカーコメントポップアップ */
+.anchorPopup {
+  position: fixed;
+  width: 270px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  z-index: 700;
+  overflow: hidden;
+}
+.acpText {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.acpFoot {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+}
+.acpDel:hover {
+  color: #b04040;
+  border-color: #b04040;
+}

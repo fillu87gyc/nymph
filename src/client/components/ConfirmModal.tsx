@@ -1,3 +1,5 @@
+import styles from './ConfirmModal.module.css';
+
 interface ConfirmModalProps {
   open: boolean;
   onConfirm: () => void;
@@ -7,12 +9,16 @@ interface ConfirmModalProps {
 export function ConfirmModal({ open, onConfirm, onClose }: ConfirmModalProps) {
   if (!open) return null;
   return (
-    <div id="confirm-modal">
-      <div id="confirm-backdrop" onClick={onClose} />
-      <div id="confirm-box">
-        <div className="modal-head">全コメントを削除</div>
-        <p className="confirm-msg">本当に消していいですか？</p>
-        <div className="modal-foot">
+    <div id="confirm-modal" className={styles.modal}>
+      <div
+        id="confirm-backdrop"
+        className={styles.backdrop}
+        onClick={onClose}
+      />
+      <div id="confirm-box" className={styles.box}>
+        <div className={styles.head}>全コメントを削除</div>
+        <p className={styles.msg}>本当に消していいですか？</p>
+        <div className={styles.foot}>
           <button
             type="button"
             className="btn"

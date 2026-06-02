@@ -40,7 +40,7 @@ function makeProps(
 describe('コメントボタンのレンダリング制御', () => {
   test('paragraph ブロックにはボタンが描画されない', () => {
     const { container } = render(<MarkdownBlock {...makeProps()} />);
-    expect(container.querySelector('.comment-btn')).toBeNull();
+    expect(container.querySelector('[data-testid="comment-btn"]')).toBeNull();
   });
 
   test('heading ブロックにはボタンが描画されない', () => {
@@ -49,14 +49,16 @@ describe('コメントボタンのレンダリング制御', () => {
         {...makeProps({ block: makeBlock({ type: 'heading' }) })}
       />,
     );
-    expect(container.querySelector('.comment-btn')).toBeNull();
+    expect(container.querySelector('[data-testid="comment-btn"]')).toBeNull();
   });
 
   test('table ブロックにはボタンが描画される', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
     );
-    expect(container.querySelector('.comment-btn')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="comment-btn"]'),
+    ).toBeInTheDocument();
   });
 
   test('mermaid ブロックにはボタンが描画される', () => {
@@ -72,7 +74,9 @@ describe('コメントボタンのレンダリング制御', () => {
         })}
       />,
     );
-    expect(container.querySelector('.comment-btn')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="comment-btn"]'),
+    ).toBeInTheDocument();
   });
 });
 
@@ -87,7 +91,9 @@ describe('コメントボタンの表示制御', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
     );
-    const btn = container.querySelector('.comment-btn') as HTMLElement;
+    const btn = container.querySelector(
+      '[data-testid="comment-btn"]',
+    ) as HTMLElement;
     // インラインの opacity / pointer-events が付いていないこと（= CSS が制御）
     expect(btn.style.opacity).toBe('');
     expect(btn.style.pointerEvents).toBe('');
@@ -97,15 +103,19 @@ describe('コメントボタンの表示制御', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ block: makeBlock({ type: 'table' }) })} />,
     );
-    const wrapper = container.querySelector('.md-block') as HTMLElement;
+    const wrapper = container.querySelector(
+      '[data-testid="md-block"]',
+    ) as HTMLElement;
     fireEvent.mouseEnter(wrapper);
     fireEvent.mouseMove(wrapper);
-    const btn = container.querySelector('.comment-btn') as HTMLElement;
+    const btn = container.querySelector(
+      '[data-testid="comment-btn"]',
+    ) as HTMLElement;
     expect(btn.style.opacity).toBe('');
     expect(btn.style.pointerEvents).toBe('');
   });
 
-  test('hasComment=true でも JS はインラインスタイルを付けない（has-comment クラスで CSS が制御）', () => {
+  test('hasComment=true でも JS はインラインスタイルを付けない（data-has-comment で CSS が制御）', () => {
     const { container } = render(
       <MarkdownBlock
         {...makeProps({
@@ -114,28 +124,38 @@ describe('コメントボタンの表示制御', () => {
         })}
       />,
     );
-    const block = container.querySelector('.md-block') as HTMLElement;
-    const btn = container.querySelector('.comment-btn') as HTMLElement;
-    expect(block).toHaveClass('has-comment');
+    const block = container.querySelector(
+      '[data-testid="md-block"]',
+    ) as HTMLElement;
+    const btn = container.querySelector(
+      '[data-testid="comment-btn"]',
+    ) as HTMLElement;
+    expect(block).toHaveAttribute('data-has-comment', 'true');
     expect(btn.style.opacity).toBe('');
   });
 });
 
 // ── has-comment クラス ────────────────────────────────────────
 
-describe('has-comment クラス', () => {
-  test('hasComment=false のとき has-comment クラスなし', () => {
+describe('data-has-comment 属性', () => {
+  test('hasComment=false のとき data-has-comment="false"', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ hasComment: false })} />,
     );
-    expect(container.querySelector('.md-block')).not.toHaveClass('has-comment');
+    expect(container.querySelector('[data-testid="md-block"]')).toHaveAttribute(
+      'data-has-comment',
+      'false',
+    );
   });
 
-  test('hasComment=true のとき has-comment クラスが付く', () => {
+  test('hasComment=true のとき data-has-comment="true"', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ hasComment: true })} />,
     );
-    expect(container.querySelector('.md-block')).toHaveClass('has-comment');
+    expect(container.querySelector('[data-testid="md-block"]')).toHaveAttribute(
+      'data-has-comment',
+      'true',
+    );
   });
 });
 
@@ -156,7 +176,7 @@ describe('onAddComment コールバック', () => {
       />,
     );
     await userEvent.click(
-      container.querySelector('.comment-btn') as HTMLElement,
+      container.querySelector('[data-testid="comment-btn"]') as HTMLElement,
     );
     expect(onAddComment).toHaveBeenCalledOnce();
     expect(onAddComment).toHaveBeenCalledWith(
@@ -179,7 +199,9 @@ describe('data 属性', () => {
         {...makeProps({ block: makeBlock({ ls: 4, le: 8, type: 'code' }) })}
       />,
     );
-    const el = container.querySelector('.md-block') as HTMLElement;
+    const el = container.querySelector(
+      '[data-testid="md-block"]',
+    ) as HTMLElement;
     expect(el.dataset.ls).toBe('4');
     expect(el.dataset.le).toBe('8');
     expect(el.dataset.blockType).toBe('code');
@@ -196,35 +218,44 @@ describe('diff 表示', () => {
     },
   ];
 
-  test('diffMode=false では diff-changed クラスも diff-side 要素もない', () => {
+  test('diffMode=false では diff-changed なし・diff-side 要素もない', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ diffGroups, diffMode: false })} />,
     );
-    expect(container.querySelector('.md-block')).not.toHaveClass(
-      'diff-changed',
+    expect(container.querySelector('[data-testid="md-block"]')).toHaveAttribute(
+      'data-diff-changed',
+      'false',
     );
-    expect(container.querySelector('.diff-side')).toBeNull();
+    expect(container.querySelector('[data-testid="diff-side-del"]')).toBeNull();
+    expect(container.querySelector('[data-testid="diff-side-ins"]')).toBeNull();
   });
 
-  test('diffMode=true + diffGroups あり で diff-changed クラスが付く', () => {
+  test('diffMode=true + diffGroups あり で data-diff-changed="true" が付く', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ diffGroups, diffMode: true })} />,
     );
-    expect(container.querySelector('.md-block')).toHaveClass('diff-changed');
+    expect(container.querySelector('[data-testid="md-block"]')).toHaveAttribute(
+      'data-diff-changed',
+      'true',
+    );
   });
 
   test('diff-side-ins / diff-side-del が描画され内容が正しい', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ diffGroups, diffMode: true })} />,
     );
-    expect(container.querySelector('.diff-side-ins')).toBeInTheDocument();
-    expect(container.querySelector('.diff-side-del')).toBeInTheDocument();
-    expect(container.querySelector('.diff-ins')?.textContent).toContain(
-      '追加行',
-    );
-    expect(container.querySelector('.diff-del')?.textContent).toContain(
-      '削除行',
-    );
+    expect(
+      container.querySelector('[data-testid="diff-side-ins"]'),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="diff-side-del"]'),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="diff-ins"]')?.textContent,
+    ).toContain('追加行');
+    expect(
+      container.querySelector('[data-testid="diff-del"]')?.textContent,
+    ).toContain('削除行');
   });
 
   test('空白のみの insert は diff-side-ins に含まれない', () => {
@@ -237,16 +268,19 @@ describe('diff 表示', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ diffGroups: groups, diffMode: true })} />,
     );
-    expect(container.querySelector('.diff-side-ins')).toBeNull();
-    expect(container.querySelector('.diff-side-del')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="diff-side-ins"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="diff-side-del"]'),
+    ).toBeInTheDocument();
   });
 
   test('diffGroups が空なら diff-changed なし', () => {
     const { container } = render(
       <MarkdownBlock {...makeProps({ diffGroups: [], diffMode: true })} />,
     );
-    expect(container.querySelector('.md-block')).not.toHaveClass(
-      'diff-changed',
+    expect(container.querySelector('[data-testid="md-block"]')).toHaveAttribute(
+      'data-diff-changed',
+      'false',
     );
   });
 
@@ -270,10 +304,14 @@ describe('diff 表示', () => {
     );
     // 追加 3 行すべてに緑ハイライト、削除 1 行に赤ハイライト
     expect(
-      container.querySelectorAll('.diff-side-ins .diff-char-ins'),
+      container.querySelectorAll(
+        '[data-testid="diff-side-ins"] [data-testid="diff-char-ins"]',
+      ),
     ).toHaveLength(3);
     expect(
-      container.querySelectorAll('.diff-side-del .diff-char-del'),
+      container.querySelectorAll(
+        '[data-testid="diff-side-del"] [data-testid="diff-char-del"]',
+      ),
     ).toHaveLength(1);
   });
 
@@ -290,11 +328,15 @@ describe('diff 表示', () => {
       <MarkdownBlock {...makeProps({ diffGroups: groups, diffMode: true })} />,
     );
     // 共通部分はハイライトされず、変更箇所のみ mark が付く
-    expect(container.querySelectorAll('.diff-char-del')).toHaveLength(1);
-    expect(container.querySelectorAll('.diff-char-ins')).toHaveLength(1);
-    expect(container.querySelector('.diff-del')?.textContent).toContain(
-      'Some content here.',
-    );
+    expect(
+      container.querySelectorAll('[data-testid="diff-char-del"]'),
+    ).toHaveLength(1);
+    expect(
+      container.querySelectorAll('[data-testid="diff-char-ins"]'),
+    ).toHaveLength(1);
+    expect(
+      container.querySelector('[data-testid="diff-del"]')?.textContent,
+    ).toContain('Some content here.');
   });
 });
 

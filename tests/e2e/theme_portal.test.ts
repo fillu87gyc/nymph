@@ -10,7 +10,9 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#content .md-block').first()).toBeVisible({
+  await expect(
+    page.locator('#content [data-testid="md-block"]').first(),
+  ).toBeVisible({
     timeout: 5000,
   });
 });
@@ -33,7 +35,9 @@ test.describe('hljs テーマ link portal', () => {
     // localStorage がなければ dark がデフォルト
     await page.evaluate(() => localStorage.removeItem('nymph-theme'));
     await page.reload();
-    await expect(page.locator('#content .md-block').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({
       timeout: 5000,
     });
 
@@ -142,7 +146,9 @@ test.describe('テーマ状態の永続化', () => {
     );
 
     await page.reload();
-    await expect(page.locator('#content .md-block').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({
       timeout: 5000,
     });
 

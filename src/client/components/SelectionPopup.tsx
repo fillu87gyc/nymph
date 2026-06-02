@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import styles from './SelectionPopup.module.css';
 
 interface SelectionPopupProps {
   contentRef: React.RefObject<HTMLElement | null>;
@@ -129,10 +130,12 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
     <div
       ref={popupRef}
       id="selection-popup"
+      className={styles.popup}
       style={{ left: pos.left, top: pos.top }}
     >
       <button
         id="btn-selection-comment"
+        className={styles.btn}
         onMouseDown={handleMouseDown}
         onClick={handleClick}
       >

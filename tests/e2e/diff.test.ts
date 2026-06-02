@@ -21,14 +21,22 @@ async function enableDiffWithChange(
 ) {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.locator('#btn-checkpoint').click();
-  await expect(page.locator('#btn-checkpoint')).toHaveClass(/has-checkpoint/);
+  await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+    'data-has-checkpoint',
+    'true',
+  );
   writeFileSync(FIXTURE, ORIGINAL.replace('Some content here.', replacement));
   await expect(page.locator('#content')).toContainText(replacement, {
     timeout: 5000,
   });
   await page.locator('#btn-diff').click();
-  await expect(page.locator('#btn-diff')).toHaveClass(/active/);
-  await expect(page.locator('#content .diff-changed').first()).toBeVisible({
+  await expect(page.locator('#btn-diff')).toHaveAttribute(
+    'data-active',
+    'true',
+  );
+  await expect(
+    page.locator('#content [data-diff-changed="true"]').first(),
+  ).toBeVisible({
     timeout: 3000,
   });
 }
@@ -37,7 +45,9 @@ test.beforeEach(async ({ page }) => {
   if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
   writeFileSync(FIXTURE, ORIGINAL);
   await page.goto('/');
-  await expect(page.locator('#content .md-block').first()).toBeVisible({
+  await expect(
+    page.locator('#content [data-testid="md-block"]').first(),
+  ).toBeVisible({
     timeout: 5000,
   });
 });
@@ -52,11 +62,14 @@ test.afterEach(() => {
 });
 
 test.describe('チェックポイント', () => {
-  test('チェックポイントボタンで has-checkpoint クラスが付く', async ({
+  test('チェックポイントボタンでチェックポイント状態になる', async ({
     page,
   }) => {
     await page.locator('#btn-checkpoint').click();
-    await expect(page.locator('#btn-checkpoint')).toHaveClass(/has-checkpoint/);
+    await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+      'data-has-checkpoint',
+      'true',
+    );
   });
 
   test('チェックポイント設定後にトーストが表示される', async ({ page }) => {
@@ -72,8 +85,8 @@ test.describe('チェックポイント', () => {
     const btn = page.locator('#btn-checkpoint');
     const before = await btn.evaluate((el) => getComputedStyle(el).borderColor);
     await btn.click();
-    await expect(btn).toHaveClass(/has-checkpoint/);
-    // .has-checkpoint で枠線がアクセント色に変わること（クラスだけでなく実描画を検証）
+    await expect(btn).toHaveAttribute('data-has-checkpoint', 'true');
+    // has-checkpoint で枠線がアクセント色に変わること（状態だけでなく実描画を検証）
     await expect
       .poll(async () => btn.evaluate((el) => getComputedStyle(el).borderColor))
       .not.toBe(before);
@@ -81,11 +94,14 @@ test.describe('チェックポイント', () => {
 });
 
 test.describe('diff 表示', () => {
-  test('チェックポイント設定後にファイルを変更すると diff-changed ブロックが表示される', async ({
+  test('チェックポイント設定後にファイルを変更すると変更ブロックが表示される', async ({
     page,
   }) => {
     await page.locator('#btn-checkpoint').click();
-    await expect(page.locator('#btn-checkpoint')).toHaveClass(/has-checkpoint/);
+    await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+      'data-has-checkpoint',
+      'true',
+    );
 
     writeFileSync(
       FIXTURE,
@@ -99,9 +115,14 @@ test.describe('diff 表示', () => {
     });
 
     await page.locator('#btn-diff').click();
-    await expect(page.locator('#btn-diff')).toHaveClass(/active/);
+    await expect(page.locator('#btn-diff')).toHaveAttribute(
+      'data-active',
+      'true',
+    );
 
-    await expect(page.locator('#content .diff-changed').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-diff-changed="true"]').first(),
+    ).toBeVisible({
       timeout: 3000,
     });
   });
@@ -119,12 +140,16 @@ test.describe('diff 表示', () => {
     });
 
     await page.locator('#btn-diff').click();
-    await expect(page.locator('#content .diff-changed').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-diff-changed="true"]').first(),
+    ).toBeVisible({
       timeout: 3000,
     });
 
     // At least one of ins or del side-panel must be present
-    const sideCount = await page.locator('.diff-side').count();
+    const sideCount = await page
+      .locator('[data-testid="diff-side-del"], [data-testid="diff-side-ins"]')
+      .count();
     expect(sideCount).toBeGreaterThan(0);
 
     mkdirSync('test-results/screenshots', { recursive: true });
@@ -146,15 +171,17 @@ test.describe('diff 表示', () => {
     });
 
     await page.locator('#btn-diff').click();
-    await expect(page.locator('.diff-side-ins').first()).toBeVisible({
+    await expect(
+      page.locator('[data-testid="diff-side-ins"]').first(),
+    ).toBeVisible({
       timeout: 3000,
     });
-    await expect(page.locator('.diff-side-ins').first()).toContainText(
-      'UNIQUE_INS_TEXT',
-    );
+    await expect(
+      page.locator('[data-testid="diff-side-ins"]').first(),
+    ).toContainText('UNIQUE_INS_TEXT');
   });
 
-  test('diff OFF にすると diff-changed が消える', async ({ page }) => {
+  test('diff OFF にすると変更ブロックが消える', async ({ page }) => {
     await page.locator('#btn-checkpoint').click();
     writeFileSync(
       FIXTURE,
@@ -166,29 +193,43 @@ test.describe('diff 表示', () => {
     );
 
     await page.locator('#btn-diff').click();
-    await expect(page.locator('#content .diff-changed').first()).toBeVisible({
+    await expect(
+      page.locator('#content [data-diff-changed="true"]').first(),
+    ).toBeVisible({
       timeout: 3000,
     });
 
     await page.locator('#btn-diff').click();
-    await expect(page.locator('#btn-diff')).not.toHaveClass(/active/);
-    await expect(page.locator('#content .diff-changed')).toHaveCount(0);
+    await expect(page.locator('#btn-diff')).toHaveAttribute(
+      'data-active',
+      'false',
+    );
+    await expect(
+      page.locator('#content [data-diff-changed="true"]'),
+    ).toHaveCount(0);
   });
 
-  test('チェックポイントなしで diff ON にしても diff-changed は表示されない', async ({
+  test('チェックポイントなしで diff ON にしても変更ブロックは表示されない', async ({
     page,
   }) => {
     await page.locator('#btn-diff').click();
-    await expect(page.locator('#btn-diff')).toHaveClass(/active/);
-    await expect(page.locator('#content .diff-changed')).toHaveCount(0);
+    await expect(page.locator('#btn-diff')).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+    await expect(
+      page.locator('#content [data-diff-changed="true"]'),
+    ).toHaveCount(0);
   });
 
-  test('ファイルを変更していない場合は diff-changed が表示されない', async ({
+  test('ファイルを変更していない場合は変更ブロックが表示されない', async ({
     page,
   }) => {
     await page.locator('#btn-checkpoint').click();
     await page.locator('#btn-diff').click();
-    await expect(page.locator('#content .diff-changed')).toHaveCount(0);
+    await expect(
+      page.locator('#content [data-diff-changed="true"]'),
+    ).toHaveCount(0);
   });
 });
 
@@ -199,8 +240,10 @@ test.describe('diff の右マージン表示', () => {
   }) => {
     await enableDiffWithChange(page);
 
-    const block = page.locator('#content .md-block.diff-changed').first();
-    const aside = block.locator('.diff-aside');
+    const block = page
+      .locator('#content [data-testid="md-block"][data-diff-changed="true"]')
+      .first();
+    const aside = block.locator('[data-testid="diff-aside"]');
     await expect(aside).toBeVisible();
 
     const blockBox = await block.boundingBox();
@@ -218,8 +261,8 @@ test.describe('diff の右マージン表示', () => {
   }) => {
     await enableDiffWithChange(page);
 
-    const del = page.locator('.diff-side-del').first();
-    const ins = page.locator('.diff-side-ins').first();
+    const del = page.locator('[data-testid="diff-side-del"]').first();
+    const ins = page.locator('[data-testid="diff-side-ins"]').first();
     await expect(del).toBeVisible();
     await expect(ins).toBeVisible();
 
@@ -233,7 +276,7 @@ test.describe('diff の右マージン表示', () => {
   }) => {
     await enableDiffWithChange(page);
 
-    const delLine = page.locator('.diff-del').first();
+    const delLine = page.locator('[data-testid="diff-del"]').first();
     await expect(delLine).toBeVisible();
 
     // 旧バグ: 内側 span が display:block になり 1 行が縦に分割されていた。
@@ -247,8 +290,8 @@ test.describe('diff の右マージン表示', () => {
     await expect(delLine).toContainText('Some content here.');
 
     // 変更箇所のみ文字単位でハイライト（削除側・追加側それぞれ 1 箇所）
-    await expect(page.locator('.diff-char-del')).toHaveCount(1);
-    await expect(page.locator('.diff-char-ins')).toHaveCount(1);
+    await expect(page.locator('[data-testid="diff-char-del"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="diff-char-ins"]')).toHaveCount(1);
   });
 
   test('複数行にわたる変更（箇条書きの追加）も 1 行ずつ積み重なって表示される', async ({
@@ -265,7 +308,10 @@ test.describe('diff の右マージン表示', () => {
     });
 
     await page.locator('#btn-checkpoint').click();
-    await expect(page.locator('#btn-checkpoint')).toHaveClass(/has-checkpoint/);
+    await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+      'data-has-checkpoint',
+      'true',
+    );
 
     writeFileSync(FIXTURE, after);
     await expect(page.locator('#content')).toContainText('東海道新幹線が通る', {
@@ -273,28 +319,47 @@ test.describe('diff の右マージン表示', () => {
     });
 
     await page.locator('#btn-diff').click();
-    await expect(page.locator('#btn-diff')).toHaveClass(/active/);
+    await expect(page.locator('#btn-diff')).toHaveAttribute(
+      'data-active',
+      'true',
+    );
 
-    const aside = page.locator('.diff-aside').first();
+    const aside = page.locator('[data-testid="diff-aside"]').first();
     await expect(aside).toBeVisible({ timeout: 3000 });
 
     // 削除 1 行・追加 4 行が、それぞれ個別の行として描画される
-    await expect(aside.locator('.diff-side-del .diff-del')).toHaveCount(1);
-    await expect(aside.locator('.diff-side-ins .diff-ins')).toHaveCount(4);
+    await expect(
+      aside.locator('[data-testid="diff-side-del"] [data-testid="diff-del"]'),
+    ).toHaveCount(1);
+    await expect(
+      aside.locator('[data-testid="diff-side-ins"] [data-testid="diff-ins"]'),
+    ).toHaveCount(4);
 
     // 行数が 1:N で対応が曖昧なため、追加 4 行すべて・削除 1 行すべてが
     // 全体ハイライトされる（「追加したのにハイライトされない」回帰防止）
-    await expect(aside.locator('.diff-side-ins .diff-char-ins')).toHaveCount(4);
-    await expect(aside.locator('.diff-side-del .diff-char-del')).toHaveCount(1);
+    await expect(
+      aside.locator(
+        '[data-testid="diff-side-ins"] [data-testid="diff-char-ins"]',
+      ),
+    ).toHaveCount(4);
+    await expect(
+      aside.locator(
+        '[data-testid="diff-side-del"] [data-testid="diff-char-del"]',
+      ),
+    ).toHaveCount(1);
 
     // 削除(−) ブロックが 追加(+) ブロックの上にある（git と同じ順序）
-    const delBox = await aside.locator('.diff-side-del').boundingBox();
-    const insBox = await aside.locator('.diff-side-ins').boundingBox();
+    const delBox = await aside
+      .locator('[data-testid="diff-side-del"]')
+      .boundingBox();
+    const insBox = await aside
+      .locator('[data-testid="diff-side-ins"]')
+      .boundingBox();
     expect(delBox!.y).toBeLessThan(insBox!.y);
 
     // 追加 4 行は y 座標が単調増加 = 縦に積まれている（横並びや重なりではない）
     const tops = await aside
-      .locator('.diff-ins')
+      .locator('[data-testid="diff-ins"]')
       .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
     expect(tops).toHaveLength(4);
     for (let i = 1; i < tops.length; i++) {

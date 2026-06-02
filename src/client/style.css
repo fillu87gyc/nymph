@@ -1,14 +1,5 @@
 /* nymph スタイルエントリ。
-   実体は機能ごとに styles/ 配下へ分割。@import の順序は元の単一ファイルの
-   記述順と一致させており、カスケード（後勝ち）の結果は分割前と同一。 */
-@import "./styles/base.css"; /* CSS 変数・テーマ・リセット・アプリシェル */
-@import "./styles/toolbar.css"; /* ツールバー・接続ステータス・ボタン */
-@import "./styles/file-tabs.css"; /* ファイルタブ */
-@import "./styles/content.css"; /* 本文・md ブロック・タイポグラフィ */
-@import "./styles/mermaid.css"; /* Mermaid ブロック */
-@import "./styles/comments.css"; /* コメントパネル */
-@import "./styles/modals.css"; /* コメント / 確認 / draw.io モーダル */
-@import "./styles/selection.css"; /* 選択ポップアップ・ブロック/テキストハイライト */
-@import "./styles/diff.css"; /* チェックポイント / Diff */
-@import "./styles/anchor.css"; /* アンカーコメントポップアップ */
-@import "./styles/overlays.css"; /* ドロップオーバーレイ・トースト */
+ * コンポーネント固有のスタイルは各 *.module.css に分割。
+ * ここでは「CSS Modules でスコープできないグローバルスタイル」のみ管理する。
+ */
+@import "./styles/global.css";

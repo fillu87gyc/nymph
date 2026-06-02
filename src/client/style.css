@@ -967,8 +967,15 @@ body {
   color: var(--accent);
   background: var(--accent-dim);
 }
-/* Unified diff, rendered like `git diff`: deleted line(s) then inserted
-   line(s), stacked in normal flow and full width. */
+/* The diff is shown in the right margin so the body stays clean in the center.
+   Inside, deletes(−) then inserts(+) stack like a `git diff` hunk. */
+.diff-aside {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 16px);
+  width: 260px;
+  z-index: 10;
+}
 .diff-side {
   padding: 4px 10px;
   background: var(--bg-surface);

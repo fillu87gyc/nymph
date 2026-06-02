@@ -169,48 +169,52 @@ export function MarkdownBlock({
         <StableContent html={block.html} type={block.type} />
       )}
 
-      {isDiffChanged &&
-        diffGroups.map((group, gi) => {
-          const hasBoth = group.deletes.length > 0 && group.inserts.length > 0;
-          const validIns = group.inserts.filter((l) => l.content.trim());
-          return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: diff groups have no stable id
-            <div key={gi}>
-              {group.deletes.length > 0 && (
-                <div className="diff-side diff-side-del">
-                  {group.deletes.map((d, i) => {
-                    const paired = hasBoth ? group.inserts[i] : undefined;
-                    return (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-                      <span key={i} className="diff-del">
-                        −{' '}
-                        {paired
-                          ? renderCharDiff(d.content, paired.content, 'del')
-                          : d.content || ' '}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              {validIns.length > 0 && (
-                <div className="diff-side diff-side-ins">
-                  {validIns.map((ins, i) => {
-                    const paired = hasBoth ? group.deletes[i] : undefined;
-                    return (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
-                      <span key={i} className="diff-ins">
-                        +{' '}
-                        {paired
-                          ? renderCharDiff(paired.content, ins.content, 'ins')
-                          : ins.content}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {isDiffChanged && (
+        <div className="diff-aside">
+          {diffGroups.map((group, gi) => {
+            const hasBoth =
+              group.deletes.length > 0 && group.inserts.length > 0;
+            const validIns = group.inserts.filter((l) => l.content.trim());
+            return (
+              // biome-ignore lint/suspicious/noArrayIndexKey: diff groups have no stable id
+              <div key={gi}>
+                {group.deletes.length > 0 && (
+                  <div className="diff-side diff-side-del">
+                    {group.deletes.map((d, i) => {
+                      const paired = hasBoth ? group.inserts[i] : undefined;
+                      return (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
+                        <span key={i} className="diff-del">
+                          −{' '}
+                          {paired
+                            ? renderCharDiff(d.content, paired.content, 'del')
+                            : d.content || ' '}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {validIns.length > 0 && (
+                  <div className="diff-side diff-side-ins">
+                    {validIns.map((ins, i) => {
+                      const paired = hasBoth ? group.deletes[i] : undefined;
+                      return (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
+                        <span key={i} className="diff-ins">
+                          +{' '}
+                          {paired
+                            ? renderCharDiff(paired.content, ins.content, 'ins')
+                            : ins.content}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

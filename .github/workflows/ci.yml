@@ -98,13 +98,29 @@ jobs:
       - name: Generate missing VRT baselines
         if: github.event_name == 'pull_request'
         run: |
-          SNAPSHOT="tests/e2e/fullspec_vrt.test.ts-snapshots/fullspec-vrt-linux.png"
-          if [ ! -f "$SNAPSHOT" ]; then
-            bunx playwright test tests/e2e/fullspec_vrt.test.ts --update-snapshots
+          NEED_PUSH=0
+          # ベースラインが 1 つでも欠けている VRT テストだけを CI 環境で生成する。
+          # （既存ベースラインは上書きしないので、実際の見た目リグレッションは
+          #   差分として検出され、ここで握りつぶされることはない）
+          gen() {
+            local testfile="$1"; shift
+            local missing=0
+            for snap in "$@"; do [ -f "$snap" ] || missing=1; done
+            if [ "$missing" = "1" ]; then
+              bunx playwright test "$testfile" --update-snapshots
+              git add "${testfile}-snapshots"
+              NEED_PUSH=1
+            fi
+          }
+          gen tests/e2e/fullspec_vrt.test.ts \
+            tests/e2e/fullspec_vrt.test.ts-snapshots/fullspec-vrt-linux.png
+          gen tests/e2e/diff_vrt.test.ts \
+            tests/e2e/diff_vrt.test.ts-snapshots/diff-aside-single-linux.png \
+            tests/e2e/diff_vrt.test.ts-snapshots/diff-aside-multiline-linux.png
+          if [ "$NEED_PUSH" = "1" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add "$SNAPSHOT"
-            git diff --staged --quiet || git commit -m "test: generate VRT baseline in CI environment [skip ci]"
+            git diff --staged --quiet || git commit -m "test: generate VRT baselines in CI environment [skip ci]"
             git push origin HEAD
           fi
       - run: bun run test:e2e

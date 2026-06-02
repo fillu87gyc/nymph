@@ -1,16 +1,20 @@
 /**
  * フルスペック VRT
  *
- * diff ブロック・コードブロック・Mermaid・複数コメント・
- * テーブルの選択ハイライト・selection コメント（CSS Highlight API）・
- * 孤立コメント（削除済みバッジ）を含む 1 画面を縦長スクリーンショットで比較する。
+ * コードブロック・Mermaid・複数コメント・テーブルの選択ハイライト・
+ * selection コメント（CSS Highlight API）・孤立コメント（削除済みバッジ）を
+ * 含む 1 画面を縦長スクリーンショットで比較する。
+ *
+ * diff 表示の見た目検証は責務過多を避けるため diff_vrt.test.ts に分離した。
+ * ここではファイルを変更して「孤立コメント（削除済みバッジ）」を出すが、
+ * diff モードは ON にしない。
  *
  * - ls/le は fullspec.md の行番号に対応（変更時は要更新）
  *   L3   intro paragraph ← selection コメント（安定）
  *   L7   TypeScript code block (〜L17)
  *   L32  Feature Table (〜L38) ← クリックしてハイライト対象
  *   L42  Mermaid Diagram (〜L50)
- *   L70  Modified Section paragraph (〜L71) ← diff 変更対象 + 孤立 selection コメント
+ *   L70  Modified Section paragraph (〜L71) ← 変更対象 + 孤立 selection コメント
  */
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -116,7 +120,7 @@ test.describe('フルスペック VRT', () => {
     }
   });
 
-  test('全要素（diff・コード・Mermaid・コメント複数・テーブルハイライト・selection・孤立コメント）縦長 VRT', async ({
+  test('全要素（コード・Mermaid・コメント複数・テーブルハイライト・selection・孤立コメント）縦長 VRT', async ({
     page,
   }) => {
     // 縦長の全要素スナップショットが収まる幅に設定
@@ -142,26 +146,14 @@ test.describe('フルスペック VRT', () => {
       },
     );
 
-    // ── 3. ファイルを変更して diff を生成 ─────────────────────────
+    // ── 3. ファイルを変更（孤立コメントの削除済みバッジを発生させる） ──
+    //   diff モードは ON にしない（diff の見た目検証は diff_vrt.test.ts）。
     writeFileSync(FIXTURE, FULLSPEC_MODIFIED, 'utf-8');
     await expect(page.locator('#content')).toContainText(CHANGED_LINE, {
       timeout: 8000,
     });
 
-    // ── 4. diff モードを有効化 ────────────────────────────────────
-    await page.locator('#btn-diff').click();
-    await expect(page.locator('#btn-diff')).toHaveClass(/active/, {
-      timeout: 3000,
-    });
-    await expect(page.locator('#content .diff-changed')).toBeVisible({
-      timeout: 5000,
-    });
-    // diff の unified ブロック（del/ins）が表示されるまで待機
-    await expect(page.locator('.diff-side').first()).toBeVisible({
-      timeout: 5000,
-    });
-
-    // ── 5. コメントパネルを開く ────────────────────────────────────
+    // ── 4. コメントパネルを開く ────────────────────────────────────
     await page.locator('#btn-comments').click();
     await expect(page.locator('#comments-panel.open')).toBeVisible({
       timeout: 3000,
@@ -175,7 +167,7 @@ test.describe('フルスペック VRT', () => {
       timeout: 3000,
     });
 
-    // ── 6. 縦長キャプチャのためレイアウトを展開 ──────────────────
+    // ── 5. 縦長キャプチャのためレイアウトを展開 ──────────────────
     // #main は flex:1 の scroll container。fullPage:true + window scroll では
     // #main 内部のコンテンツが viewport 分しか撮影されないため、
     // viewport 自体をドキュメント全高さに拡張して単一フレームで撮影する。
@@ -195,7 +187,7 @@ test.describe('フルスペック VRT', () => {
     );
     await page.setViewportSize({ width: 1600, height: docHeight });
 
-    // ── 7. VRT 安定化用 CSS を注入 ───────────────────────────────
+    // ── 6. VRT 安定化用 CSS を注入 ───────────────────────────────
     // アニメーションを初期フレームで停止し、トースト・接続ドットを固定表示
     await page.addStyleTag({
       content: `
@@ -216,13 +208,13 @@ test.describe('フルスペック VRT', () => {
       `,
     });
 
-    // ── 8. テーブルコメント（3 番目）をクリックしてハイライト ───
+    // ── 7. テーブルコメント（3 番目）をクリックしてハイライト ───
     await page.locator('.comment-item').nth(2).click();
     await expect(
       page.locator('#content .md-block[data-ls="32"].highlighted'),
     ).toBeVisible({ timeout: 2000 });
 
-    // ── 9. 縦長 VRT スクリーンショット（viewport = doc 高さ → 単一フレーム）
+    // ── 8. 縦長 VRT スクリーンショット（viewport = doc 高さ → 単一フレーム）
     await expect(page).toHaveScreenshot('fullspec-vrt.png', {
       maxDiffPixels: 800,
     });

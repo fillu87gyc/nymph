@@ -139,8 +139,8 @@ test.describe('フルスペック VRT', () => {
     await expect(page.locator('#content .diff-changed')).toBeVisible({
       timeout: 5000,
     });
-    // diff サイドパネルが表示されるまで待機
-    await expect(page.locator('.diff-side')).toBeVisible({ timeout: 5000 });
+    // diff サイドパネル（del/ins）が表示されるまで待機
+    await expect(page.locator('.diff-side').first()).toBeVisible({ timeout: 5000 });
 
     // ── 5. コメントパネルを開く ────────────────────────────────────
     await page.locator('#btn-comments').click();

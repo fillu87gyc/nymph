@@ -1,0 +1,10 @@
+sources:
+  - name: glossary
+    fetch:
+      cmd: ["cat", "tests/fixtures/dict/glossary.md"]
+    adapter: markdown
+    rules:
+      term: "h2:contains('ユビキタス言語') > h3"
+      definition: "term > p"
+dict:
+  out: ".nymph/dict.json"

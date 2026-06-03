@@ -45,6 +45,45 @@ async function findPort(start = 6276): Promise<number> {
 
 async function main() {
   const rawArgs = process.argv.slice(2);
+
+  // dict サブコマンド処理
+  if (rawArgs[0] === 'dict') {
+    const subArgs = rawArgs.slice(1);
+    if (subArgs[0] === 'build') {
+      const { buildDict } = await import('./dict/build.ts');
+      let configPath = 'nymph.yml';
+      let outPath: string | undefined;
+      let debug = false;
+      let debugDir: string | undefined;
+
+      for (let i = 1; i < subArgs.length; i++) {
+        const arg = subArgs[i];
+        if (arg === '--config' || arg === '-c') {
+          configPath = subArgs[++i];
+        } else if (arg === '--out' || arg === '-o') {
+          outPath = subArgs[++i];
+        } else if (arg === '--debug') {
+          debug = true;
+        } else if (arg === '--debug-dir') {
+          debugDir = subArgs[++i];
+        }
+      }
+
+      try {
+        const result = await buildDict({ configPath, outPath, debug, debugDir });
+        console.log(`dict build 完了: ${result.entries.length} エントリ`);
+      } catch (err) {
+        console.error(`エラー: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
+    } else {
+      console.error(`エラー: 不明な dict サブコマンド: ${subArgs[0] ?? ''}`);
+      console.error('  使用可能: nymph dict build');
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+
   let paths: string[] = [];
   let portOverride: number | null = null;
   let noOpen = !!process.env.NYMPH_NO_OPEN;

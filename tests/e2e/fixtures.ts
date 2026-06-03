@@ -49,9 +49,7 @@ async function pollUntilReady(url: string, timeoutMs = 20000): Promise<void> {
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   _workerServer: [
-    // Playwright requires the first arg to be an object destructuring pattern.
-    // biome-ignore lint/correctness/noEmptyPattern: required by Playwright fixture API
-    async ({}, use, workerInfo) => {
+    async ({ browserName: _browserName }, use, workerInfo) => {
       const port = BASE_PORT + workerInfo.workerIndex;
       const fixturePath = join(
         process.cwd(),

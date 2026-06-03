@@ -6,17 +6,19 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
+const ORIGINAL = readFileSync(
+  join(process.cwd(), 'tests/fixtures/sample.md'),
+  'utf-8',
+);
 
 // checkpoint → 1 行を編集 → diff ON、までを行う共通ヘルパ。
 // 'Some content here.' の中央の語だけを置換し、前後（'Some '/' here.'）を
 // 共通部分として残すことで、削除(−)・追加(+)両側に文字ハイライトが出る。
 async function enableDiffWithChange(
-  page: import('@playwright/test').Page,
+  page: Page,
+  fixturePath: string,
   replacement = 'Some XYZ here.',
 ) {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -25,7 +27,10 @@ async function enableDiffWithChange(
     'data-has-checkpoint',
     'true',
   );
-  writeFileSync(FIXTURE, ORIGINAL.replace('Some content here.', replacement));
+  writeFileSync(
+    fixturePath,
+    ORIGINAL.replace('Some content here.', replacement),
+  );
   await expect(page.locator('#content')).toContainText(replacement, {
     timeout: 5000,
   });
@@ -41,9 +46,9 @@ async function enableDiffWithChange(
   });
 }
 
-test.beforeEach(async ({ page }) => {
-  if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
-  writeFileSync(FIXTURE, ORIGINAL);
+test.beforeEach(async ({ page, fixturePath, commentsPath }) => {
+  if (existsSync(commentsPath)) rmSync(commentsPath);
+  writeFileSync(fixturePath, ORIGINAL);
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),
@@ -52,10 +57,10 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test.afterEach(() => {
-  writeFileSync(FIXTURE, ORIGINAL);
+test.afterEach(async ({ fixturePath, commentsPath }) => {
+  writeFileSync(fixturePath, ORIGINAL);
   try {
-    rmSync(COMMENTS_FILE);
+    rmSync(commentsPath);
   } catch {
     /* ignore */
   }
@@ -107,6 +112,7 @@ test.describe('チェックポイント', () => {
 test.describe('diff 表示', () => {
   test('チェックポイント設定後にファイルを変更すると変更ブロックが表示される', async ({
     page,
+    fixturePath,
   }) => {
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
@@ -115,7 +121,7 @@ test.describe('diff 表示', () => {
     );
 
     writeFileSync(
-      FIXTURE,
+      fixturePath,
       ORIGINAL.replace(
         'Some content here.',
         'Modified content here.\nExtra new line.',
@@ -140,10 +146,11 @@ test.describe('diff 表示', () => {
 
   test('diff ON のとき変更ブロックに diff-side-ins / diff-side-del が表示される', async ({
     page,
+    fixturePath,
   }) => {
     await page.locator('#btn-checkpoint').click();
     writeFileSync(
-      FIXTURE,
+      fixturePath,
       ORIGINAL.replace('Some content here.', 'Replaced content.'),
     );
     await expect(page.locator('#content')).toContainText('Replaced content', {
@@ -171,10 +178,11 @@ test.describe('diff 表示', () => {
 
   test('diff ON のとき diff-side-ins に追加行テキストが含まれる', async ({
     page,
+    fixturePath,
   }) => {
     await page.locator('#btn-checkpoint').click();
     writeFileSync(
-      FIXTURE,
+      fixturePath,
       ORIGINAL.replace('Some content here.', 'UNIQUE_INS_TEXT'),
     );
     await expect(page.locator('#content')).toContainText('UNIQUE_INS_TEXT', {
@@ -192,10 +200,13 @@ test.describe('diff 表示', () => {
     ).toContainText('UNIQUE_INS_TEXT');
   });
 
-  test('diff OFF にすると変更ブロックが消える', async ({ page }) => {
+  test('diff OFF にすると変更ブロックが消える', async ({
+    page,
+    fixturePath,
+  }) => {
     await page.locator('#btn-checkpoint').click();
     writeFileSync(
-      FIXTURE,
+      fixturePath,
       ORIGINAL.replace('Some content here.', 'Changed for diff off test.'),
     );
     await expect(page.locator('#content')).toContainText(
@@ -248,8 +259,9 @@ test.describe('diff 表示', () => {
 test.describe('diff の右マージン表示', () => {
   test('diff は本文ブロックの右側（右マージン）に配置され、中央や下に出ない', async ({
     page,
+    fixturePath,
   }) => {
-    await enableDiffWithChange(page);
+    await enableDiffWithChange(page, fixturePath);
 
     const block = page
       .locator('#content [data-testid="md-block"][data-diff-changed="true"]')
@@ -269,8 +281,9 @@ test.describe('diff の右マージン表示', () => {
 
   test('削除(−) が 追加(+) の上に積み重なる（git diff と同じ順序）', async ({
     page,
+    fixturePath,
   }) => {
-    await enableDiffWithChange(page);
+    await enableDiffWithChange(page, fixturePath);
 
     const del = page.locator('[data-testid="diff-side-del"]').first();
     const ins = page.locator('[data-testid="diff-side-ins"]').first();
@@ -284,8 +297,9 @@ test.describe('diff の右マージン表示', () => {
 
   test('変更行は 1 行に収まり、変更箇所だけ文字単位でハイライトされる（縦割れ回帰防止）', async ({
     page,
+    fixturePath,
   }) => {
-    await enableDiffWithChange(page);
+    await enableDiffWithChange(page, fixturePath);
 
     const delLine = page.locator('[data-testid="diff-del"]').first();
     await expect(delLine).toBeVisible();
@@ -307,12 +321,13 @@ test.describe('diff の右マージン表示', () => {
 
   test('複数行にわたる変更（箇条書きの追加）も 1 行ずつ積み重なって表示される', async ({
     page,
+    fixturePath,
   }) => {
     const before = '# Multi\n\n- ようこそ\n- ここは岐阜県です\n';
     const after =
       '# Multi\n\n- ようこそ\n- ここは\n- 水と山が綺麗な\n- 東海道新幹線が通る\n- 静岡県です\n';
     await page.setViewportSize({ width: 1400, height: 720 });
-    writeFileSync(FIXTURE, before);
+    writeFileSync(fixturePath, before);
     await page.goto('/');
     await expect(page.locator('#content')).toContainText('ここは岐阜県です', {
       timeout: 5000,
@@ -324,7 +339,7 @@ test.describe('diff の右マージン表示', () => {
       'true',
     );
 
-    writeFileSync(FIXTURE, after);
+    writeFileSync(fixturePath, after);
     await expect(page.locator('#content')).toContainText('東海道新幹線が通る', {
       timeout: 5000,
     });

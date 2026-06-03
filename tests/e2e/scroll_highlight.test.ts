@@ -6,17 +6,9 @@
  * 機能しなくなる。各テストはその回帰を検出する。
  */
 import { existsSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
-
-async function addCommentToBlock(
-  page: import('@playwright/test').Page,
-  selector: string,
-  text: string,
-) {
+async function addCommentToBlock(page: Page, selector: string, text: string) {
   const block = page.locator(selector).first();
   await block.hover();
   await block.locator('[data-testid="comment-btn"]').click();
@@ -29,8 +21,8 @@ async function addCommentToBlock(
   });
 }
 
-test.beforeEach(async ({ page }) => {
-  if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
+test.beforeEach(async ({ page, commentsPath }) => {
+  if (existsSync(commentsPath)) rmSync(commentsPath);
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),
@@ -39,9 +31,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test.afterEach(() => {
+test.afterEach(async ({ commentsPath }) => {
   try {
-    rmSync(COMMENTS_FILE);
+    rmSync(commentsPath);
   } catch {
     /* ignore */
   }

@@ -107,7 +107,7 @@ jobs:
             local missing=0
             for snap in "$@"; do [ -f "$snap" ] || missing=1; done
             if [ "$missing" = "1" ]; then
-              bunx playwright test "$testfile" --update-snapshots
+              bunx playwright test --config playwright.vrt.config.ts "$testfile" --update-snapshots
               git add "${testfile}-snapshots"
               NEED_PUSH=1
             fi
@@ -124,6 +124,7 @@ jobs:
             git push origin HEAD
           fi
       - run: bun run test:e2e
+      - run: bun run test:e2e:vrt
       - uses: actions/upload-artifact@v7
         if: always()
         with:

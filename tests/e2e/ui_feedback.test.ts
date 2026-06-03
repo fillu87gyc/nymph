@@ -1,14 +1,19 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
+const ORIGINAL = readFileSync(
+  join(process.cwd(), 'tests/fixtures/sample.md'),
+  'utf-8',
+);
 
-test.beforeEach(async ({ page }) => {
-  if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
-  writeFileSync(FIXTURE, ORIGINAL);
+test.beforeEach(async ({ page, fixturePath, commentsPath }) => {
+  try {
+    rmSync(commentsPath);
+  } catch {
+    /* ignore */
+  }
+  writeFileSync(fixturePath, ORIGINAL);
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),
@@ -17,10 +22,10 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test.afterEach(() => {
-  writeFileSync(FIXTURE, ORIGINAL);
+test.afterEach(async ({ fixturePath, commentsPath }) => {
+  writeFileSync(fixturePath, ORIGINAL);
   try {
-    rmSync(COMMENTS_FILE);
+    rmSync(commentsPath);
   } catch {
     /* ignore */
   }

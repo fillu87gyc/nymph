@@ -9,11 +9,12 @@
  */
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
+const ORIGINAL = readFileSync(
+  join(process.cwd(), 'tests/fixtures/sample.md'),
+  'utf-8',
+);
 
 // VRT 安定化: アニメーション停止 + 可変表示（時刻・コミットハッシュ等）を隠す
 const STABILIZE = `
@@ -31,11 +32,12 @@ const STABILIZE = `
 // diff を ON にすることで（本文＝変更後の表示）スクリーンショットを安定させる。
 async function produceDiff(
   page: Page,
+  fixturePath: string,
   before: string,
   after: string,
   afterMarker: string,
 ) {
-  writeFileSync(FIXTURE, before, 'utf-8');
+  writeFileSync(fixturePath, before, 'utf-8');
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),
@@ -50,7 +52,7 @@ async function produceDiff(
     { timeout: 5000 },
   );
 
-  writeFileSync(FIXTURE, after, 'utf-8');
+  writeFileSync(fixturePath, after, 'utf-8');
   await expect(page.locator('#content')).toContainText(afterMarker, {
     timeout: 8000,
   });
@@ -71,18 +73,18 @@ async function produceDiff(
 }
 
 test.describe('diff 右マージン表示 VRT', () => {
-  test.beforeEach(() => {
+  test.beforeEach(async ({ commentsPath }) => {
     try {
-      rmSync(COMMENTS_FILE);
+      rmSync(commentsPath);
     } catch {
       /* ignore */
     }
   });
 
-  test.afterEach(() => {
-    writeFileSync(FIXTURE, ORIGINAL, 'utf-8');
+  test.afterEach(async ({ fixturePath, commentsPath }) => {
+    writeFileSync(fixturePath, ORIGINAL, 'utf-8');
     try {
-      rmSync(COMMENTS_FILE);
+      rmSync(commentsPath);
     } catch {
       /* ignore */
     }
@@ -90,11 +92,13 @@ test.describe('diff 右マージン表示 VRT', () => {
 
   test('1 行の変更: 右マージンに 削除(−)→追加(+) が積み重なり、変更箇所だけハイライト', async ({
     page,
+    fixturePath,
   }) => {
     // 右マージンの aside（幅 260px）が収まる幅
     await page.setViewportSize({ width: 1400, height: 360 });
     await produceDiff(
       page,
+      fixturePath,
       '# Diff VRT\n\nThe quick brown fox jumps over the dog.\n',
       '# Diff VRT\n\nThe quick red fox leaps over the dog.\n',
       'leaps over',
@@ -106,10 +110,12 @@ test.describe('diff 右マージン表示 VRT', () => {
 
   test('複数行の変更: 箇条書きの追加でも 1 行ずつ積み重なって表示される', async ({
     page,
+    fixturePath,
   }) => {
     await page.setViewportSize({ width: 1400, height: 480 });
     await produceDiff(
       page,
+      fixturePath,
       '# Diff VRT\n\n- ようこそ\n- ここは岐阜県です\n',
       '# Diff VRT\n\n- ようこそ\n- ここは\n- 水と山が綺麗な\n- 東海道新幹線が通る\n- 静岡県です\n',
       '東海道新幹線が通る',

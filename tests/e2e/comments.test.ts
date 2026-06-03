@@ -1,11 +1,8 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
-
-async function addComment(page: import('@playwright/test').Page, text: string) {
+async function addComment(page: Page, text: string) {
   const tableBlock = page
     .locator('#content [data-testid="md-block"][data-block-type="table"]')
     .first();
@@ -20,8 +17,8 @@ async function addComment(page: import('@playwright/test').Page, text: string) {
   });
 }
 
-test.beforeEach(async ({ page }) => {
-  if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
+test.beforeEach(async ({ page, commentsPath }) => {
+  if (existsSync(commentsPath)) rmSync(commentsPath);
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),
@@ -30,9 +27,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test.afterEach(() => {
+test.afterEach(async ({ commentsPath }) => {
   try {
-    rmSync(COMMENTS_FILE);
+    rmSync(commentsPath);
   } catch {
     /* ignore */
   }
@@ -74,12 +71,15 @@ test.describe('コメントの削除', () => {
     await expect(page.locator('#no-comments')).toBeVisible();
   });
 
-  test('削除後にコメントファイルから除去される', async ({ page }) => {
+  test('削除後にコメントファイルから除去される', async ({
+    page,
+    commentsPath,
+  }) => {
     await addComment(page, 'to delete');
     await page.locator('[data-testid="c-del"]').first().click();
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0);
-    if (existsSync(COMMENTS_FILE)) {
-      const saved = JSON.parse(readFileSync(COMMENTS_FILE, 'utf-8'));
+    if (existsSync(commentsPath)) {
+      const saved = JSON.parse(readFileSync(commentsPath, 'utf-8'));
       expect(saved).toHaveLength(0);
     }
   });
@@ -346,14 +346,8 @@ test.describe('複数コメント', () => {
 test.describe('削除済みコメントの表示', () => {
   test('対象テキストが存在しない selection コメントに「削除済み」バッジが表示される', async ({
     page,
+    commentsPath,
   }) => {
-    // /files でアクティブファイルのフルパスを取得（reuseExistingServer で別ファイルの可能性あり）
-    const filesRes = await page.request.get('/files');
-    const { activeFile } = await filesRes.json();
-    const activeCommentsFile = activeFile
-      ? `${activeFile}.comments.json`
-      : COMMENTS_FILE;
-
     const orphanedComment = [
       {
         id: 1,
@@ -365,7 +359,7 @@ test.describe('削除済みコメントの表示', () => {
         text: '孤立コメント',
       },
     ];
-    writeFileSync(activeCommentsFile, JSON.stringify(orphanedComment));
+    writeFileSync(commentsPath, JSON.stringify(orphanedComment));
 
     await page.reload();
     await expect(
@@ -385,12 +379,6 @@ test.describe('削除済みコメントの表示', () => {
     await expect(page.locator('[data-testid="c-deleted"]')).toContainText(
       '削除済み',
     );
-
-    try {
-      rmSync(activeCommentsFile);
-    } catch {
-      /* ignore */
-    }
   });
 
   test('対象ブロックが存在する block コメントには「削除済み」バッジが表示されない', async ({

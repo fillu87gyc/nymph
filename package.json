@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:e2e": "playwright test tests/e2e",
+    "test:e2e": "playwright test",
+    "test:e2e:vrt": "playwright test --config playwright.vrt.config.ts",
     "lint": "biome check --diagnostic-level=error src/ tests/",
     "fmt": "biome format --write src/ tests/",
     "fmt:check": "biome format --diagnostic-level=error src/ tests/"

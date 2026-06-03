@@ -1,9 +1,11 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
+const ORIGINAL = readFileSync(
+  join(process.cwd(), 'tests/fixtures/sample.md'),
+  'utf-8',
+);
 
 test.describe('smoke: 起動 → コンテンツ表示', () => {
   test('ページが正常に読み込まれる', async ({ page }) => {
@@ -58,11 +60,9 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
 });
 
 test.describe('コメント: 追加 → 保存 → リロード後復元', () => {
-  const commentsFile = `${FIXTURE}.comments.json`;
-
-  test.afterEach(() => {
+  test.afterEach(async ({ commentsPath }) => {
     try {
-      rmSync(commentsFile);
+      rmSync(commentsPath);
     } catch {
       /* ignore */
     }
@@ -109,18 +109,21 @@ test.describe('コメント: 追加 → 保存 → リロード後復元', () =>
 });
 
 test.describe('SSE: ファイル変更で再描画', () => {
-  test.afterEach(() => {
-    writeFileSync(FIXTURE, ORIGINAL);
+  test.afterEach(async ({ fixturePath }) => {
+    writeFileSync(fixturePath, ORIGINAL);
   });
 
-  test('外部ファイル書き換えでコンテンツが更新される', async ({ page }) => {
+  test('外部ファイル書き換えでコンテンツが更新される', async ({
+    page,
+    fixturePath,
+  }) => {
     await page.goto('/');
     await expect(page.locator('#content h1')).toContainText('Sample', {
       timeout: 5000,
     });
 
     // Modify the file externally
-    writeFileSync(FIXTURE, '# Updated Title\n\nNew content.\n');
+    writeFileSync(fixturePath, '# Updated Title\n\nNew content.\n');
 
     // Wait for SSE reload
     await expect(page.locator('#content h1')).toContainText('Updated Title', {

@@ -18,11 +18,12 @@
  */
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const ORIGINAL = readFileSync(FIXTURE, 'utf-8');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
+const ORIGINAL = readFileSync(
+  join(process.cwd(), 'tests/fixtures/sample.md'),
+  'utf-8',
+);
 
 const FULLSPEC_PATH = join(process.cwd(), 'tests/fixtures/fullspec.md');
 const FULLSPEC = readFileSync(FULLSPEC_PATH, 'utf-8');
@@ -106,15 +107,15 @@ const PRESEEDED_COMMENTS = JSON.stringify(
 );
 
 test.describe('フルスペック VRT', () => {
-  test.beforeEach(() => {
-    writeFileSync(FIXTURE, FULLSPEC, 'utf-8');
-    writeFileSync(COMMENTS_FILE, PRESEEDED_COMMENTS, 'utf-8');
+  test.beforeEach(async ({ fixturePath, commentsPath }) => {
+    writeFileSync(fixturePath, FULLSPEC, 'utf-8');
+    writeFileSync(commentsPath, PRESEEDED_COMMENTS, 'utf-8');
   });
 
-  test.afterEach(() => {
-    writeFileSync(FIXTURE, ORIGINAL, 'utf-8');
+  test.afterEach(async ({ fixturePath, commentsPath }) => {
+    writeFileSync(fixturePath, ORIGINAL, 'utf-8');
     try {
-      rmSync(COMMENTS_FILE);
+      rmSync(commentsPath);
     } catch {
       /* ignore */
     }
@@ -122,6 +123,7 @@ test.describe('フルスペック VRT', () => {
 
   test('全要素（コード・Mermaid・コメント複数・テーブルハイライト・selection・孤立コメント）縦長 VRT', async ({
     page,
+    fixturePath,
   }) => {
     // 縦長の全要素スナップショットが収まる幅に設定
     await page.setViewportSize({ width: 1600, height: 900 });
@@ -151,7 +153,7 @@ test.describe('フルスペック VRT', () => {
 
     // ── 3. ファイルを変更（孤立コメントの削除済みバッジを発生させる） ──
     //   diff モードは ON にしない（diff の見た目検証は diff_vrt.test.ts）。
-    writeFileSync(FIXTURE, FULLSPEC_MODIFIED, 'utf-8');
+    writeFileSync(fixturePath, FULLSPEC_MODIFIED, 'utf-8');
     await expect(page.locator('#content')).toContainText(CHANGED_LINE, {
       timeout: 8000,
     });

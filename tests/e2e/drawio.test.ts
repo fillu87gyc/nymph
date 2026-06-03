@@ -5,7 +5,7 @@
  * 変更した。ref が null の場合は download が静かに失敗する。
  * モーダルの開閉、コード表示、download トリガーをカバーする。
  */
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');

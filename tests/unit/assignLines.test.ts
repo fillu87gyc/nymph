@@ -12,10 +12,10 @@ describe('assignLines', () => {
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
     const paras = blocks.filter((t) => t.type === 'paragraph');
-    expect(paras[0].ls).toBe(1);
-    expect(paras[0].le).toBe(1);
-    expect(paras[1].ls).toBe(3);
-    expect(paras[1].le).toBe(3);
+    expect(paras[0].lineStart).toBe(1);
+    expect(paras[0].lineEnd).toBe(1);
+    expect(paras[1].lineStart).toBe(3);
+    expect(paras[1].lineEnd).toBe(3);
   });
 
   test('見出しに正しい行番号が付く', () => {
@@ -24,8 +24,8 @@ describe('assignLines', () => {
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
     const heading = blocks.find((t) => t.type === 'heading');
-    expect(heading?.ls).toBe(1);
-    expect(heading?.le).toBe(1);
+    expect(heading?.lineStart).toBe(1);
+    expect(heading?.lineEnd).toBe(1);
   });
 
   test('複数行コードブロックの行番号', () => {
@@ -34,8 +34,8 @@ describe('assignLines', () => {
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
     const code = blocks.find((t) => t.type === 'code');
-    expect(code?.ls).toBe(3);
-    expect(code?.le).toBe(7);
+    expect(code?.lineStart).toBe(3);
+    expect(code?.lineEnd).toBe(7);
   });
 
   test('空ソースで何もしない', () => {
@@ -51,7 +51,7 @@ describe('assignLines', () => {
     assignLines(src, tokens);
     const blocks = getBlockTokensDFS(tokens);
     const table = blocks.find((t) => t.type === 'table');
-    expect(table?.ls).toBe(1);
-    expect(table?.le).toBe(3);
+    expect(table?.lineStart).toBe(1);
+    expect(table?.lineEnd).toBe(3);
   });
 });

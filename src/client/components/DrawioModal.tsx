@@ -41,10 +41,10 @@ export function DrawioModal({
 </mxfile>`;
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `mermaid-${Date.now()}.drawio`;
-    a.click();
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = `mermaid-${Date.now()}.drawio`;
+    downloadLink.click();
     // click 直後に同期 revoke するとブラウザによってはダウンロードタスクが
     // キューされる前に object URL が無効化され、保存が中断されることがある。
     // 次マイクロタスク以降へ遅延させてダウンロード開始を確実にする。

@@ -34,11 +34,11 @@ describe('parseBlocks', () => {
     expect(blocks).toHaveLength(2);
   });
 
-  test('各ブロックに ls / le が設定される', () => {
+  test('各ブロックに lineStart / lineEnd が設定される', () => {
     const blocks = parseBlocks('# H1\n\nParagraph');
     for (const b of blocks) {
-      expect(b.ls).toBeTypeOf('number');
-      expect(b.le).toBeTypeOf('number');
+      expect(b.lineStart).toBeTypeOf('number');
+      expect(b.lineEnd).toBeTypeOf('number');
     }
   });
 

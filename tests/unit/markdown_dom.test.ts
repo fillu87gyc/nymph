@@ -1,10 +1,14 @@
 import { describe, expect, test, vi } from 'vitest';
 import { highlightSelectionText } from '../../src/client/lib/markdown.ts';
 
-function makeBlock(ls: number, le: number, text = 'sample text'): HTMLElement {
+function makeBlock(
+  lineStart: number,
+  lineEnd: number,
+  text = 'sample text',
+): HTMLElement {
   const el = document.createElement('div');
-  el.dataset.ls = String(ls);
-  el.dataset.le = String(le);
+  el.dataset.lineStart = String(lineStart);
+  el.dataset.lineEnd = String(lineEnd);
   el.textContent = text;
   return el;
 }

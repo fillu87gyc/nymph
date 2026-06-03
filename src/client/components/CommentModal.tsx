@@ -33,9 +33,9 @@ export function CommentModal({
   if (!open || !pending) return null;
 
   const lineLabel =
-    pending.ls === pending.le
-      ? `L${pending.ls}`
-      : `L${pending.ls}–${pending.le}`;
+    pending.lineStart === pending.lineEnd
+      ? `L${pending.lineStart}`
+      : `L${pending.lineStart}–${pending.lineEnd}`;
   const short = displayCtx.length <= 20 ? `「${displayCtx}」` : null;
   const headText =
     editingId !== null

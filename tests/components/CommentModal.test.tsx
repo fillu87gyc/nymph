@@ -5,8 +5,8 @@ import { CommentModal } from '../../src/client/components/CommentModal.tsx';
 import type { PendingComment } from '../../src/client/types.ts';
 
 const pending: PendingComment = {
-  ls: 5,
-  le: 7,
+  lineStart: 5,
+  lineEnd: 7,
   block_type: 'paragraph',
   context: 'Some context',
   selection_offset: null,
@@ -112,11 +112,11 @@ describe('CommentModal', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  test('ライン範囲が表示される (ls != le)', () => {
+  test('ライン範囲が表示される (lineStart != lineEnd)', () => {
     render(
       <CommentModal
         open={true}
-        pending={{ ...pending, ls: 3, le: 8 }}
+        pending={{ ...pending, lineStart: 3, lineEnd: 8 }}
         editingId={null}
         displayCtx="this context is longer than twenty chars"
         initialText=""

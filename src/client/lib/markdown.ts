@@ -3,8 +3,8 @@ import type { MarkedToken, Token } from 'marked';
 // marked のトークンに行番号メタ（ソース上の開始/終了行）を後付けするための拡張。
 // marked 自体は行番号を持たないため assignLines / getBlockTokensDFS で付与する。
 export interface LineMeta {
-  ls: number;
-  le: number;
+  lineStart: number;
+  lineEnd: number;
   __nested?: boolean;
 }
 
@@ -47,8 +47,8 @@ export function assignLines(src: string, tokens: Token[]) {
     if (idx === -1) continue;
     const before = src.substring(0, idx);
     const meta = t as MarkedToken & LineMeta;
-    meta.ls = before.split('\n').length;
-    meta.le = meta.ls + lineCount(t.raw) - 1;
+    meta.lineStart = before.split('\n').length;
+    meta.lineEnd = meta.lineStart + lineCount(t.raw) - 1;
     from = idx + t.raw.length;
 
     if (t.type === 'blockquote' && t.tokens) {
@@ -56,19 +56,19 @@ export function assignLines(src: string, tokens: Token[]) {
         .split('\n')
         .map((l) => l.replace(/^>[ ]?/, ''))
         .join('\n');
-      assignLinesInner(innerSrc, t.tokens, meta.ls);
+      assignLinesInner(innerSrc, t.tokens, meta.lineStart);
     }
     if (t.type === 'list' && t.items) {
       for (const item of t.items) {
         if (!item.tokens || !item.raw) continue;
         const iIdx = src.indexOf(item.raw, 0);
         if (iIdx === -1) continue;
-        const iLs = src.substring(0, iIdx).split('\n').length;
+        const itemLineStart = src.substring(0, iIdx).split('\n').length;
         const itemInner = item.raw
           .split('\n')
           .map((l, i) => (i === 0 ? l.replace(/^[-*+\d.]+\s+/, '') : l))
           .join('\n');
-        assignLinesInner(itemInner, item.tokens, iLs);
+        assignLinesInner(itemInner, item.tokens, itemLineStart);
       }
     }
   }
@@ -86,8 +86,8 @@ function assignLinesInner(
     if (idx === -1) continue;
     const before = innerSrc.substring(0, idx);
     const meta = t as Token & LineMeta;
-    meta.ls = lineOffset + before.split('\n').length - 1;
-    meta.le = meta.ls + lineCount(t.raw) - 1;
+    meta.lineStart = lineOffset + before.split('\n').length - 1;
+    meta.lineEnd = meta.lineStart + lineCount(t.raw) - 1;
     from = idx + t.raw.length;
   }
 }
@@ -173,27 +173,27 @@ export function findTextRange(
 
 export function highlightSelectionText(
   blocks: HTMLElement[],
-  ls: number,
-  _le: number,
+  lineStart: number,
+  _lineEnd: number,
   searchText: string,
   selectionOffset: number | null,
-  onFallback: (ls: number) => void,
+  onFallback: (lineStart: number) => void,
 ): void {
   const range = findTextRange(blocks, searchText, selectionOffset);
   if (!range) return;
 
   try {
     // CSS Custom Highlight API は未対応ブラウザでは undefined になりうる。
-    const hl = CSS.highlights as HighlightRegistry | undefined;
-    if (hl) {
-      const h = new Highlight(range);
-      h.priority = 1;
-      hl.set('text-highlight', h);
-      setTimeout(() => hl.delete('text-highlight'), 2000);
+    const highlightRegistry = CSS.highlights as HighlightRegistry | undefined;
+    if (highlightRegistry) {
+      const highlight = new Highlight(range);
+      highlight.priority = 1;
+      highlightRegistry.set('text-highlight', highlight);
+      setTimeout(() => highlightRegistry.delete('text-highlight'), 2000);
     } else {
-      onFallback(ls);
+      onFallback(lineStart);
     }
   } catch {
-    onFallback(ls);
+    onFallback(lineStart);
   }
 }

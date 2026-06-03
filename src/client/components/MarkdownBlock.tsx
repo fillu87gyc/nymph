@@ -47,8 +47,8 @@ function renderCharDiff(
 }
 
 type AddCommentCb = (
-  ls: number,
-  le: number,
+  lineStart: number,
+  lineEnd: number,
   displayCtx: string,
   blockType: string,
   context: Comment['context'],
@@ -129,8 +129,8 @@ export function MarkdownBlock({
       className={styles.block}
       data-testid="md-block"
       data-block="true"
-      data-ls={block.ls}
-      data-le={block.le}
+      data-line-start={block.lineStart}
+      data-line-end={block.lineEnd}
       data-block-type={block.type}
       data-has-comment={String(hasComment)}
       data-diff-changed={String(isDiffChanged)}
@@ -143,8 +143,8 @@ export function MarkdownBlock({
           aria-label="コメント"
           onClick={() =>
             onAddComment(
-              block.ls,
-              block.le,
+              block.lineStart,
+              block.lineEnd,
               block.commentContext.displayCtx,
               block.type,
               block.commentContext.context,

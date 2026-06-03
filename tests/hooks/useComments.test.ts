@@ -7,16 +7,16 @@ import type { Comment, PendingComment } from '../../src/client/types.ts';
 
 const mockComment: Comment = {
   id: 1,
-  ls: 2,
-  le: 4,
+  lineStart: 2,
+  lineEnd: 4,
   block_type: 'paragraph',
   context: 'test context',
   text: 'test comment',
 };
 
 const pending: PendingComment = {
-  ls: 2,
-  le: 4,
+  lineStart: 2,
+  lineEnd: 4,
   block_type: 'paragraph',
   context: 'test context',
   selection_offset: null,
@@ -103,17 +103,23 @@ describe('useComments', () => {
     expect(result.current.nextId).toBe(2);
   });
 
-  test('addComment は ls で昇順ソートされる', async () => {
+  test('addComment は lineStart で昇順ソートされる', async () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() =>
-      result.current.addComment({ ...pending, ls: 10, le: 10 }, 'second'),
+      result.current.addComment(
+        { ...pending, lineStart: 10, lineEnd: 10 },
+        'second',
+      ),
     );
     await act(() =>
-      result.current.addComment({ ...pending, ls: 3, le: 3 }, 'first'),
+      result.current.addComment(
+        { ...pending, lineStart: 3, lineEnd: 3 },
+        'first',
+      ),
     );
-    expect(result.current.comments[0].ls).toBe(3);
-    expect(result.current.comments[1].ls).toBe(10);
+    expect(result.current.comments[0].lineStart).toBe(3);
+    expect(result.current.comments[1].lineStart).toBe(10);
   });
 
   test('addComment に selection_offset がある場合はコメントに含まれる', async () => {
@@ -160,7 +166,9 @@ describe('useComments', () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'a'));
-    await act(() => result.current.addComment({ ...pending, ls: 5 }, 'b'));
+    await act(() =>
+      result.current.addComment({ ...pending, lineStart: 5 }, 'b'),
+    );
     await act(() => result.current.clearAll());
     expect(result.current.comments).toHaveLength(0);
     expect(result.current.nextId).toBe(1);

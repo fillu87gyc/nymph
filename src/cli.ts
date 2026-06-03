@@ -51,18 +51,18 @@ async function main() {
   const fileArgs: string[] = [];
 
   for (let i = 0; i < rawArgs.length; i++) {
-    const a = rawArgs[i];
-    if (a === '-v' || a === '--version') {
+    const arg = rawArgs[i];
+    if (arg === '-v' || arg === '--version') {
       console.log(VERSION);
       process.exit(0);
     }
-    if (a === '-h' || a === '--help') {
+    if (arg === '-h' || arg === '--help') {
       process.stdout.write(HELP);
       process.exit(0);
     }
-    if (a === '--no-open') {
+    if (arg === '--no-open') {
       noOpen = true;
-    } else if (a === '-p' || a === '--port') {
+    } else if (arg === '-p' || arg === '--port') {
       const next = rawArgs[++i];
       const n = Number(next);
       if (!next || Number.isNaN(n) || n < 1 || n > 65535) {
@@ -70,30 +70,30 @@ async function main() {
         process.exit(1);
       }
       portOverride = n;
-    } else if (a.startsWith('-')) {
-      console.error(`エラー: 不明なオプション: ${a}`);
+    } else if (arg.startsWith('-')) {
+      console.error(`エラー: 不明なオプション: ${arg}`);
       console.error('  nymph --help でヘルプを表示');
       process.exit(1);
     } else {
-      fileArgs.push(a);
+      fileArgs.push(arg);
     }
   }
 
   if (fileArgs.length > 0) {
-    for (const a of fileArgs) {
-      const abs = resolve(a);
+    for (const filePath of fileArgs) {
+      const abs = resolve(filePath);
       if (existsSync(abs) && abs.endsWith('.md')) {
         paths.push(abs);
       } else {
         // already-expanded glob from shell or directory
-        const glob = new Glob(a);
+        const glob = new Glob(filePath);
         const expanded: string[] = [];
         for await (const f of glob.scan('.')) {
           if (f.endsWith('.md')) expanded.push(resolve(f));
         }
         if (expanded.length > 0) paths.push(...expanded.sort());
         else if (!paths.length) {
-          const single = resolve(a);
+          const single = resolve(filePath);
           if (existsSync(single)) paths.push(single);
         }
       }

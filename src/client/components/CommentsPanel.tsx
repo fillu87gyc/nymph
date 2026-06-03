@@ -38,11 +38,11 @@ export function CommentsPanel({
 
     function onDrag(ev: MouseEvent) {
       const maxH = Math.floor(window.innerHeight * 0.8);
-      const h = Math.max(
+      const newHeight = Math.max(
         PANEL_MIN_H,
         Math.min(maxH, startH + (startY - ev.clientY)),
       );
-      setHeight(h);
+      setHeight(newHeight);
     }
     function stopDrag() {
       document.removeEventListener('mousemove', onDrag);
@@ -94,7 +94,10 @@ export function CommentsPanel({
           </li>
         ) : (
           comments.map((c) => {
-            const range = c.ls === c.le ? `L${c.ls}` : `L${c.ls}–${c.le}`;
+            const range =
+              c.lineStart === c.lineEnd
+                ? `L${c.lineStart}`
+                : `L${c.lineStart}–${c.lineEnd}`;
             const isOrphaned = orphanedIds?.has(c.id) ?? false;
             return (
               <li

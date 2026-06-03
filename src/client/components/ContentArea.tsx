@@ -14,8 +14,8 @@ interface ContentAreaProps {
   highlightedBlockLs: number | null;
   welcomeMsg?: string;
   onAddComment: (
-    ls: number,
-    le: number,
+    lineStart: number,
+    lineEnd: number,
     displayCtx: string,
     blockType: string,
     context: Comment['context'],
@@ -62,7 +62,11 @@ export function ContentArea({
   const hasCommentSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     for (const block of blocks) {
-      if (comments.some((c) => c.ls <= block.le && c.le >= block.ls)) {
+      if (
+        comments.some(
+          (c) => c.lineStart <= block.lineEnd && c.lineEnd >= block.lineStart,
+        )
+      ) {
         set.add(block.key);
       }
     }
@@ -95,8 +99,8 @@ export function ContentArea({
           g.inserts.some(
             (l) =>
               l.n != null &&
-              l.n >= block.ls &&
-              l.n <= block.le &&
+              l.n >= block.lineStart &&
+              l.n <= block.lineEnd &&
               l.content.trim() !== '',
           )
         ) {
@@ -120,10 +124,10 @@ export function ContentArea({
 
     const orphaned = new Set<number>();
 
-    // Block-level comments: orphaned if no block starts at c.ls
+    // Block-level comments: orphaned if no block starts at c.lineStart
     for (const c of comments) {
       if (c.block_type === 'selection') continue;
-      const found = blocks.some((b) => b.ls === c.ls);
+      const found = blocks.some((b) => b.lineStart === c.lineStart);
       if (!found) orphaned.add(c.id);
     }
 
@@ -141,9 +145,9 @@ export function ContentArea({
       const blockEls = Array.from(
         container.querySelectorAll<HTMLElement>('[data-block="true"]'),
       ).filter((el) => {
-        const bls = +(el.dataset.ls ?? 0);
-        const ble = +(el.dataset.le ?? 0);
-        return bls <= c.le && ble >= c.ls;
+        const blockLineStart = +(el.dataset.lineStart ?? 0);
+        const blockLineEnd = +(el.dataset.lineEnd ?? 0);
+        return blockLineStart <= c.lineEnd && blockLineEnd >= c.lineStart;
       });
       const range = findTextRange(
         blockEls,
@@ -286,7 +290,7 @@ export function ContentArea({
             key={block.key}
             block={block}
             hasComment={hasCommentSet.has(block.key)}
-            highlighted={highlightedBlockLs === block.ls}
+            highlighted={highlightedBlockLs === block.lineStart}
             diffGroups={diffGroupsMap.get(block.key) ?? []}
             diffMode={diffMode}
             onAddComment={onAddComment}

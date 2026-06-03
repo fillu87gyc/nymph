@@ -4,8 +4,8 @@ import styles from './SelectionPopup.module.css';
 interface SelectionPopupProps {
   contentRef: React.RefObject<HTMLElement | null>;
   onComment: (
-    ls: number,
-    le: number,
+    lineStart: number,
+    lineEnd: number,
     ctx: string,
     selectionOffset: number | null,
   ) => void;
@@ -16,8 +16,8 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
   const [pos, setPos] = useState({ left: 0, top: 0 });
   const popupRef = useRef<HTMLDivElement>(null);
   const selectionRef = useRef<{
-    ls: number;
-    le: number;
+    lineStart: number;
+    lineEnd: number;
     ctx: string;
     offset: number | null;
   } | null>(null);
@@ -61,8 +61,8 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
     const endBlock = toBlock(range.endContainer);
     // 属性欠落時は NaN にして「不正な行番号」を明示する（+'' の 0 だと
     // 1 始まりの行番号と衝突して欠落を握り潰してしまうため Number() を使う）。
-    const ls = startBlock ? Number(startBlock.dataset.ls) : 1;
-    const le = endBlock ? Number(endBlock.dataset.le) : ls;
+    const lineStart = startBlock ? Number(startBlock.dataset.lineStart) : 1;
+    const lineEnd = endBlock ? Number(endBlock.dataset.lineEnd) : lineStart;
     const ctx =
       selectedText.length > 300
         ? `${selectedText.slice(0, 300)}…`
@@ -87,7 +87,7 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
       }
     }
 
-    selectionRef.current = { ls, le, ctx, offset: selectionOffset };
+    selectionRef.current = { lineStart, lineEnd, ctx, offset: selectionOffset };
 
     setVisible(true);
     requestAnimationFrame(() => {
@@ -123,7 +123,7 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
     if (!s) return;
     hide();
     window.getSelection()?.removeAllRanges();
-    onComment(s.ls, s.le, s.ctx, s.offset);
+    onComment(s.lineStart, s.lineEnd, s.ctx, s.offset);
   }
 
   if (!visible) return null;

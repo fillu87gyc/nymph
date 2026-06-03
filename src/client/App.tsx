@@ -117,10 +117,10 @@ export function App() {
     setAnchorPopup({ comment: c, x, y });
   }
 
-  const flashBlockHighlight = useCallback((ls: number) => {
-    setHighlightedBlockLs(ls);
+  const flashBlockHighlight = useCallback((lineStart: number) => {
+    setHighlightedBlockLs(lineStart);
     setTimeout(
-      () => setHighlightedBlockLs((prev) => (prev === ls ? null : prev)),
+      () => setHighlightedBlockLs((prev) => (prev === lineStart ? null : prev)),
       1400,
     );
   }, []);
@@ -132,10 +132,11 @@ export function App() {
       const blocksInRange: HTMLElement[] = [];
 
       for (const el of map.values()) {
-        const bls = +(el.dataset.ls ?? 0);
-        const ble = +(el.dataset.le ?? 0);
-        if (bls === c.ls) targetEl = el;
-        if (bls <= c.le && ble >= c.ls) blocksInRange.push(el);
+        const blockLineStart = +(el.dataset.lineStart ?? 0);
+        const blockLineEnd = +(el.dataset.lineEnd ?? 0);
+        if (blockLineStart === c.lineStart) targetEl = el;
+        if (blockLineStart <= c.lineEnd && blockLineEnd >= c.lineStart)
+          blocksInRange.push(el);
       }
 
       if (!targetEl) return;
@@ -144,14 +145,14 @@ export function App() {
       if (c.block_type === 'selection' && typeof c.context === 'string') {
         highlightSelectionText(
           blocksInRange,
-          c.ls,
-          c.le,
+          c.lineStart,
+          c.lineEnd,
           c.context,
           c.selection_offset ?? null,
           flashBlockHighlight,
         );
       } else {
-        flashBlockHighlight(c.ls);
+        flashBlockHighlight(c.lineStart);
       }
     },
     [flashBlockHighlight],
@@ -159,16 +160,16 @@ export function App() {
 
   // Comment modal
   function openCommentModal(
-    ls: number,
-    le: number,
+    lineStart: number,
+    lineEnd: number,
     displayCtx: string,
     blockType: string,
     context: Comment['context'],
     selectionOffset: number | null,
   ) {
     setPending({
-      ls,
-      le,
+      lineStart,
+      lineEnd,
       block_type: blockType,
       context,
       selection_offset: selectionOffset,
@@ -181,8 +182,8 @@ export function App() {
 
   function openEditModal(c: Comment) {
     setPending({
-      ls: c.ls,
-      le: c.le,
+      lineStart: c.lineStart,
+      lineEnd: c.lineEnd,
       block_type: c.block_type,
       context: c.context,
       selection_offset: c.selection_offset ?? null,
@@ -209,14 +210,14 @@ export function App() {
   }
 
   function handleSelectionComment(
-    ls: number,
-    le: number,
+    lineStart: number,
+    lineEnd: number,
     ctx: string,
     selectionOffset: number | null,
   ) {
     setPending({
-      ls,
-      le,
+      lineStart,
+      lineEnd,
       block_type: 'selection',
       context: ctx,
       selection_offset: selectionOffset,
@@ -239,8 +240,8 @@ export function App() {
       comment_count: comments.length,
       comments: comments.map((c, i) => ({
         id: i + 1,
-        line_start: c.ls,
-        line_end: c.le,
+        line_start: c.lineStart,
+        line_end: c.lineEnd,
         block_type: c.block_type || 'unknown',
         context: c.context,
         comment: c.text,

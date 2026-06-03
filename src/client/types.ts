@@ -1,7 +1,7 @@
 export interface Comment {
   id: number;
-  ls: number;
-  le: number;
+  lineStart: number;
+  lineEnd: number;
   block_type: string;
   context: string | TableContext | CodeContext;
   selection_offset?: number;
@@ -41,8 +41,8 @@ export interface ContentResponse {
 }
 
 export interface PendingComment {
-  ls: number;
-  le: number;
+  lineStart: number;
+  lineEnd: number;
   block_type: string;
   context: Comment['context'];
   selection_offset: number | null;

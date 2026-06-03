@@ -70,10 +70,17 @@ async function main() {
       }
 
       try {
-        const result = await buildDict({ configPath, outPath, debug, debugDir });
+        const result = await buildDict({
+          configPath,
+          outPath,
+          debug,
+          debugDir,
+        });
         console.log(`dict build 完了: ${result.entries.length} エントリ`);
       } catch (err) {
-        console.error(`エラー: ${err instanceof Error ? err.message : String(err)}`);
+        console.error(
+          `エラー: ${err instanceof Error ? err.message : String(err)}`,
+        );
         process.exit(1);
       }
     } else {

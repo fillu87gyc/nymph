@@ -50,7 +50,14 @@
     "vitest": "4"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
-  "files": ["dist", "src/cli.ts", "src/server.ts", "src/client"]
+  "files": [
+    "dist",
+    "src/cli.ts",
+    "src/server.ts",
+    "src/client"
+  ]
 }

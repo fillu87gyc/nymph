@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { DictFile } from './schema.ts';
 import type { NestedNode } from './tree.ts';
@@ -19,7 +19,11 @@ export function writeDictFile(outPath: string, data: DictFile): void {
   writeFileSync(outPath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
-export function writeRawCache(cacheDir: string, name: string, raw: string): void {
+export function writeRawCache(
+  cacheDir: string,
+  name: string,
+  raw: string,
+): void {
   mkdirSync(cacheDir, { recursive: true });
   writeFileSync(join(cacheDir, `${name}.txt`), raw, 'utf-8');
 }

@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { loadConfig } from './config.ts';
 import { getAdapter } from './adapter.ts';
-import { buildTree } from './tree.ts';
+import { writeDebugArtifacts, writeDictFile, writeRawCache } from './cache.ts';
+import { loadConfig } from './config.ts';
+import type { DictEntry, DictFile } from './schema.ts';
 import { select, selectRelative } from './selector.ts';
-import { writeDictFile, writeRawCache, writeDebugArtifacts } from './cache.ts';
-import type { DictFile, DictEntry } from './schema.ts';
+import { buildTree } from './tree.ts';
 
 // Side-effect import to register the markdown adapter
 import './adapters/markdown.ts';
@@ -24,7 +24,8 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
 
   const config = loadConfig(configPath);
 
-  const outPath = options.outPath ?? config.dict?.out ?? join(cwd, '.nymph/dict.json');
+  const outPath =
+    options.outPath ?? config.dict?.out ?? join(cwd, '.nymph/dict.json');
   const debugDir = options.debugDir ?? join(cwd, '.nymph/debug');
   const rawCacheDir = join(cwd, '.nymph/raw');
 
@@ -44,7 +45,9 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
     });
 
     if (result.error) {
-      throw new Error(`source "${source.name}": コマンド実行エラー: ${result.error.message}`);
+      throw new Error(
+        `source "${source.name}": コマンド実行エラー: ${result.error.message}`,
+      );
     }
     if (result.status !== 0) {
       throw new Error(

@@ -1,8 +1,8 @@
 import { registerAdapter } from '../adapter.ts';
-import type { SourceRules, DictEntry } from '../schema.ts';
-import { buildTree } from '../tree.ts';
-import type { NestedNode } from '../tree.ts';
+import type { DictEntry, SourceRules } from '../schema.ts';
 import { select, selectRelative } from '../selector.ts';
+import type { NestedNode } from '../tree.ts';
+import { buildTree } from '../tree.ts';
 
 function nodeToPlainText(node: NestedNode): string {
   // Strip HTML tags from the html field to get plain text

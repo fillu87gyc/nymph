@@ -164,9 +164,7 @@ export function findTextRange(
       range.setStart(startNode, startOffset);
       range.setEnd(endNode, endOffset);
       return range;
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return null;
 }

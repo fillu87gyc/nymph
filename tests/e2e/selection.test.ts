@@ -6,14 +6,10 @@
  * 出たり、逆にコンテンツ内で出なくなる。
  */
 import { existsSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
-
-test.beforeEach(async ({ page }) => {
-  if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
+test.beforeEach(async ({ page, commentsPath }) => {
+  if (existsSync(commentsPath)) rmSync(commentsPath);
   await page.goto('/');
   // #welcome の p ではなく、実際のコンテンツブロック内 p を待つ
   await expect(
@@ -23,9 +19,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test.afterEach(() => {
+test.afterEach(async ({ commentsPath }) => {
   try {
-    rmSync(COMMENTS_FILE);
+    rmSync(commentsPath);
   } catch {
     /* ignore */
   }

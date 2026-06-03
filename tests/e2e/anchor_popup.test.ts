@@ -5,16 +5,9 @@
  * #anchor-comment-popup が表示されるかを検証する。
  */
 import { existsSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from './fixtures.ts';
 
-const FIXTURE = join(process.cwd(), 'tests/fixtures/sample.md');
-const COMMENTS_FILE = `${FIXTURE}.comments.json`;
-
-async function addSelectionComment(
-  page: import('@playwright/test').Page,
-  text: string,
-): Promise<void> {
+async function addSelectionComment(page: Page, text: string): Promise<void> {
   // 段落をトリプルクリックして選択 → selection popup → コメント追加
   await page
     .locator('#content [data-testid="md-block"] p')
@@ -41,9 +34,7 @@ async function addSelectionComment(
     });
 }
 
-async function clickAnchoredParagraph(
-  page: import('@playwright/test').Page,
-): Promise<void> {
+async function clickAnchoredParagraph(page: Page): Promise<void> {
   const pRect = await page
     .locator('#content [data-testid="md-block"] p')
     .first()
@@ -53,8 +44,8 @@ async function clickAnchoredParagraph(
   await page.mouse.click(pRect.x + 60, pRect.y + pRect.height / 2);
 }
 
-test.beforeEach(async ({ page }) => {
-  if (existsSync(COMMENTS_FILE)) rmSync(COMMENTS_FILE);
+test.beforeEach(async ({ page, commentsPath }) => {
+  if (existsSync(commentsPath)) rmSync(commentsPath);
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"] p').first(),
@@ -63,9 +54,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test.afterEach(() => {
+test.afterEach(async ({ commentsPath }) => {
   try {
-    rmSync(COMMENTS_FILE);
+    rmSync(commentsPath);
   } catch {
     /* ignore */
   }

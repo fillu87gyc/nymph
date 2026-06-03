@@ -6,7 +6,7 @@
  * portal が機能しないと <head> に link タグが現れず、hljs スタイルが
  * 一切当たらない（シンタックスハイライトが崩れる）。
  */
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');

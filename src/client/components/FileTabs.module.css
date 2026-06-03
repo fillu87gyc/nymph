@@ -50,14 +50,3 @@
   opacity: 1;
   background: rgba(0, 0, 0, 0.2);
 }
-.watchDot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #4a9a4a;
-  box-shadow: 0 0 6px rgba(74, 154, 74, 0.6);
-  animation: pulse 2s ease-in-out infinite;
-  margin-right: 5px;
-  flex-shrink: 0;
-}

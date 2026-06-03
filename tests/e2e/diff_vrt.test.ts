@@ -22,7 +22,9 @@ const STABILIZE = `
     animation-play-state: paused !important;
     transition-duration: 0ms !important;
   }
-  [data-testid="connection-dot"], [data-testid="watch-dot"] { opacity: 1 !important; }
+  /* 接続バッジは SSE ハートビートのタイミングで状態(コネクション↔切断)が揺れ
+     VRT を不安定化させるため、レイアウトを保ったまま非表示にする */
+  #connection-status { visibility: hidden !important; }
   #toast { display: none !important; }
   #update-time, [data-testid="brand-version"] { visibility: hidden !important; }
 `;

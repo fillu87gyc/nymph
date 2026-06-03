@@ -2,8 +2,8 @@ import { describe, expect, test, afterEach } from 'vitest';
 import { existsSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { buildDict } from '../../../src/dict/build.ts';
 
-const WORKTREE = '/home/user/nymph/.claude/worktrees/agent-af9c867267960bdda';
-const CONFIG_PATH = `${WORKTREE}/tests/fixtures/dict/nymph.yml`;
+const CWD = process.cwd();
+const CONFIG_PATH = `${CWD}/tests/fixtures/dict/nymph.yml`;
 const OUT_PATH = '/tmp/test-build-dict.json';
 const DEBUG_DIR = '/tmp/test-build-debug';
 
@@ -17,7 +17,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: CONFIG_PATH,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: CWD,
     });
 
     expect(result.version).toBe(1);
@@ -30,7 +30,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: CONFIG_PATH,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: CWD,
     });
 
     const terms = result.entries.map((e) => e.term);
@@ -42,7 +42,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: CONFIG_PATH,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: CWD,
     });
 
     for (const entry of result.entries) {
@@ -56,7 +56,7 @@ describe('buildDict', () => {
       outPath: OUT_PATH,
       debug: true,
       debugDir: DEBUG_DIR,
-      cwd: WORKTREE,
+      cwd: CWD,
     });
 
     expect(existsSync(`${DEBUG_DIR}/tree`)).toBe(true);
@@ -76,7 +76,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: tmpConfig,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: CWD,
     });
 
     // echo output may not produce valid structured markdown, but build should not throw
@@ -96,7 +96,7 @@ describe('buildDict', () => {
       buildDict({
         configPath: tmpConfig,
         outPath: OUT_PATH,
-        cwd: WORKTREE,
+        cwd: CWD,
       }),
     ).rejects.toThrow();
 

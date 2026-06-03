@@ -32,8 +32,8 @@ export function useComments() {
             : 1;
           const c: Comment = {
             id,
-            ls: pending.ls,
-            le: pending.le,
+            lineStart: pending.lineStart,
+            lineEnd: pending.lineEnd,
             block_type: pending.block_type,
             context: pending.context,
             ...(pending.selection_offset != null && {
@@ -41,7 +41,7 @@ export function useComments() {
             }),
             text,
           };
-          return [...current, c].sort((a, b) => a.ls - b.ls);
+          return [...current, c].sort((a, b) => a.lineStart - b.lineStart);
         },
         { revalidate: false },
       );

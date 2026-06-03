@@ -9,7 +9,7 @@
  * ここではファイルを変更して「孤立コメント（削除済みバッジ）」を出すが、
  * diff モードは ON にしない。
  *
- * - ls/le は fullspec.md の行番号に対応（変更時は要更新）
+ * - lineStart/lineEnd は fullspec.md の行番号に対応（変更時は要更新）
  *   L3   intro paragraph ← selection コメント（安定）
  *   L7   TypeScript code block (〜L17)
  *   L32  Feature Table (〜L38) ← クリックしてハイライト対象
@@ -38,24 +38,24 @@ const PRESEEDED_COMMENTS = JSON.stringify(
   [
     {
       id: 1,
-      ls: 3,
-      le: 3,
+      lineStart: 3,
+      lineEnd: 3,
       block_type: 'paragraph',
       context: 'Introductory paragraph with **bold text**',
       text: '書式設定の確認: 太字・斜体・インラインコードが正しく表示されている',
     },
     {
       id: 2,
-      ls: 7,
-      le: 17,
+      lineStart: 7,
+      lineEnd: 17,
       block_type: 'code',
       context: { lang: 'typescript', code: 'interface User {\n  id: number;' },
       text: 'TypeScriptコードブロック: User インターフェースと createUser 関数',
     },
     {
       id: 3,
-      ls: 32,
-      le: 38,
+      lineStart: 32,
+      lineEnd: 38,
       block_type: 'table',
       context: {
         headers: ['Feature', 'Status', 'Notes'],
@@ -71,32 +71,32 @@ const PRESEEDED_COMMENTS = JSON.stringify(
     },
     {
       id: 4,
-      ls: 42,
-      le: 50,
+      lineStart: 42,
+      lineEnd: 50,
       block_type: 'mermaid',
       context: { lang: 'mermaid', code: 'graph TD\n  A[Open nymph]' },
       text: 'Mermaid フロー図: チェックポイントと diff の分岐フロー',
     },
     {
       id: 5,
-      ls: 70,
-      le: 71,
+      lineStart: 70,
+      lineEnd: 71,
       block_type: 'paragraph',
       context: 'This line remains unchanged in the document.',
       text: '変更セクション: この段落が diff ビューでハイライトされる予定',
     },
     {
       id: 6,
-      ls: 3,
-      le: 3,
+      lineStart: 3,
+      lineEnd: 3,
       block_type: 'selection',
       context: 'bold text',
       text: '選択ハイライト: CSS Highlight API によるインライン書式の選択コメント',
     },
     {
       id: 7,
-      ls: 70,
-      le: 71,
+      lineStart: 70,
+      lineEnd: 71,
       block_type: 'selection',
       context: ORIGINAL_LINE,
       text: '孤立コメント: diff で変更された行への選択コメント — 削除済みバッジ確認',
@@ -221,7 +221,7 @@ test.describe('フルスペック VRT', () => {
     await page.locator('[data-testid="comment-item"]').nth(2).click();
     await expect(
       page.locator(
-        '#content [data-testid="md-block"][data-ls="32"][data-highlighted="true"]',
+        '#content [data-testid="md-block"][data-line-start="32"][data-highlighted="true"]',
       ),
     ).toBeVisible({ timeout: 2000 });
 

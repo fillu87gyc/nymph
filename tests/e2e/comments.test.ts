@@ -137,12 +137,14 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
     const tableBlock = page
       .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
-    const ls = await tableBlock.getAttribute('data-ls');
+    const lineStart = await tableBlock.getAttribute('data-line-start');
 
     await page.locator('[data-testid="comment-item"]').first().click();
 
     await expect(
-      page.locator(`#content [data-testid="md-block"][data-ls="${ls}"]`),
+      page.locator(
+        `#content [data-testid="md-block"][data-line-start="${lineStart}"]`,
+      ),
     ).toHaveAttribute('data-highlighted', 'true', { timeout: 1000 });
   });
 
@@ -152,16 +154,20 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
     const tableBlock = page
       .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
-    const ls = await tableBlock.getAttribute('data-ls');
+    const lineStart = await tableBlock.getAttribute('data-line-start');
 
     await page.locator('[data-testid="comment-item"]').first().click();
     await expect(
-      page.locator(`#content [data-testid="md-block"][data-ls="${ls}"]`),
+      page.locator(
+        `#content [data-testid="md-block"][data-line-start="${lineStart}"]`,
+      ),
     ).toHaveAttribute('data-highlighted', 'true', { timeout: 1000 });
 
     // 1.4s アニメーション後に消える
     await expect(
-      page.locator(`#content [data-testid="md-block"][data-ls="${ls}"]`),
+      page.locator(
+        `#content [data-testid="md-block"][data-line-start="${lineStart}"]`,
+      ),
     ).toHaveAttribute('data-highlighted', 'false', { timeout: 2500 });
   });
 
@@ -172,10 +178,12 @@ test.describe('コメントクリックでコンテンツハイライト', () =>
     const tableBlock = page
       .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
-    const ls = await tableBlock.getAttribute('data-ls');
+    const lineStart = await tableBlock.getAttribute('data-line-start');
     await page.locator('[data-testid="comment-item"]').first().click();
     await expect(
-      page.locator(`#content [data-testid="md-block"][data-ls="${ls}"]`),
+      page.locator(
+        `#content [data-testid="md-block"][data-line-start="${lineStart}"]`,
+      ),
     ).toBeInViewport({ timeout: 2000 });
   });
 });
@@ -319,7 +327,7 @@ test.describe('テーマ切替', () => {
 });
 
 test.describe('複数コメント', () => {
-  test('コメントが ls 順に並ぶ', async ({ page }) => {
+  test('コメントが lineStart 順に並ぶ', async ({ page }) => {
     await addComment(page, 'first comment');
     const mermaidBlock = page
       .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
@@ -351,8 +359,8 @@ test.describe('削除済みコメントの表示', () => {
     const orphanedComment = [
       {
         id: 1,
-        ls: 3,
-        le: 3,
+        lineStart: 3,
+        lineEnd: 3,
         block_type: 'selection',
         context: '【NYMPH_TEST_ORPHAN_DOES_NOT_EXIST_XYZ_99999】',
         selection_offset: 0,
@@ -384,7 +392,7 @@ test.describe('削除済みコメントの表示', () => {
   test('対象ブロックが存在する block コメントには「削除済み」バッジが表示されない', async ({
     page,
   }) => {
-    // UI 経由で block コメントを追加（ls/le が正しく設定され、ブロックが存在する）
+    // UI 経由で block コメントを追加（lineStart/lineEnd が正しく設定され、ブロックが存在する）
     await addComment(page, '有効コメント');
     // useEffect の反映を待つ
     await page.waitForTimeout(600);

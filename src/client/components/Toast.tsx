@@ -12,8 +12,8 @@ export function Toast({ message, version }: ToastProps) {
   useEffect(() => {
     if (!message) return;
     setCurrent(message);
-    const t = setTimeout(() => setCurrent(null), 2400);
-    return () => clearTimeout(t);
+    const timeoutId = setTimeout(() => setCurrent(null), 2400);
+    return () => clearTimeout(timeoutId);
   }, [message, version]);
 
   if (!current) return null;

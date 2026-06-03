@@ -79,11 +79,13 @@ test.describe('blockRefsMap 経由のスクロール', () => {
 
     // 2番目のコメントクリック → mermaid ブロックに移動
     const mermaidBlock = page.locator(mermaidSelector).first();
-    const mermaidLs = await mermaidBlock.getAttribute('data-ls');
+    const mermaidLs = await mermaidBlock.getAttribute('data-line-start');
 
     await items.nth(1).click();
     await expect(
-      page.locator(`#content [data-testid="md-block"][data-ls="${mermaidLs}"]`),
+      page.locator(
+        `#content [data-testid="md-block"][data-line-start="${mermaidLs}"]`,
+      ),
     ).toBeInViewport({ timeout: 2000 });
   });
 });
@@ -99,12 +101,12 @@ test.describe('ハイライト状態', () => {
     const tableBlock = page
       .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
-    const ls = await tableBlock.getAttribute('data-ls');
+    const lineStart = await tableBlock.getAttribute('data-line-start');
 
     await page.locator('[data-testid="comment-item"]').first().click();
 
     await expect(
-      page.locator(`#content [data-block][data-ls="${ls}"]`),
+      page.locator(`#content [data-block][data-line-start="${lineStart}"]`),
     ).toHaveAttribute('data-highlighted', 'true', { timeout: 1000 });
   });
 
@@ -118,15 +120,15 @@ test.describe('ハイライト状態', () => {
     const tableBlock = page
       .locator('#content [data-testid="md-block"][data-block-type="table"]')
       .first();
-    const ls = await tableBlock.getAttribute('data-ls');
+    const lineStart = await tableBlock.getAttribute('data-line-start');
 
     await page.locator('[data-testid="comment-item"]').first().click();
     await expect(
-      page.locator(`#content [data-block][data-ls="${ls}"]`),
+      page.locator(`#content [data-block][data-line-start="${lineStart}"]`),
     ).toHaveAttribute('data-highlighted', 'true', { timeout: 1000 });
 
     await expect(
-      page.locator(`#content [data-block][data-ls="${ls}"]`),
+      page.locator(`#content [data-block][data-line-start="${lineStart}"]`),
     ).toHaveAttribute('data-highlighted', 'false', { timeout: 2500 });
   });
 
@@ -135,14 +137,14 @@ test.describe('ハイライト状態', () => {
     const count = await blocks.count();
     expect(count).toBeGreaterThan(0);
 
-    // data-ls / data-le も存在する
+    // data-line-start / data-line-end も存在する
     for (let i = 0; i < Math.min(count, 5); i++) {
-      const ls = await blocks.nth(i).getAttribute('data-ls');
-      const le = await blocks.nth(i).getAttribute('data-le');
-      expect(ls).not.toBeNull();
-      expect(le).not.toBeNull();
-      expect(Number(ls)).toBeGreaterThan(0);
-      expect(Number(le)).toBeGreaterThanOrEqual(Number(ls));
+      const lineStart = await blocks.nth(i).getAttribute('data-line-start');
+      const lineEnd = await blocks.nth(i).getAttribute('data-line-end');
+      expect(lineStart).not.toBeNull();
+      expect(lineEnd).not.toBeNull();
+      expect(Number(lineStart)).toBeGreaterThan(0);
+      expect(Number(lineEnd)).toBeGreaterThanOrEqual(Number(lineStart));
     }
   });
 

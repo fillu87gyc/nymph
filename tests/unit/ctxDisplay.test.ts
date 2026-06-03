@@ -5,8 +5,8 @@ import type { Comment } from '../../src/client/types.ts';
 function makeComment(overrides: Partial<Comment>): Comment {
   return {
     id: 1,
-    ls: 1,
-    le: 1,
+    lineStart: 1,
+    lineEnd: 1,
     block_type: 'paragraph',
     context: '',
     text: 'test',

@@ -11,8 +11,8 @@ function makeBlock(overrides: Partial<BlockData> = {}): BlockData {
   return {
     key: 'block-0',
     html: '<p>テスト段落</p>',
-    ls: 1,
-    le: 1,
+    lineStart: 1,
+    lineEnd: 1,
     type: 'paragraph',
     commentContext: { displayCtx: 'テスト', context: 'テスト段落' },
     ...overrides,
@@ -162,11 +162,11 @@ describe('data-has-comment 属性', () => {
 // ── onAddComment コールバック ─────────────────────────────────
 
 describe('onAddComment コールバック', () => {
-  test('ボタンクリックで ls / le / displayCtx / type / context / null が渡る', async () => {
+  test('ボタンクリックで lineStart / lineEnd / displayCtx / type / context / null が渡る', async () => {
     const onAddComment = vi.fn();
     const block = makeBlock({
-      ls: 3,
-      le: 5,
+      lineStart: 3,
+      lineEnd: 5,
       type: 'table',
       commentContext: { displayCtx: 'Name | Value', context: 'Name | Value' },
     });
@@ -193,17 +193,19 @@ describe('onAddComment コールバック', () => {
 // ── data 属性 ─────────────────────────────────────────────────
 
 describe('data 属性', () => {
-  test('data-ls / data-le / data-block-type が正しく設定される', () => {
+  test('data-line-start / data-line-end / data-block-type が正しく設定される', () => {
     const { container } = render(
       <MarkdownBlock
-        {...makeProps({ block: makeBlock({ ls: 4, le: 8, type: 'code' }) })}
+        {...makeProps({
+          block: makeBlock({ lineStart: 4, lineEnd: 8, type: 'code' }),
+        })}
       />,
     );
     const el = container.querySelector(
       '[data-testid="md-block"]',
     ) as HTMLElement;
-    expect(el.dataset.ls).toBe('4');
-    expect(el.dataset.le).toBe('8');
+    expect(el.dataset.lineStart).toBe('4');
+    expect(el.dataset.lineEnd).toBe('8');
     expect(el.dataset.blockType).toBe('code');
   });
 });

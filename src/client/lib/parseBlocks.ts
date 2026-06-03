@@ -11,8 +11,8 @@ export interface CommentContext {
 export interface BlockData {
   key: string;
   html: string;
-  ls: number;
-  le: number;
+  lineStart: number;
+  lineEnd: number;
   type: string;
   commentContext: CommentContext;
   mermaidCode?: string;
@@ -27,16 +27,18 @@ export function parseBlocks(src: string): BlockData[] {
   let mermaidSeq = 0;
   const srcLines = src.split('\n');
 
-  function buildContext(ls: number, le: number): CommentContext {
-    const context = srcLines.slice(ls - 1, Math.min(ls + 2, le)).join('\n');
+  function buildContext(lineStart: number, lineEnd: number): CommentContext {
+    const context = srcLines
+      .slice(lineStart - 1, Math.min(lineStart + 2, lineEnd))
+      .join('\n');
     return { displayCtx: context.split('\n')[0], context };
   }
 
   for (const t of blockTokens) {
     if (t.__nested) continue;
 
-    const ls: number = t.ls || 1;
-    const le: number = t.le || ls;
+    const lineStart: number = t.lineStart || 1;
+    const lineEnd: number = t.lineEnd || lineStart;
 
     if (t.type === 'code') {
       const langStr: string | null = t.lang?.trim() || null;
@@ -53,8 +55,8 @@ export function parseBlocks(src: string): BlockData[] {
         blocks.push({
           key: `block-${blocks.length}`,
           html: '',
-          ls,
-          le,
+          lineStart,
+          lineEnd,
           type: 'mermaid',
           commentContext,
           mermaidCode: t.text,
@@ -64,8 +66,8 @@ export function parseBlocks(src: string): BlockData[] {
         blocks.push({
           key: `block-${blocks.length}`,
           html: `<pre><code class="language-${esc(langStr || 'plaintext')}">${esc(t.text)}</code></pre>`,
-          ls,
-          le,
+          lineStart,
+          lineEnd,
           type: 'code',
           commentContext,
         });
@@ -84,8 +86,8 @@ export function parseBlocks(src: string): BlockData[] {
       blocks.push({
         key: `block-${blocks.length}`,
         html: sanitizeHtml(marked.parse(t.raw) as string),
-        ls,
-        le,
+        lineStart,
+        lineEnd,
         type: 'table',
         commentContext,
       });
@@ -94,10 +96,10 @@ export function parseBlocks(src: string): BlockData[] {
       blocks.push({
         key: `block-${blocks.length}`,
         html: sanitizeHtml((marked.parse(t.raw) as string).trim()),
-        ls,
-        le,
+        lineStart,
+        lineEnd,
         type: t.type,
-        commentContext: buildContext(ls, le),
+        commentContext: buildContext(lineStart, lineEnd),
       });
     }
   }

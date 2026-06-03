@@ -7,8 +7,8 @@ import type { Comment } from '../../src/client/types.ts';
 function makeComment(overrides: Partial<Comment> = {}): Comment {
   return {
     id: 1,
-    ls: 3,
-    le: 5,
+    lineStart: 3,
+    lineEnd: 5,
     block_type: 'paragraph',
     context: 'Hello world',
     text: 'test comment',
@@ -77,7 +77,7 @@ describe('CommentsPanel', () => {
   test('複数コメントがすべて表示される', () => {
     const comments = [
       makeComment({ id: 1, text: 'first' }),
-      makeComment({ id: 2, text: 'second', ls: 10, le: 10 }),
+      makeComment({ id: 2, text: 'second', lineStart: 10, lineEnd: 10 }),
     ];
     render(<Wrapper comments={comments} />);
     expect(screen.getByText('first')).toBeInTheDocument();

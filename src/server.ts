@@ -353,14 +353,14 @@ function remapComments(editLine: number, oldLineCount: number, delta: number) {
   try {
     const comments = JSON.parse(
       readFileSync(state.commentsPath, 'utf-8'),
-    ) as Array<{ ls: number; le: number }>;
+    ) as Array<{ lineStart: number; lineEnd: number }>;
     const editEnd = editLine + oldLineCount - 1;
     for (const c of comments) {
-      if (c.ls > editEnd) {
-        c.ls += delta;
-        c.le += delta;
-      } else if (c.le > editEnd) {
-        c.le += delta;
+      if (c.lineStart > editEnd) {
+        c.lineStart += delta;
+        c.lineEnd += delta;
+      } else if (c.lineEnd > editEnd) {
+        c.lineEnd += delta;
       }
     }
     writeFileSync(

@@ -3,24 +3,10 @@ import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { extractEntries } from '../../../src/dict/adapters/markdown.ts';
 
-const glossaryMd = `# ドメイン用語集
-
-## ユビキタス言語
-
-### 集約
-
-集約とは、整合性を保つべきオブジェクトの集まりである。
-
-### リポジトリ
-
-リポジトリとは、集約の永続化と再構築を担うオブジェクトである。
-
-## その他
-
-### エンティティ
-
-エンティティとは、同一性を持つドメインオブジェクトである。
-`;
+const glossaryMd = readFileSync(
+  resolve(__dirname, '../../fixtures/dict/glossary.md'),
+  'utf-8',
+);
 
 const caseARules = {
   term: "h2:contains('ユビキタス言語') > h3",

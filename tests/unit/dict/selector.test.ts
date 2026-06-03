@@ -1,26 +1,14 @@
 import { describe, expect, test } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { select, selectRelative } from '../../../src/dict/selector.ts';
 import type { NestedNode } from '../../../src/dict/tree.ts';
 import { buildTree } from '../../../src/dict/tree.ts';
 
-const glossaryMd = `# ドメイン用語集
-
-## ユビキタス言語
-
-### 集約
-
-集約とは、整合性を保つべきオブジェクトの集まりである。
-
-### リポジトリ
-
-リポジトリとは、集約の永続化と再構築を担うオブジェクトである。
-
-## その他
-
-### エンティティ
-
-エンティティとは、同一性を持つドメインオブジェクトである。
-`;
+const glossaryMd = readFileSync(
+  resolve(__dirname, '../../fixtures/dict/glossary.md'),
+  'utf-8',
+);
 
 describe('select', () => {
   test('h2 > h3 — h2 の直下 h3 のみ', () => {

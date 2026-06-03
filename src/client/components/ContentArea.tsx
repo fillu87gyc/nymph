@@ -216,6 +216,13 @@ export function ContentArea({
           securityLevel: 'loose',
           fontFamily: '"JetBrains Mono", monospace',
         });
+        // フォント確定前に mermaid がテキストを計測するとノードサイズが変わり、
+        // ダイアグラム高さ（ひいては下方コンテンツの位置）が描画ごとに揺れる。
+        // フォント読込完了を待ってから描画してレイアウトを決定的にする。
+        if (document.fonts?.ready) {
+          await document.fonts.ready;
+          if (cancelled) return;
+        }
         await mermaid.run({ querySelector: '#content .mermaid' });
       } catch (e) {
         console.warn('mermaid:', e);

@@ -36,21 +36,6 @@
 			}
 		}
 	},
-	"overrides": [
-		{
-			"includes": ["tests/**"],
-			"linter": {
-				"rules": {
-					"style": {
-						"noNonNullAssertion": "warn"
-					},
-					"suspicious": {
-						"noExplicitAny": "warn"
-					}
-				}
-			}
-		}
-	],
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "single",

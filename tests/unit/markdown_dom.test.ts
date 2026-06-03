@@ -27,7 +27,7 @@ describe('highlightSelectionText', () => {
     const onFallback = vi.fn();
     const block = makeBlock(1, 1, 'hello world');
     // CSS Highlight API が使えない環境では onFallback が呼ばれる
-    const hasHighlightAPI = typeof (CSS as any).highlights !== 'undefined';
+    const hasHighlightAPI = typeof CSS.highlights !== 'undefined';
     highlightSelectionText([block], 1, 1, 'hello', null, onFallback);
     if (!hasHighlightAPI) {
       expect(onFallback).toHaveBeenCalledWith(1);
@@ -37,7 +37,7 @@ describe('highlightSelectionText', () => {
   test('末尾の … はトリムして検索する', () => {
     const onFallback = vi.fn();
     const block = makeBlock(1, 1, 'hello world');
-    const hasHighlightAPI = typeof (CSS as any).highlights !== 'undefined';
+    const hasHighlightAPI = typeof CSS.highlights !== 'undefined';
     highlightSelectionText([block], 1, 1, 'hello…', null, onFallback);
     if (!hasHighlightAPI) {
       expect(onFallback).toHaveBeenCalledWith(1);

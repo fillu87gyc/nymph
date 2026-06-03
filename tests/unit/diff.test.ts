@@ -93,8 +93,9 @@ describe('computeDiff', () => {
 
   test('グループ ID が replace で共有される', () => {
     const result = computeDiff('x\nold\ny', 'x\nnew\ny');
-    const del = result.find((l) => l.type === 'delete')!;
-    const ins = result.find((l) => l.type === 'insert')!;
+    const del = result.find((l) => l.type === 'delete');
+    const ins = result.find((l) => l.type === 'insert');
+    if (!del || !ins) throw new Error('delete/insert 行が見つかりません');
     expect(del.g).toBe(ins.g);
     expect(del.g).not.toBeNull();
   });

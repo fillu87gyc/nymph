@@ -18,7 +18,7 @@ interface ContentAreaProps {
     le: number,
     displayCtx: string,
     blockType: string,
-    context: any,
+    context: Comment['context'],
     selectionOffset: number | null,
   ) => void;
   onOpenDrawio: (code: string) => void;
@@ -79,8 +79,11 @@ export function ContentArea({
     >();
     for (const l of diffData.lines) {
       if (l.g == null) continue;
-      if (!groups.has(l.g)) groups.set(l.g, { inserts: [], deletes: [] });
-      const g = groups.get(l.g)!;
+      let g = groups.get(l.g);
+      if (!g) {
+        g = { inserts: [], deletes: [] };
+        groups.set(l.g, g);
+      }
       if (l.type === 'insert') g.inserts.push(l);
       else if (l.type === 'delete') g.deletes.push(l);
     }
@@ -109,7 +112,7 @@ export function ContentArea({
   // Persistent comment-anchor highlight for selection comments
   useEffect(() => {
     const container = contentRef.current;
-    const hl = (CSS as any).highlights as Map<string, unknown> | undefined;
+    const hl = CSS.highlights as HighlightRegistry | undefined;
     if (!container || !hl) return;
 
     hl.delete('comment-anchor');
@@ -158,7 +161,7 @@ export function ContentArea({
     onOrphanedIds?.(orphaned);
 
     if (!ranges.length) return;
-    hl.set('comment-anchor', new (window as any).Highlight(...ranges));
+    hl.set('comment-anchor', new Highlight(...ranges));
 
     return () => {
       hl.delete('comment-anchor');

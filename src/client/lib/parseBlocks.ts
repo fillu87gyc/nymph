@@ -71,10 +71,10 @@ export function parseBlocks(src: string): BlockData[] {
         });
       }
     } else if (t.type === 'table') {
-      const headers = (t.header as any[]).map((cell: any) => cell.text || '');
-      const rows = (t.rows as any[][]).map((row: any[]) =>
+      const headers = t.header.map((cell) => cell.text || '');
+      const rows = t.rows.map((row) =>
         Object.fromEntries(
-          row.map((cell: any, i: number) => [headers[i] ?? i, cell.text || '']),
+          row.map((cell, i) => [headers[i] ?? i, cell.text || '']),
         ),
       );
       const commentContext: CommentContext = {

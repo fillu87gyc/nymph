@@ -73,4 +73,11 @@ describe('sanitizeHtml', () => {
   test('空文字列は空文字列を返す', () => {
     expect(sanitizeHtml('')).toBe('');
   });
+
+  test('target="_blank" を除去する（reverse tabnabbing 対策）', () => {
+    const html = '<a href="https://example.com" target="_blank">link</a>';
+    const result = sanitizeHtml(html);
+    expect(result).not.toContain('target');
+    expect(result).toContain('href="https://example.com"');
+  });
 });

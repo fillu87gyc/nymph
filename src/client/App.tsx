@@ -163,7 +163,7 @@ export function App() {
     le: number,
     displayCtx: string,
     blockType: string,
-    context: any,
+    context: Comment['context'],
     selectionOffset: number | null,
   ) {
     setPending({
@@ -316,8 +316,9 @@ export function App() {
       });
       await mutate('/files');
       await mutate('/comments');
-    } catch (err: any) {
-      toast(err.message || 'ファイルの読み込みに失敗しました');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      toast(message || 'ファイルの読み込みに失敗しました');
     }
   }
 

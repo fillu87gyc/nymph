@@ -1,4 +1,19 @@
-import type { Token } from 'marked';
+import type { MarkedToken, Token } from 'marked';
+
+// marked のトークンに行番号メタ（ソース上の開始/終了行）を後付けするための拡張。
+// marked 自体は行番号を持たないため assignLines / getBlockTokensDFS で付与する。
+export interface LineMeta {
+  ls: number;
+  le: number;
+  __nested?: boolean;
+}
+
+// MarkedToken（index signature を持つ Tokens.Generic を含まない判別可能 union）を
+// ベースにし、distributive conditional で union を分配することで t.type による
+// narrowing を保つ。Token そのものに & すると Generic が混入し narrowing が壊れる。
+export type PositionedToken = MarkedToken extends infer T
+  ? T & LineMeta
+  : never;
 
 export const BLOCK_TYPES = new Set([
   'paragraph',
@@ -26,33 +41,32 @@ function lineCount(raw: string): number {
 
 export function assignLines(src: string, tokens: Token[]) {
   let from = 0;
-  for (const t of tokens) {
+  for (const t of tokens as MarkedToken[]) {
     if (!t.raw) continue;
     const idx = src.indexOf(t.raw, from);
     if (idx === -1) continue;
     const before = src.substring(0, idx);
-    (t as any).ls = before.split('\n').length;
-    (t as any).le = (t as any).ls + lineCount(t.raw) - 1;
+    const meta = t as MarkedToken & LineMeta;
+    meta.ls = before.split('\n').length;
+    meta.le = meta.ls + lineCount(t.raw) - 1;
     from = idx + t.raw.length;
 
-    if (t.type === 'blockquote' && (t as any).tokens) {
+    if (t.type === 'blockquote' && t.tokens) {
       const innerSrc = t.raw
         .split('\n')
-        .map((l: string) => l.replace(/^>[ ]?/, ''))
+        .map((l) => l.replace(/^>[ ]?/, ''))
         .join('\n');
-      assignLinesInner(innerSrc, (t as any).tokens, (t as any).ls);
+      assignLinesInner(innerSrc, t.tokens, meta.ls);
     }
-    if (t.type === 'list' && (t as any).items) {
-      for (const item of (t as any).items) {
+    if (t.type === 'list' && t.items) {
+      for (const item of t.items) {
         if (!item.tokens || !item.raw) continue;
         const iIdx = src.indexOf(item.raw, 0);
         if (iIdx === -1) continue;
         const iLs = src.substring(0, iIdx).split('\n').length;
         const itemInner = item.raw
           .split('\n')
-          .map((l: string, i: number) =>
-            i === 0 ? l.replace(/^[-*+\d.]+\s+/, '') : l,
-          )
+          .map((l, i) => (i === 0 ? l.replace(/^[-*+\d.]+\s+/, '') : l))
           .join('\n');
         assignLinesInner(itemInner, item.tokens, iLs);
       }
@@ -60,32 +74,41 @@ export function assignLines(src: string, tokens: Token[]) {
   }
 }
 
-function assignLinesInner(innerSrc: string, tokens: any[], lineOffset: number) {
+function assignLinesInner(
+  innerSrc: string,
+  tokens: Token[],
+  lineOffset: number,
+) {
   let from = 0;
   for (const t of tokens) {
     if (!t.raw || !BLOCK_TYPES.has(t.type)) continue;
     const idx = innerSrc.indexOf(t.raw, from);
     if (idx === -1) continue;
     const before = innerSrc.substring(0, idx);
-    t.ls = lineOffset + before.split('\n').length - 1;
-    t.le = t.ls + lineCount(t.raw) - 1;
+    const meta = t as Token & LineMeta;
+    meta.ls = lineOffset + before.split('\n').length - 1;
+    meta.le = meta.ls + lineCount(t.raw) - 1;
     from = idx + t.raw.length;
   }
 }
 
-export function getBlockTokensDFS(tokens: any[], nested = false): any[] {
-  const result: any[] = [];
-  for (const t of tokens) {
+export function getBlockTokensDFS(
+  tokens: Token[],
+  nested = false,
+): PositionedToken[] {
+  const result: PositionedToken[] = [];
+  for (const t of tokens as MarkedToken[]) {
     if (!BLOCK_TYPES.has(t.type)) continue;
     const isContainer = t.type === 'blockquote';
-    if (t.tokens)
+    if ('tokens' in t && t.tokens)
       result.push(...getBlockTokensDFS(t.tokens, nested || isContainer));
     if (t.type === 'list' && t.items) {
       for (const item of t.items)
         result.push(...getBlockTokensDFS(item.tokens || [], true));
     }
-    (t as any).__nested = nested;
-    result.push(t);
+    const meta = t as PositionedToken;
+    meta.__nested = nested;
+    result.push(meta);
   }
   return result;
 }
@@ -160,9 +183,10 @@ export function highlightSelectionText(
   if (!range) return;
 
   try {
-    const hl = (CSS as any).highlights as Map<string, unknown> | undefined;
+    // CSS Custom Highlight API は未対応ブラウザでは undefined になりうる。
+    const hl = CSS.highlights as HighlightRegistry | undefined;
     if (hl) {
-      const h = new (window as any).Highlight(range);
+      const h = new Highlight(range);
       h.priority = 1;
       hl.set('text-highlight', h);
       setTimeout(() => hl.delete('text-highlight'), 2000);

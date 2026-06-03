@@ -59,8 +59,8 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
 
     const startBlock = toBlock(range.startContainer);
     const endBlock = toBlock(range.endContainer);
-    const ls = startBlock ? +startBlock.dataset.ls! : 1;
-    const le = endBlock ? +endBlock.dataset.le! : ls;
+    const ls = startBlock ? +(startBlock.dataset.ls ?? '') : 1;
+    const le = endBlock ? +(endBlock.dataset.le ?? '') : ls;
     const ctx =
       selectedText.length > 300
         ? `${selectedText.slice(0, 300)}…`

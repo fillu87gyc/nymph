@@ -2,7 +2,7 @@
 import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Glob } from 'bun';
-import { createServer, initState } from './server.ts';
+import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 
 const VERSION = '0.1.0';
 
@@ -29,7 +29,11 @@ const HELP = `\
 async function findPort(start = 6276): Promise<number> {
   for (let port = start; port < start + 20; port++) {
     try {
-      const test = Bun.serve({ port, fetch: () => new Response() });
+      const test = Bun.serve({
+        port,
+        hostname: SERVER_HOSTNAME,
+        fetch: () => new Response(),
+      });
       await test.stop(true);
       return port;
     } catch {

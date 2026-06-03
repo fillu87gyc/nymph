@@ -1,8 +1,8 @@
 /**
  * DrawioModal 回帰テスト
  *
- * download 処理を document.createElement('a') → useRef<HTMLAnchorElement> に
- * 変更した。ref が null の場合は download が静かに失敗する。
+ * download 処理は document.createElement('a') で一時リンクを生成し
+ * click → revokeObjectURL する方式（隠し <a> を DOM に残さない）。
  * モーダルの開閉、コード表示、download トリガーをカバーする。
  */
 import { expect, test } from './fixtures.ts';
@@ -60,20 +60,19 @@ test.describe('draw.io モーダルのコンテンツ', () => {
   });
 });
 
-test.describe('download 用 hidden anchor の存在', () => {
-  test('モーダル内に hidden な <a> が存在する（useRef download trigger）', async ({
+test.describe('download トリガー', () => {
+  test('モーダル内に永続的な hidden <a> を残さない（動的生成方式）', async ({
     page,
   }) => {
     await page.locator('[data-testid="btn-drawio"]').first().click();
     await expect(page.locator('#drawio-modal')).toBeVisible();
 
-    // useRef で管理している download 用 <a> が DOM に存在する（tabIndex={-1} + display:none）
+    // download は一時アンカーを動的生成するため、固定の hidden <a> は存在しない
     const exists = await page.evaluate(() => {
       const modal = document.querySelector('#drawio-modal');
-      const anchor = modal?.querySelector('a[tabindex="-1"]');
-      return !!anchor;
+      return !!modal?.querySelector('a[tabindex="-1"]');
     });
-    expect(exists).toBe(true);
+    expect(exists).toBe(false);
   });
 
   test('ダウンロードボタンクリックでトーストが表示される', async ({

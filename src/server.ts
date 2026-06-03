@@ -1,17 +1,21 @@
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { diffArrays } from 'diff';
 
+// shell を介さずに git を実行する（shell 経由のインジェクション余地を残さない）。
+function git(args: string[]): string | null {
+  const res = spawnSync('git', args, { encoding: 'utf-8' });
+  if (res.status === 0 && res.stdout) return res.stdout.trim();
+  return null;
+}
+
 function resolveAppVersion(): string {
-  try {
-    return execSync(
-      'git describe --tags --exact-match HEAD 2>/dev/null || git rev-parse --short HEAD',
-      { encoding: 'utf-8' },
-    ).trim();
-  } catch {
-    return 'unknown';
-  }
+  return (
+    git(['describe', '--tags', '--exact-match', 'HEAD']) ??
+    git(['rev-parse', '--short', 'HEAD']) ??
+    'unknown'
+  );
 }
 
 const APP_VERSION = resolveAppVersion();
@@ -387,9 +391,14 @@ function serveStatic(url: URL): Response | null {
   }
 }
 
+// レビュー対象ファイルを認証なしで読み書きする API を公開しているため、
+// LAN 全体に晒さないよう必ずループバックアドレスにバインドする。
+export const SERVER_HOSTNAME = '127.0.0.1';
+
 export function createServer(port: number) {
   return Bun.serve({
     port,
+    hostname: SERVER_HOSTNAME,
     fetch(req) {
       const url = new URL(req.url);
       const path = url.pathname;

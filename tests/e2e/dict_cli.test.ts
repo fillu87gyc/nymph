@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { expect, test } from '@playwright/test';
 
-const NYMPH_ROOT = '/home/user/nymph/.claude/worktrees/agent-af9c867267960bdda';
+const NYMPH_ROOT = process.cwd();
 
 test.describe('nymph dict build CLI', () => {
   const outPath = '/tmp/test-dict-phase1.json';

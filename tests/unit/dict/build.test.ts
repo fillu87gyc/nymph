@@ -1,9 +1,9 @@
-import { describe, expect, test, afterEach } from 'vitest';
-import { existsSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { afterEach, describe, expect, test } from 'vitest';
 import { buildDict } from '../../../src/dict/build.ts';
 
-const WORKTREE = '/home/user/nymph/.claude/worktrees/agent-af9c867267960bdda';
-const CONFIG_PATH = `${WORKTREE}/tests/fixtures/dict/nymph.yml`;
+const PROJECT_ROOT = process.cwd();
+const CONFIG_PATH = `${PROJECT_ROOT}/tests/fixtures/dict/nymph.yml`;
 const OUT_PATH = '/tmp/test-build-dict.json';
 const DEBUG_DIR = '/tmp/test-build-debug';
 
@@ -17,7 +17,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: CONFIG_PATH,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: PROJECT_ROOT,
     });
 
     expect(result.version).toBe(1);
@@ -30,7 +30,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: CONFIG_PATH,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: PROJECT_ROOT,
     });
 
     const terms = result.entries.map((e) => e.term);
@@ -42,7 +42,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: CONFIG_PATH,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: PROJECT_ROOT,
     });
 
     for (const entry of result.entries) {
@@ -56,7 +56,7 @@ describe('buildDict', () => {
       outPath: OUT_PATH,
       debug: true,
       debugDir: DEBUG_DIR,
-      cwd: WORKTREE,
+      cwd: PROJECT_ROOT,
     });
 
     expect(existsSync(`${DEBUG_DIR}/tree`)).toBe(true);
@@ -76,7 +76,7 @@ describe('buildDict', () => {
     const result = await buildDict({
       configPath: tmpConfig,
       outPath: OUT_PATH,
-      cwd: WORKTREE,
+      cwd: PROJECT_ROOT,
     });
 
     // echo output may not produce valid structured markdown, but build should not throw
@@ -96,7 +96,7 @@ describe('buildDict', () => {
       buildDict({
         configPath: tmpConfig,
         outPath: OUT_PATH,
-        cwd: WORKTREE,
+        cwd: PROJECT_ROOT,
       }),
     ).rejects.toThrow();
 

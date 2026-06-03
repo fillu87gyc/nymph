@@ -1,7 +1,18 @@
-import { marked } from 'marked';
+import { marked, type Token, type Tokens } from 'marked';
 
 export interface NestedNode {
-  type: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'li' | 'code' | 'blockquote' | 'table';
+  type:
+    | 'h1'
+    | 'h2'
+    | 'h3'
+    | 'h4'
+    | 'h5'
+    | 'h6'
+    | 'p'
+    | 'li'
+    | 'code'
+    | 'blockquote'
+    | 'table';
   text: string;
   raw: string;
   html: string;
@@ -17,12 +28,11 @@ function headingType(depth: HeadingDepth): NestedNode['type'] {
   return `h${depth}` as NestedNode['type'];
 }
 
-function tokenToNode(token: marked.Token): NestedNode | null {
+function tokenToNode(token: Token): NestedNode | null {
   const renderer = new marked.Renderer();
-  // Render individual token as HTML
-  const renderSingle = (tok: marked.Token): string => {
+  const renderSingle = (tok: Token): string => {
     try {
-      return marked.parser([tok] as marked.Token[], { renderer });
+      return marked.parser([tok] as Token[], { renderer });
     } catch {
       return '';
     }
@@ -31,7 +41,10 @@ function tokenToNode(token: marked.Token): NestedNode | null {
   if (token.type === 'heading') {
     const depth = token.depth as HeadingDepth;
     // Extract plain text from heading tokens
-    const text = 'text' in token ? String(token.text) : token.raw.replace(/^#+\s*/, '').trim();
+    const text =
+      'text' in token
+        ? String(token.text)
+        : token.raw.replace(/^#+\s*/, '').trim();
     return {
       type: headingType(depth),
       text,
@@ -54,19 +67,15 @@ function tokenToNode(token: marked.Token): NestedNode | null {
   }
 
   if (token.type === 'list') {
-    // Flatten list items as individual li nodes
     const items: NestedNode[] = [];
-    if ('items' in token) {
-      for (const item of token.items as marked.Tokens.ListItem[]) {
-        const itemText = 'text' in item ? String(item.text) : item.raw.trim();
-        items.push({
-          type: 'li',
-          text: itemText,
-          raw: item.raw,
-          html: `<li>${itemText}</li>`,
-          children: [],
-        });
-      }
+    for (const item of token.items) {
+      items.push({
+        type: 'li',
+        text: item.text,
+        raw: item.raw,
+        html: `<li>${item.text}</li>`,
+        children: [],
+      });
     }
     return items.length > 0 ? items[0] : null;
   }
@@ -106,11 +115,11 @@ function tokenToNode(token: marked.Token): NestedNode | null {
   return null;
 }
 
-function tokenToNodes(token: marked.Token): NestedNode[] {
+function tokenToNodes(token: Token): NestedNode[] {
   const renderer = new marked.Renderer();
-  const renderSingle = (tok: marked.Token): string => {
+  const renderSingle = (tok: Token): string => {
     try {
-      return marked.parser([tok] as marked.Token[], { renderer });
+      return marked.parser([tok] as Token[], { renderer });
     } catch {
       return '';
     }
@@ -118,17 +127,14 @@ function tokenToNodes(token: marked.Token): NestedNode[] {
 
   if (token.type === 'list') {
     const items: NestedNode[] = [];
-    if ('items' in token) {
-      for (const item of token.items as marked.Tokens.ListItem[]) {
-        const itemText = 'text' in item ? String(item.text) : item.raw.trim();
-        items.push({
-          type: 'li',
-          text: itemText,
-          raw: item.raw,
-          html: `<li>${itemText}</li>`,
-          children: [],
-        });
-      }
+    for (const item of token.items) {
+      items.push({
+        type: 'li',
+        text: item.text,
+        raw: item.raw,
+        html: `<li>${item.text}</li>`,
+        children: [],
+      });
     }
     return items;
   }
@@ -144,7 +150,14 @@ export function buildTree(markdown: string): NestedNode[] {
 
   // Stack of heading nodes: stack[i] is the current open node at depth i+1
   // stack[0] = current h1, stack[1] = current h2, etc.
-  const headingStack: Array<NestedNode | null> = [null, null, null, null, null, null];
+  const headingStack: Array<NestedNode | null> = [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ];
 
   function addToParent(node: NestedNode): void {
     // Find the deepest heading that could be a parent

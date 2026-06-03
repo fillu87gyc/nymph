@@ -59,8 +59,10 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
 
     const startBlock = toBlock(range.startContainer);
     const endBlock = toBlock(range.endContainer);
-    const ls = startBlock ? +(startBlock.dataset.ls ?? '') : 1;
-    const le = endBlock ? +(endBlock.dataset.le ?? '') : ls;
+    // 属性欠落時は NaN にして「不正な行番号」を明示する（+'' の 0 だと
+    // 1 始まりの行番号と衝突して欠落を握り潰してしまうため Number() を使う）。
+    const ls = startBlock ? Number(startBlock.dataset.ls) : 1;
+    const le = endBlock ? Number(endBlock.dataset.le) : ls;
     const ctx =
       selectedText.length > 300
         ? `${selectedText.slice(0, 300)}…`

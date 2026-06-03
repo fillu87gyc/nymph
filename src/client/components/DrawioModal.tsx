@@ -45,7 +45,10 @@ export function DrawioModal({
     a.href = url;
     a.download = `mermaid-${Date.now()}.drawio`;
     a.click();
-    URL.revokeObjectURL(url);
+    // click 直後に同期 revoke するとブラウザによってはダウンロードタスクが
+    // キューされる前に object URL が無効化され、保存が中断されることがある。
+    // 次マイクロタスク以降へ遅延させてダウンロード開始を確実にする。
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     onToast('.drawio をダウンロードしました');
   }
 

@@ -24,7 +24,8 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
 
   const config = loadConfig(configPath);
 
-  const outPath = options.outPath ?? config.dict?.out ?? join(cwd, '.nymph/dict.json');
+  const outPath =
+    options.outPath ?? config.dict?.out ?? join(cwd, '.nymph/dict.json');
   const debugDir = options.debugDir ?? join(cwd, '.nymph/debug');
   const rawCacheDir = join(cwd, '.nymph/raw');
 
@@ -44,7 +45,9 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
     });
 
     if (result.error) {
-      throw new Error(`source "${source.name}": コマンド実行エラー: ${result.error.message}`);
+      throw new Error(
+        `source "${source.name}": コマンド実行エラー: ${result.error.message}`,
+      );
     }
     if (result.status !== 0) {
       throw new Error(

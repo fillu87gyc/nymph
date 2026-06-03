@@ -14,8 +14,18 @@ function parseSimple(raw: string): SimpleSelector {
   const typePart = raw.replace(/:contains\(['"].*?['"]\)/g, '').trim();
 
   const validTypes: Array<NodeType | '*'> = [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'p', 'li', 'code', 'blockquote', 'table', '*',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'p',
+    'li',
+    'code',
+    'blockquote',
+    'table',
+    '*',
   ];
   const type = validTypes.includes(typePart as NodeType | '*')
     ? (typePart as NodeType | '*')
@@ -52,7 +62,10 @@ function directChildren(node: NestedNode): NestedNode[] {
 }
 
 // Returns siblings after a node. rootNodes is used when node has no parent (root-level).
-function siblingsAfter(node: NestedNode, rootNodes: NestedNode[]): NestedNode[] {
+function siblingsAfter(
+  node: NestedNode,
+  rootNodes: NestedNode[],
+): NestedNode[] {
   const siblings = node.parent ? node.parent.children : rootNodes;
   const idx = siblings.indexOf(node);
   if (idx === -1) return [];
@@ -60,7 +73,10 @@ function siblingsAfter(node: NestedNode, rootNodes: NestedNode[]): NestedNode[] 
 }
 
 // Returns immediately adjacent sibling after a node. rootNodes for root-level nodes.
-function adjacentSibling(node: NestedNode, rootNodes: NestedNode[]): NestedNode | null {
+function adjacentSibling(
+  node: NestedNode,
+  rootNodes: NestedNode[],
+): NestedNode | null {
   const siblings = node.parent ? node.parent.children : rootNodes;
   const idx = siblings.indexOf(node);
   if (idx === -1 || idx + 1 >= siblings.length) return null;
@@ -81,7 +97,10 @@ function parseSelectorParts(selector: string): SelectorPart[] {
 
   // Tokenize: handle > + ~ as explicit combinators, whitespace as descendant combinator
   // We'll use a simple state machine
-  const tokens: Array<{ type: 'combinator'; value: Combinator } | { type: 'selector'; value: string }> = [];
+  const tokens: Array<
+    | { type: 'combinator'; value: Combinator }
+    | { type: 'selector'; value: string }
+  > = [];
 
   let current = '';
   let i = 0;

@@ -1,7 +1,18 @@
 import { marked } from 'marked';
 
 export interface NestedNode {
-  type: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'li' | 'code' | 'blockquote' | 'table';
+  type:
+    | 'h1'
+    | 'h2'
+    | 'h3'
+    | 'h4'
+    | 'h5'
+    | 'h6'
+    | 'p'
+    | 'li'
+    | 'code'
+    | 'blockquote'
+    | 'table';
   text: string;
   raw: string;
   html: string;
@@ -31,7 +42,10 @@ function tokenToNode(token: marked.Token): NestedNode | null {
   if (token.type === 'heading') {
     const depth = token.depth as HeadingDepth;
     // Extract plain text from heading tokens
-    const text = 'text' in token ? String(token.text) : token.raw.replace(/^#+\s*/, '').trim();
+    const text =
+      'text' in token
+        ? String(token.text)
+        : token.raw.replace(/^#+\s*/, '').trim();
     return {
       type: headingType(depth),
       text,
@@ -144,7 +158,14 @@ export function buildTree(markdown: string): NestedNode[] {
 
   // Stack of heading nodes: stack[i] is the current open node at depth i+1
   // stack[0] = current h1, stack[1] = current h2, etc.
-  const headingStack: Array<NestedNode | null> = [null, null, null, null, null, null];
+  const headingStack: Array<NestedNode | null> = [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ];
 
   function addToParent(node: NestedNode): void {
     // Find the deepest heading that could be a parent

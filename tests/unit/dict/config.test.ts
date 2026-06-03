@@ -18,9 +18,14 @@ dict:
     const config = parseConfig(yaml);
     expect(config.sources).toHaveLength(1);
     expect(config.sources[0].name).toBe('glossary');
-    expect(config.sources[0].fetch.cmd).toEqual(['cat', 'tests/fixtures/dict/glossary.md']);
+    expect(config.sources[0].fetch.cmd).toEqual([
+      'cat',
+      'tests/fixtures/dict/glossary.md',
+    ]);
     expect(config.sources[0].adapter).toBe('markdown');
-    expect(config.sources[0].rules.term).toBe("h2:contains('ユビキタス言語') > h3");
+    expect(config.sources[0].rules.term).toBe(
+      "h2:contains('ユビキタス言語') > h3",
+    );
     expect(config.sources[0].rules.definition).toBe('term > p');
     expect(config.dict?.out).toBe('.nymph/dict.json');
   });

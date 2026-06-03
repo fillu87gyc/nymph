@@ -2,7 +2,7 @@ import { diffChars } from 'diff';
 import { memo, type ReactNode, useCallback } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
-import type { DiffLine } from '../types.ts';
+import type { Comment, DiffLine } from '../types.ts';
 import styles from './MarkdownBlock.module.css';
 
 export interface DiffGroup {
@@ -51,7 +51,7 @@ type AddCommentCb = (
   le: number,
   displayCtx: string,
   blockType: string,
-  context: any,
+  context: Comment['context'],
   selectionOffset: number | null,
 ) => void;
 
@@ -85,12 +85,20 @@ const StableContent = memo(
         <div
           className="mermaid"
           id={mermaidId}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: mermaid code from our own parser, escaped via esc()
+          // mermaid.run() がこの要素の innerHTML を SVG へ置き換えるため、React の
+          // 管理下に置くと再レンダリングで描画が競合する。esc() でエスケープ済みの
+          // コードを一度だけ流し込み、以降は React に触らせない（children 化は
+          // mermaid の DOM 書き換えと衝突するため不可）。参照: React docs
+          // "dangerouslySetInnerHTML" / mermaid `mermaid.run`。
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: esc() でエスケープ済み、mermaid が直接描画する
           dangerouslySetInnerHTML={{ __html: esc(mermaidCode ?? '') }}
         />
       );
     }
-    // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML sanitized by DOMPurify in parseBlocks
+    // html は parseBlocks 内で DOMPurify により sanitize 済み。React で sanitize 済み
+    // HTML を挿入する標準手段は dangerouslySetInnerHTML（参照: DOMPurify README の
+    // "sanitize" 出力をそのまま挿入する用法）。
+    // biome-ignore lint/security/noDangerouslySetInnerHtml: parseBlocks で DOMPurify sanitize 済み
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
   },
   (prev, next) =>
@@ -157,7 +165,9 @@ export function MarkdownBlock({
             <button
               className={styles.btnDrawio}
               data-testid="btn-drawio"
-              onClick={() => onOpenDrawio(block.mermaidCode!)}
+              onClick={() => {
+                if (block.mermaidCode) onOpenDrawio(block.mermaidCode);
+              }}
             >
               → draw.io
             </button>
@@ -183,7 +193,10 @@ export function MarkdownBlock({
               group.deletes.length > 0;
             const validIns = group.inserts.filter((l) => l.content.trim());
             return (
-              // biome-ignore lint/suspicious/noArrayIndexKey: diff groups have no stable id
+              // diffGroups は diff 計算のたびに丸ごと再生成され、要素固有の安定 id を
+              // 持たない。並び順は内容で一意に決まるため index キーで問題ない（参照:
+              // React docs "Rendering Lists" — 安定 id が無い場合の index 容認）。
+              // biome-ignore lint/suspicious/noArrayIndexKey: diffGroups は毎回再生成され安定 id を持たない
               <div key={gi}>
                 {group.deletes.length > 0 && (
                   <div

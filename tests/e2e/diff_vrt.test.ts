@@ -22,7 +22,7 @@ const STABILIZE = `
     animation-play-state: paused !important;
     transition-duration: 0ms !important;
   }
-  [data-testid="connection-dot"], [data-testid="watch-dot"] { opacity: 1 !important; }
+  [data-testid="connection-dot"] { opacity: 1 !important; }
   #toast { display: none !important; }
   #update-time, [data-testid="brand-version"] { visibility: hidden !important; }
 `;

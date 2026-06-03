@@ -7,6 +7,8 @@ import DOMPurify from 'dompurify';
  * - onclick / onerror などのイベントハンドラを除去
  * - javascript: / data:text/html などの危険な URI スキームを除去
  * - hljs や language-* クラス属性、通常の href は維持
+ * - target 属性は DOMPurify 既定で除去されるため、リンクは同タブ遷移となり
+ *   reverse tabnabbing（target="_blank" 経由の window.opener 悪用）の余地はない
  */
 export function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, {

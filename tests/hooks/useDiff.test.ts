@@ -39,12 +39,12 @@ describe('useDiff', () => {
   test('setCheckpoint が POST /checkpoint を呼び checkpointSet=true になる', async () => {
     mockFetch({ ok: true, lines: 10 });
     const { result } = renderHook(() => useDiff());
-    let lines: number;
+    let lines = 0;
     await act(async () => {
       lines = await result.current.setCheckpoint();
     });
     expect(result.current.checkpointSet).toBe(true);
-    expect(lines!).toBe(10);
+    expect(lines).toBe(10);
     expect(fetch).toHaveBeenCalledWith(
       '/checkpoint',
       expect.objectContaining({ method: 'POST' }),
@@ -54,12 +54,12 @@ describe('useDiff', () => {
   test('loadDiff が GET /diff を呼び diffData を返す', async () => {
     mockFetch(sampleDiff);
     const { result } = renderHook(() => useDiff());
-    let returned: DiffResponse;
+    let returned: DiffResponse | undefined;
     await act(async () => {
       returned = await result.current.loadDiff();
     });
     expect(result.current.diffData).toEqual(sampleDiff);
-    expect(returned!).toEqual(sampleDiff);
+    expect(returned).toEqual(sampleDiff);
   });
 
   test('toggleDiff: false→true で diff データを取得する', async () => {

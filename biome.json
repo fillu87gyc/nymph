@@ -24,13 +24,13 @@
 				"noSvgWithoutTitle": "off"
 			},
 			"style": {
-				"noNonNullAssertion": "warn"
+				"noNonNullAssertion": "error"
 			},
 			"correctness": {
 				"useExhaustiveDependencies": "warn"
 			},
 			"suspicious": {
-				"noExplicitAny": "warn",
+				"noExplicitAny": "error",
 				"noAssignInExpressions": "warn",
 				"useIterableCallbackReturn": "warn"
 			}

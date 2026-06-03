@@ -27,13 +27,6 @@ export function FileTabs({
             data-active={String(isActive)}
             onClick={() => !isActive && onSwitch(f.path)}
           >
-            {isActive && (
-              <span
-                className={styles.watchDot}
-                id="watch-dot"
-                data-testid="watch-dot"
-              />
-            )}
             {f.name}
             {f.path !== '__dropped__' && (
               <span

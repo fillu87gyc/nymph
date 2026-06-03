@@ -96,7 +96,8 @@ test.describe('コンテンツ外の選択では popup が出ない', () => {
       if (!el) return;
       const range = document.createRange();
       range.selectNode(el);
-      const sel = window.getSelection()!;
+      const sel = window.getSelection();
+      if (!sel) return;
       sel.removeAllRanges();
       sel.addRange(range);
     });

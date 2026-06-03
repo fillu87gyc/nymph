@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import styles from './DrawioModal.module.css';
 
 interface DrawioModalProps {
@@ -14,12 +13,10 @@ export function DrawioModal({
   onClose,
   onToast,
 }: DrawioModalProps) {
-  const dlRef = useRef<HTMLAnchorElement>(null);
-
   if (!open || code === null) return null;
 
   function downloadDrawio() {
-    if (!code || !dlRef.current) return;
+    if (!code) return;
     const mdata = JSON.stringify({ code, config: {} })
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
@@ -44,17 +41,22 @@ export function DrawioModal({
 </mxfile>`;
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
-    dlRef.current.href = url;
-    dlRef.current.download = `mermaid-${Date.now()}.drawio`;
-    dlRef.current.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mermaid-${Date.now()}.drawio`;
+    a.click();
+    // click 直後に同期 revoke するとブラウザによってはダウンロードタスクが
+    // キューされる前に object URL が無効化され、保存が中断されることがある。
+    // 次マイクロタスク以降へ遅延させてダウンロード開始を確実にする。
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     onToast('.drawio をダウンロードしました');
   }
 
   function copyCode() {
     navigator.clipboard
       .writeText(code || '')
-      .then(() => onToast('コードをコピーしました'));
+      .then(() => onToast('コードをコピーしました'))
+      .catch(() => onToast('コードのコピーに失敗しました'));
   }
 
   return (
@@ -63,9 +65,6 @@ export function DrawioModal({
       className={styles.modal}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* biome-ignore lint/a11y/useAnchorContent: hidden download trigger */}
-      {/* biome-ignore lint/a11y/useValidAnchor: href is set programmatically before .click() */}
-      <a ref={dlRef} tabIndex={-1} style={{ display: 'none' }} />
       <div id="drawio-box" className={styles.box}>
         <div className={styles.head}>
           <span className={styles.title}>draw.io エクスポート</span>

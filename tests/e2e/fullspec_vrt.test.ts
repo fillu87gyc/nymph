@@ -204,7 +204,7 @@ test.describe('フルスペック VRT', () => {
           animation-play-state: paused !important;
           transition-duration: 0ms !important;
         }
-        [data-testid="connection-dot"], [data-testid="watch-dot"] { opacity: 1 !important; }
+        [data-testid="connection-dot"] { opacity: 1 !important; }
         #toast { display: none !important; }
         #update-time { visibility: hidden !important; }
         /* highlighted 状態を明るいオレンジで固定表示（アニメーション無効化） */

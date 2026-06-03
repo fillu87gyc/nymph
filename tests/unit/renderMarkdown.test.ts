@@ -53,7 +53,7 @@ describe('parseBlocks', () => {
     const blocks = parseBlocks('| A | B |\n|---|---|\n| 1 | 2 |');
     expect(blocks).toHaveLength(1);
     expect(blocks[0].type).toBe('table');
-    const ctx = blocks[0].commentContext.context as any;
+    const ctx = blocks[0].commentContext.context;
     expect(ctx).toHaveProperty('headers');
   });
 
@@ -80,7 +80,7 @@ describe('parseBlocks', () => {
 
   test('コードブロックの commentContext に lang と code が含まれる', () => {
     const blocks = parseBlocks('```ts\nconst x = 1;\n```');
-    const ctx = blocks[0].commentContext.context as any;
+    const ctx = blocks[0].commentContext.context;
     expect(ctx).toHaveProperty('lang', 'ts');
     expect(ctx).toHaveProperty('code');
   });

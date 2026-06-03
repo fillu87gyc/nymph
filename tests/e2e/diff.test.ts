@@ -271,12 +271,10 @@ test.describe('diff の右マージン表示', () => {
 
     const blockBox = await block.boundingBox();
     const asideBox = await aside.boundingBox();
-    expect(blockBox).not.toBeNull();
-    expect(asideBox).not.toBeNull();
+    if (!blockBox || !asideBox)
+      throw new Error('bounding box が取得できません');
     // aside の左端が本文ブロックの右端以降にある = 右マージンに出ている
-    expect(asideBox!.x).toBeGreaterThanOrEqual(
-      blockBox!.x + blockBox!.width - 1,
-    );
+    expect(asideBox.x).toBeGreaterThanOrEqual(blockBox.x + blockBox.width - 1);
   });
 
   test('削除(−) が 追加(+) の上に積み重なる（git diff と同じ順序）', async ({
@@ -292,7 +290,8 @@ test.describe('diff の右マージン表示', () => {
 
     const delBox = await del.boundingBox();
     const insBox = await ins.boundingBox();
-    expect(delBox!.y).toBeLessThan(insBox!.y);
+    if (!delBox || !insBox) throw new Error('bounding box が取得できません');
+    expect(delBox.y).toBeLessThan(insBox.y);
   });
 
   test('変更行は 1 行に収まり、変更箇所だけ文字単位でハイライトされる（縦割れ回帰防止）', async ({
@@ -381,7 +380,8 @@ test.describe('diff の右マージン表示', () => {
     const insBox = await aside
       .locator('[data-testid="diff-side-ins"]')
       .boundingBox();
-    expect(delBox!.y).toBeLessThan(insBox!.y);
+    if (!delBox || !insBox) throw new Error('bounding box が取得できません');
+    expect(delBox.y).toBeLessThan(insBox.y);
 
     // 追加 4 行は y 座標が単調増加 = 縦に積まれている（横並びや重なりではない）
     const tops = await aside

@@ -23,7 +23,8 @@
     "diff": "^9.0.0",
     "dompurify": "^3.4.7",
     "open": "^11.0.0",
-    "swr": "^2.4.1"
+    "swr": "^2.4.1",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
@@ -49,7 +50,14 @@
     "vitest": "4"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
-  "files": ["dist", "src/cli.ts", "src/server.ts", "src/client"]
+  "files": [
+    "dist",
+    "src/cli.ts",
+    "src/server.ts",
+    "src/client"
+  ]
 }

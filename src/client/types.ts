@@ -47,3 +47,18 @@ export interface PendingComment {
   context: Comment['context'];
   selection_offset: number | null;
 }
+
+export interface DictEntry {
+  term: string;
+  aliases: string[];
+  definition: string;
+  definitionHtml: string;
+  source: string;
+  sourceRef: string;
+}
+
+export interface DictResponse {
+  version: number;
+  updatedAt: string;
+  entries: DictEntry[];
+}

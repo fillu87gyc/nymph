@@ -6,6 +6,7 @@ import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
 import { ContentArea } from './components/ContentArea.tsx';
+import { DictTooltip } from './components/DictTooltip.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
@@ -13,12 +14,14 @@ import { Toolbar } from './components/Toolbar.tsx';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
 import { useContent } from './hooks/useContent.ts';
+import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useSSE } from './hooks/useSSE.ts';
 import { ctxDisplay } from './lib/comments.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
-import type { Comment, PendingComment } from './types.ts';
+import { applyTermHighlights } from './lib/termHighlight.ts';
+import type { Comment, DictEntry, PendingComment } from './types.ts';
 
 const HLJS_DARK =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css';
@@ -55,6 +58,14 @@ export function App() {
   } | null>(null);
   const { isConnected } = useConnectionStatus();
 
+  // Dict state
+  const { entries: dictEntries, revalidate: revalidateDict } = useDict();
+  const [isDictSyncing, setIsDictSyncing] = useState(false);
+  const [dictTooltipEntry, setDictTooltipEntry] = useState<DictEntry | null>(
+    null,
+  );
+  const [dictTooltipRect, setDictTooltipRect] = useState<DOMRect | null>(null);
+
   // Modal state
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [pending, setPending] = useState<PendingComment | null>(null);
@@ -84,8 +95,12 @@ export function App() {
     setToastState((s) => ({ msg, v: s.v + 1 }));
   }
 
-  // SSE
-  useSSE((changedFile) => {
+  // SSE: ファイル変更と dict 更新を処理
+  useSSE((changedFile, dictUpdated) => {
+    if (dictUpdated) {
+      revalidateDict();
+      return;
+    }
     if (!changedFile || !activeFile) return;
     if (changedFile === activeFile) {
       void mutate(contentKey);
@@ -94,6 +109,59 @@ export function App() {
       toast('ファイルが更新されました');
     }
   });
+
+  // content が更新されたら term ハイライトを再適用
+  useEffect(() => {
+    if (!contentRef.current || dictEntries.length === 0) return;
+    // DOM 更新後に実行
+    const id = requestAnimationFrame(() => {
+      if (contentRef.current) {
+        applyTermHighlights(contentRef.current, dictEntries);
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [source, dictEntries]);
+
+  // mark ホバーでツールチップを表示
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container) return;
+
+    function onMouseEnter(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (target.tagName !== 'MARK' || !target.hasAttribute('data-dict-term'))
+        return;
+      const termName = target.getAttribute('data-dict-term') ?? '';
+      const entry = dictEntries.find((en) => en.term === termName) ?? null;
+      setDictTooltipEntry(entry);
+      setDictTooltipRect(target.getBoundingClientRect());
+    }
+
+    function onMouseLeave(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (target.tagName !== 'MARK' || !target.hasAttribute('data-dict-term'))
+        return;
+      setDictTooltipEntry(null);
+      setDictTooltipRect(null);
+    }
+
+    container.addEventListener('mouseover', onMouseEnter);
+    container.addEventListener('mouseout', onMouseLeave);
+    return () => {
+      container.removeEventListener('mouseover', onMouseEnter);
+      container.removeEventListener('mouseout', onMouseLeave);
+    };
+  }, [dictEntries]);
+
+  async function handleDictSync() {
+    setIsDictSyncing(true);
+    try {
+      await fetch('/dict/sync', { method: 'POST' });
+      revalidateDict();
+    } finally {
+      setIsDictSyncing(false);
+    }
+  }
 
   function handleToggleTheme() {
     const next = hljsTheme === 'light' ? 'dark' : 'light';
@@ -362,6 +430,8 @@ export function App() {
         onToggleTheme={handleToggleTheme}
         onSwitchFile={handleSwitchFile}
         onCloseFile={handleCloseFile}
+        onDictSync={handleDictSync}
+        isDictSyncing={isDictSyncing}
       />
       <div id="main" className={styles.main}>
         <ContentArea
@@ -423,6 +493,7 @@ export function App() {
         contentRef={contentRef}
         onComment={handleSelectionComment}
       />
+      <DictTooltip entry={dictTooltipEntry} anchorRect={dictTooltipRect} />
       {anchorPopup &&
         createPortal(
           <div

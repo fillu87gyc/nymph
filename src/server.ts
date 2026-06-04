@@ -184,23 +184,33 @@ function handleGetDict(): Response {
   }
 }
 
+let dictSyncing = false;
+
 async function handleDictSync(): Promise<Response> {
-  const configPath = join(process.cwd(), 'nymph.yml');
-  if (existsSync(configPath)) {
-    const { spawnSync: spawnSyncChild } = await import('node:child_process');
-    spawnSyncChild(
-      process.execPath,
-      [
-        join(import.meta.dir, 'cli.ts'),
-        'dict',
-        'build',
-        '--config',
-        configPath,
-      ],
-      { shell: false, encoding: 'utf-8' },
-    );
+  if (dictSyncing) return json({ error: 'sync already in progress' }, 409);
+  dictSyncing = true;
+  try {
+    const configPath = join(process.cwd(), 'nymph.yml');
+    if (existsSync(configPath)) {
+      const { spawnSync } = await import('node:child_process');
+      spawnSync(
+        process.execPath,
+        [
+          join(import.meta.dir, 'cli.ts'),
+          'dict',
+          'build',
+          '--config',
+          configPath,
+          '--out',
+          join(process.cwd(), '.nymph/dict.json'),
+        ],
+        { shell: false, encoding: 'utf-8' },
+      );
+    }
+    return handleGetDict();
+  } finally {
+    dictSyncing = false;
   }
-  return handleGetDict();
 }
 
 function handleGetComments(url: URL): Response {

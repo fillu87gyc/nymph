@@ -1,4 +1,4 @@
-import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, describe, expect, test } from 'vitest';
 import { buildDict } from '../../../src/dict/build.ts';
 
@@ -101,5 +101,63 @@ describe('buildDict', () => {
     ).rejects.toThrow();
 
     rmSync(tmpConfig);
+  });
+
+  test('出力 JSON ファイルが DictEntry の全フィールドを持つ', async () => {
+    await buildDict({ configPath: CONFIG_PATH, outPath: OUT_PATH, cwd: CWD });
+
+    const raw = JSON.parse(readFileSync(OUT_PATH, 'utf-8'));
+    expect(raw.version).toBe(1);
+    expect(typeof raw.updatedAt).toBe('string');
+    expect(Array.isArray(raw.entries)).toBe(true);
+
+    for (const entry of raw.entries) {
+      expect(typeof entry.term).toBe('string');
+      expect(Array.isArray(entry.aliases)).toBe(true);
+      expect(typeof entry.definition).toBe('string');
+      expect(typeof entry.definitionHtml).toBe('string');
+      expect(typeof entry.source).toBe('string');
+      expect(typeof entry.sourceRef).toBe('string');
+    }
+  });
+
+  test('セレクタ外の用語（エンティティ）は含まれない', async () => {
+    const result = await buildDict({
+      configPath: CONFIG_PATH,
+      outPath: OUT_PATH,
+      cwd: CWD,
+    });
+
+    const terms = result.entries.map((e) => e.term);
+    expect(terms).not.toContain('エンティティ');
+  });
+
+  test('skipIfFresh=true かつ stale な dict.json は再ビルドする', async () => {
+    const staleDict = {
+      version: 1,
+      updatedAt: new Date(Date.now() - 25 * 3600 * 1000).toISOString(),
+      entries: [
+        {
+          term: 'stale-term',
+          aliases: [],
+          definition: 'stale',
+          definitionHtml: '<p>stale</p>',
+          source: 'test',
+          sourceRef: '',
+        },
+      ],
+    };
+    writeFileSync(OUT_PATH, JSON.stringify(staleDict));
+
+    const result = await buildDict({
+      configPath: CONFIG_PATH,
+      outPath: OUT_PATH,
+      cwd: CWD,
+      skipIfFresh: true,
+    });
+
+    const terms = result.entries.map((e) => e.term);
+    expect(terms).toContain('集約');
+    expect(terms).not.toContain('stale-term');
   });
 });

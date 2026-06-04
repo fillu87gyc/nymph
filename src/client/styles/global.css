@@ -336,3 +336,13 @@ body {
   text-decoration: underline;
   text-decoration-color: rgba(194, 112, 48, 0.9);
 }
+
+/* ── 辞書用語ハイライト ── */
+mark[data-dict-term] {
+  background: transparent;
+  color: inherit;
+  text-decoration: underline wavy var(--accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  cursor: help;
+}

@@ -28,6 +28,7 @@ sources:
     rules:
       term: "<セレクタ>"          # 用語ノードを選ぶセレクタ
       definition: "term <op> <セレクタ>"  # term を起点にした定義ノードの相対セレクタ
+      aliases: "term <op> <セレクタ>"    # （省略可）aliases を抽出するノードの相対セレクタ
 
 dict:
   ttl: "24h"                     # キャッシュ有効期限（省略可。例: "1h", "30m"）
@@ -80,6 +81,27 @@ h1: ドメイン用語集
 
 対応するノード型：`h1` `h2` `h3` `h4` `h5` `h6` `p` `li` `code` `blockquote` `table`
 
+リストのネスト構造（`li > li`）も対応している。
+
+```markdown
+## 集約
+
+* コードの中の名前
+  * Aggregate
+* 説明
+  * 集約とは、整合性を保つべきオブジェクトの集まりである。
+```
+
+上記は次の木として扱われる：
+
+```
+h2: 集約
+├─ li: コードの中の名前
+│  └─ li: Aggregate
+└─ li: 説明
+   └─ li: 集約とは…
+```
+
 ### セレクタ構文
 
 #### 型セレクタ
@@ -131,9 +153,10 @@ rules:
 | `A + B` | 隣接兄弟 | A の直後の兄弟で B にマッチするもの |
 | `A ~ B` | 後続兄弟 | A より後ろの兄弟全員で B にマッチするもの |
 
-#### 相対セレクタ（definition 専用）
+#### 相対セレクタ（definition / aliases 共通）
 
-`rules.definition` では `term` をアンカーとして定義ノードを指定する。
+`rules.definition` と `rules.aliases` では `term` をアンカーとして対象ノードを指定する。
+コンビネータを連鎖させた多段パスも使用できる。
 
 | セレクタ | 意味 |
 |---|---|
@@ -141,6 +164,7 @@ rules:
 | `term p` | マッチした term ノードの子孫 p |
 | `term + *` | term ノードの直後の兄弟 |
 | `term ~ *` | term ノードより後ろの兄弟すべて |
+| `term > li:contains('名前') > li` | term → 直下の「名前」li → さらに直下の li |
 | `term` | term ノード自身 |
 
 ### セレクタ使用例
@@ -151,6 +175,21 @@ rules:
 rules:
   term: "h2:contains('ユビキタス言語') > h3"
   definition: "term > p"
+```
+
+```yaml
+# ネストリストから aliases と definition を抽出する例
+#
+# 対象 Markdown:
+#   ## 集約
+#   * コードの中の名前
+#     * Aggregate
+#   * 説明
+#     * 集約とは…
+rules:
+  term: "h2"
+  aliases: "term > li:contains('コードの中の名前') > li"
+  definition: "term > li:contains('説明') > li"
 ```
 
 ```yaml

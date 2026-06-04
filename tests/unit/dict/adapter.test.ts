@@ -63,6 +63,43 @@ describe('markdown adapter', () => {
     expect(entries.length).toBe(2);
   });
 
+  test('rules.aliases セレクタでエイリアスを抽出できる', () => {
+    const md = `## 集約\n\n* コードの中の名前\n  * Aggregate\n* 説明\n  * 集約とは整合性を保つオブジェクトの集まりである。\n`;
+    const rules = {
+      term: 'h2',
+      aliases: "term > li:contains('コードの中の名前') > li",
+      definition: "term > li:contains('説明') > li",
+    };
+    const entries = extractEntries(md, rules);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+    expect(entries[0].definition).toContain('集約とは');
+  });
+
+  test('rules.aliases と括弧表記エイリアスが両方あれば重複なく結合', () => {
+    const md = `## 集約（Aggregate）\n\n* コードの中の名前\n  * Agg\n* 説明\n  * 定義。\n`;
+    const rules = {
+      term: 'h2',
+      aliases: "term > li:contains('コードの中の名前') > li",
+      definition: "term > li:contains('説明') > li",
+    };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+    expect(entries[0].aliases).toContain('Agg');
+    // no duplicates
+    const unique = new Set(entries[0].aliases);
+    expect(unique.size).toBe(entries[0].aliases.length);
+  });
+
+  test('rules.aliases がない場合は従来の括弧抽出のみ', () => {
+    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
   test('definition が複数ブロックの場合は連結される', () => {
     const md = `## 用語集\n### 集約\n\nFirst para.\n\nSecond para.\n`;
     const rules = { term: 'h2 > h3', definition: 'term > p' };

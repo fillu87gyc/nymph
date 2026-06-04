@@ -278,55 +278,32 @@ export function select(nodes: NestedNode[], selector: string): NestedNode[] {
 }
 
 /**
- * Resolve a definition selector relative to a matched term node.
- * The literal string "term" in the selector is replaced by the term node.
- *
- * E.g. "term > p" means: direct children p of termNode
- *      "term ~ *" means: siblings after termNode
+ * Resolve a selector relative to a matched term node.
+ * The literal string "term" is the anchor; subsequent combinator+selector steps
+ * are applied in sequence, supporting multi-step paths such as
+ * "term > li:contains('names') > li".
  */
 export function selectRelative(
   termNode: NestedNode,
   relSelector: string,
   rootNodes: NestedNode[],
 ): NestedNode[] {
-  // Replace "term" token with the termNode anchor and evaluate
   const trimmed = relSelector.trim();
-
-  // Check if the selector starts with "term"
-  if (!trimmed.startsWith('term')) {
-    // Fall back to normal select with empty roots (not useful but safe)
-    return [];
-  }
+  if (!trimmed.startsWith('term')) return [];
 
   const rest = trimmed.slice('term'.length).trim();
+  if (!rest) return [termNode];
 
-  if (!rest) {
-    // Just "term" — return the term node itself
-    return [termNode];
+  // Prepend a wildcard placeholder so parseSelectorParts can tokenize cleanly.
+  // The resulting parts[0] (the '*') is skipped; we start traversal from termNode.
+  const parts = parseSelectorParts(`* ${rest}`);
+  if (parts.length < 2) return [termNode];
+
+  let candidates = [termNode];
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part.combinator) break;
+    candidates = applyStep(candidates, part.combinator, part.selector, rootNodes);
   }
-
-  // Parse the combinator and right selector
-  let combinator: Combinator;
-  let rightStr: string;
-
-  if (rest.startsWith('>')) {
-    combinator = '>';
-    rightStr = rest.slice(1).trim();
-  } else if (rest.startsWith('+')) {
-    combinator = '+';
-    rightStr = rest.slice(1).trim();
-  } else if (rest.startsWith('~')) {
-    combinator = '~';
-    rightStr = rest.slice(1).trim();
-  } else if (rest.startsWith(' ')) {
-    combinator = ' ';
-    rightStr = rest.trim();
-  } else {
-    combinator = ' ';
-    rightStr = rest;
-  }
-
-  const rightSel = parseSimple(rightStr);
-  // Pass rootNodes so ~ and + work correctly on root-level term nodes
-  return applyStep([termNode], combinator, rightSel, rootNodes);
+  return candidates;
 }

@@ -86,6 +86,23 @@ describe('buildTree', () => {
     expect(shuuyakuP?.text).toContain('集約とは');
   });
 
+  test('ネストリスト — 親 li の children に子 li が入る', () => {
+    const md = `## 用語\n\n* コードの中の名前\n  * term\n* 説明\n  * 〜〜〜\n`;
+    const tree = buildTree(md);
+    const h2 = tree[0];
+    expect(h2.type).toBe('h2');
+
+    const topLis = h2.children.filter((c) => c.type === 'li');
+    expect(topLis.length).toBeGreaterThanOrEqual(2);
+
+    const namesLi = topLis.find((n) => n.text === 'コードの中の名前');
+    expect(namesLi).toBeDefined();
+    expect(namesLi!.children).toHaveLength(1);
+    expect(namesLi!.children[0].type).toBe('li');
+    expect(namesLi!.children[0].text).toBe('term');
+    expect(namesLi!.children[0].parent).toBe(namesLi);
+  });
+
   test('parent 参照が正しく設定される', () => {
     const md = `## Parent\n### Child\n`;
     const tree = buildTree(md);

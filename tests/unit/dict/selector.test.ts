@@ -108,6 +108,37 @@ describe('select', () => {
   });
 });
 
+describe('selectRelative — 多段セレクタ', () => {
+  test('term > li:contains() > li — 2 段ネストを辿れる', () => {
+    const md = `## 用語\n\n* コードの中の名前\n  * MyAlias\n* 説明\n  * 定義テキスト\n`;
+    const tree = buildTree(md);
+    const h2Nodes = select(tree, 'h2');
+    expect(h2Nodes).toHaveLength(1);
+
+    const result = selectRelative(
+      h2Nodes[0],
+      "term > li:contains('コードの中の名前') > li",
+      tree,
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('MyAlias');
+  });
+
+  test('term > li:contains() > li — 定義ノードも取得できる', () => {
+    const md = `## 用語\n\n* コードの中の名前\n  * MyAlias\n* 説明\n  * 定義テキスト\n`;
+    const tree = buildTree(md);
+    const h2Nodes = select(tree, 'h2');
+
+    const result = selectRelative(
+      h2Nodes[0],
+      "term > li:contains('説明') > li",
+      tree,
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('定義テキスト');
+  });
+});
+
 describe(':has-alias 疑似クラス', () => {
   test('括弧（全角）を含むノードにマッチする', () => {
     const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n### リポジトリ\nリポジトリとは...\n`;

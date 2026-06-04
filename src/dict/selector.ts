@@ -5,13 +5,25 @@ type NodeType = NestedNode['type'];
 interface SimpleSelector {
   type: NodeType | '*';
   contains?: string;
+  hasAlias?: boolean;
+  alias?: string;
 }
 
-// Parse a simple selector like "h2", "h3:contains('text')", "*"
+// Parse a simple selector like "h2", "h3:contains('text')", "h3:has-alias", "h3:alias('text')", "*"
 function parseSimple(raw: string): SimpleSelector {
   const containsMatch = raw.match(/:contains\(['"](.+?)['"]\)/);
   const contains = containsMatch ? containsMatch[1] : undefined;
-  const typePart = raw.replace(/:contains\(['"].*?['"]\)/g, '').trim();
+
+  const aliasMatch = raw.match(/:alias\(['"](.+?)['"]\)/);
+  const alias = aliasMatch ? aliasMatch[1] : undefined;
+
+  const hasAlias = /:has-alias/.test(raw);
+
+  const typePart = raw
+    .replace(/:contains\(['"].*?['"]\)/g, '')
+    .replace(/:alias\(['"].*?['"]\)/g, '')
+    .replace(/:has-alias/g, '')
+    .trim();
 
   const validTypes: Array<NodeType | '*'> = [
     'h1',
@@ -31,12 +43,32 @@ function parseSimple(raw: string): SimpleSelector {
     ? (typePart as NodeType | '*')
     : '*';
 
-  return { type, contains };
+  return {
+    type,
+    contains,
+    hasAlias: hasAlias || undefined,
+    alias,
+  };
 }
+
+const BRACKET_PATTERN = /[（(]([^）)]+)[）)]/;
 
 function matchesSimple(node: NestedNode, sel: SimpleSelector): boolean {
   if (sel.type !== '*' && node.type !== sel.type) return false;
   if (sel.contains && !node.text.includes(sel.contains)) return false;
+  if (sel.hasAlias && !BRACKET_PATTERN.test(node.text)) return false;
+  if (sel.alias) {
+    const re = /[（(]([^）)]+)[）)]/g;
+    let m: RegExpExecArray | null;
+    let found = false;
+    while ((m = re.exec(node.text)) !== null) {
+      if (m[1].includes(sel.alias)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+  }
   return true;
 }
 
@@ -113,6 +145,17 @@ function parseSelectorParts(selector: string): SelectorPart[] {
     if (ch === ':' && s.slice(i).startsWith(':contains(')) {
       const quoteChar = s[i + ':contains('.length];
       const closeIdx = s.indexOf(quoteChar + ')', i + ':contains('.length + 1);
+      if (closeIdx !== -1) {
+        current += s.slice(i, closeIdx + 2);
+        i = closeIdx + 2;
+        continue;
+      }
+    }
+
+    // Skip over :alias('...') or :alias("...") without splitting on interior chars
+    if (ch === ':' && s.slice(i).startsWith(':alias(')) {
+      const quoteChar = s[i + ':alias('.length];
+      const closeIdx = s.indexOf(quoteChar + ')', i + ':alias('.length + 1);
       if (closeIdx !== -1) {
         current += s.slice(i, closeIdx + 2);
         i = closeIdx + 2;

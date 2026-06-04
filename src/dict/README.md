@@ -101,8 +101,26 @@ h1: ドメイン用語集
 | セレクタ | 意味 |
 |---|---|
 | `h2:contains('テキスト')` | `text` フィールドに指定文字列を含む h2 |
+| `h3:has-alias` | `text` フィールドに括弧表記（全角 `（）` または半角 `()`）を含む h3 |
+| `h3:alias('テキスト')` | 括弧内テキストに指定文字列を含む h3（部分一致） |
 
 `'` と `"` の両方が使える。部分一致。
+
+`:has-alias` と `:alias()` が対象とする括弧は、エイリアス自動抽出と同じ全角・半角の丸括弧。
+
+```yaml
+# エイリアスを持つ h3 だけを用語として選択
+rules:
+  term: "h3:has-alias"
+  definition: "term > p"
+```
+
+```yaml
+# 括弧内に "Aggregate" を含む h3 だけを選択
+rules:
+  term: "h3:alias('Aggregate')"
+  definition: "term > p"
+```
 
 #### コンビネータ
 

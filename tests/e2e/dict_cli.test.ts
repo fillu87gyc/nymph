@@ -66,3 +66,68 @@ test.describe('nymph dict build CLI', () => {
     expect(existsSync(`${debugDir}/tree/glossary.json`)).toBe(true);
   });
 });
+
+test.describe('nymph dict build CLI — json adapter', () => {
+  const outPath = '/tmp/test-dict-json-adapter.json';
+
+  test.beforeAll(() => {
+    if (existsSync(outPath)) rmSync(outPath);
+  });
+
+  test('nymph-json.yml → dict.json が生成される', () => {
+    execSync(
+      `bun run src/cli.ts dict build --config tests/fixtures/dict/nymph-json.yml --out ${outPath}`,
+      { cwd: NYMPH_ROOT, encoding: 'utf-8' },
+    );
+
+    expect(existsSync(outPath)).toBe(true);
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    expect(dict.version).toBe(1);
+    expect(dict.updatedAt).toBeDefined();
+    expect(dict.entries.length).toBeGreaterThan(0);
+  });
+
+  test('json fixture から集約・リポジトリが抽出される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const terms = dict.entries.map((e: { term: string }) => e.term);
+    expect(terms).toContain('集約');
+    expect(terms).toContain('リポジトリ');
+  });
+
+  test('aliases フィールドが dict.json に含まれる', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const shuuyaku = dict.entries.find(
+      (e: { term: string }) => e.term === '集約',
+    );
+    expect(shuuyaku).toBeDefined();
+    expect(shuuyaku.aliases).toContain('Aggregate');
+  });
+
+  test('括弧表記エイリアスが term 本体から除去される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const ds = dict.entries.find(
+      (e: { term: string }) => e.term === 'ドメインサービス',
+    );
+    expect(ds).toBeDefined();
+    expect(ds.aliases).toContain('Domain Service');
+  });
+
+  test('source フィールドが json-glossary で設定される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    for (const entry of dict.entries as Record<string, unknown>[]) {
+      expect(entry.source).toBe('json-glossary');
+    }
+  });
+
+  test('各エントリが DictEntry の全フィールドを持つ', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    for (const entry of dict.entries as Record<string, unknown>[]) {
+      expect(typeof entry.term).toBe('string');
+      expect(Array.isArray(entry.aliases)).toBe(true);
+      expect(typeof entry.definition).toBe('string');
+      expect(typeof entry.definitionHtml).toBe('string');
+      expect(typeof entry.source).toBe('string');
+      expect(typeof entry.sourceRef).toBe('string');
+    }
+  });
+});

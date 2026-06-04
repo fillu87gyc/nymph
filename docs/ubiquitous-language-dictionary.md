@@ -328,10 +328,9 @@ export interface DictAdapter {
 - **テスト**: fetch は argv をモックした unit。E2E: 強制フェッチボタンで dict が
   更新されることを確認（fetch は `cat` 固定の fixture で）。
 
-### Phase 4 — injectable Adapter レジストリ
-- Adapter インターフェース確定 + レジストリ。`json` / `csv` を 1 つ追加して
-  差し替え可能性を実証。
-- **テスト**: 新アダプタの unit + 既存 dict.json 契約の回帰。
+### Phase 4 — injectable Adapter レジストリ ✅
+- Adapter インターフェース確定 + レジストリ。`json` を追加して差し替え可能性を実証。
+- **テスト**: 新アダプタの unit（16 件）+ 既存 dict.json 契約の回帰（E2E 6 件追加）。
 
 ---
 

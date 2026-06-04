@@ -14,8 +14,9 @@ import type { DictEntry, DictFile } from './schema.ts';
 import { select, selectRelative } from './selector.ts';
 import { buildTree } from './tree.ts';
 
-// Side-effect import to register the markdown adapter
+// Side-effect imports to register adapters
 import './adapters/markdown.ts';
+import './adapters/json.ts';
 
 export interface BuildOptions {
   configPath: string;

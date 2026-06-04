@@ -1,0 +1,8 @@
+sources:
+  - name: json-glossary
+    fetch:
+      cmd: ["cat", "tests/fixtures/dict/glossary.json"]
+    adapter: json
+    rules:
+      term: "term"
+      definition: "description"

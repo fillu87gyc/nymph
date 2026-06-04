@@ -50,18 +50,18 @@ test.describe('dict: 用語ホバーツールチップ', () => {
     await expect(page.locator('[data-testid="dict-tooltip"]')).toContainText(
       'Sample',
     );
-    mkdirSync('test-results/screenshots', { recursive: true });
+    mkdirSync('playwright-screenshots', { recursive: true });
     await page.screenshot({
-      path: 'test-results/screenshots/dict-tooltip.png',
+      path: 'playwright-screenshots/dict-tooltip.png',
     });
   });
 
   test('辞書更新ボタンが存在する', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('[data-testid="dict-fetch-btn"]')).toBeVisible();
-    mkdirSync('test-results/screenshots', { recursive: true });
+    mkdirSync('playwright-screenshots', { recursive: true });
     await page.screenshot({
-      path: 'test-results/screenshots/dict-fetch-btn.png',
+      path: 'playwright-screenshots/dict-fetch-btn.png',
     });
   });
 });

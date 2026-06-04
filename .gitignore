@@ -11,5 +11,6 @@ bun.lockb
 pnpm-lock.yaml
 coverage/
 test-results/
+playwright-screenshots/
 .claude/worktrees/
 .nymph/

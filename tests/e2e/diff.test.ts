@@ -170,9 +170,9 @@ test.describe('diff 表示', () => {
       .count();
     expect(sideCount).toBeGreaterThan(0);
 
-    mkdirSync('test-results/screenshots', { recursive: true });
+    mkdirSync('playwright-screenshots', { recursive: true });
     await page.screenshot({
-      path: 'test-results/screenshots/diff-side-panels.png',
+      path: 'playwright-screenshots/diff-side-panels.png',
     });
   });
 

@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { select, selectRelative } from '../../../src/dict/selector.ts';
-import type { NestedNode } from '../../../src/dict/tree.ts';
 import { buildTree } from '../../../src/dict/tree.ts';
 
 const glossaryMd = readFileSync(
@@ -116,7 +115,11 @@ describe('selectRelative', () => {
     const shuuyaku = h3Nodes.find((n) => n.text === '集約');
     expect(shuuyaku).toBeDefined();
 
-    const result = selectRelative(shuuyaku as NestedNode, 'term > p', tree);
+    const result = selectRelative(
+      shuuyaku as NonNullable<typeof shuuyaku>,
+      'term > p',
+      tree,
+    );
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe('p');
     expect(result[0].text).toContain('集約とは');
@@ -129,7 +132,11 @@ describe('selectRelative', () => {
     expect(shuuyaku).toBeDefined();
 
     // 集約 h3 の兄弟: リポジトリ h3 が同じ h2 の子
-    const result = selectRelative(shuuyaku as NestedNode, 'term ~ *', tree);
+    const result = selectRelative(
+      shuuyaku as NonNullable<typeof shuuyaku>,
+      'term ~ *',
+      tree,
+    );
     const texts = result.map((n) => n.text);
     expect(texts).toContain('リポジトリ');
   });
@@ -153,7 +160,11 @@ describe('selectRelative', () => {
     const repository = h3Nodes.find((n) => n.text === 'リポジトリ');
     expect(repository).toBeDefined();
 
-    const result = selectRelative(repository as NestedNode, 'term > p', tree);
+    const result = selectRelative(
+      repository as NonNullable<typeof repository>,
+      'term > p',
+      tree,
+    );
     expect(result).toHaveLength(1);
     expect(result[0].text).toContain('リポジトリとは');
   });

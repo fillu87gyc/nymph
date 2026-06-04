@@ -3,6 +3,11 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { diffArrays } from 'diff';
 
+// NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
+// 省略時は process.cwd()/.nymph を使う（E2E ワーカー分離に対応）。
+const _dictDir = process.env.NYMPH_DICT_DIR ?? join(process.cwd(), '.nymph');
+const DICT_JSON_PATH = join(_dictDir, 'dict.json');
+
 // shell を介さずに git を実行する（shell 経由のインジェクション余地を残さない）。
 function git(args: string[]): string | null {
   const res = spawnSync('git', args, { encoding: 'utf-8' });
@@ -99,7 +104,7 @@ function handleContent(url: URL): Response {
 
 function handleWatch(): Response {
   const paths = activePaths();
-  const dictPath = join(process.cwd(), '.nymph/dict.json');
+  const dictPath = DICT_JSON_PATH;
   const encoder = new TextEncoder();
   const mtimes = new Map<string, number>();
   for (const p of paths) {
@@ -171,7 +176,7 @@ function handleWatch(): Response {
 }
 
 function handleGetDict(): Response {
-  const dictPath = join(process.cwd(), '.nymph/dict.json');
+  const dictPath = DICT_JSON_PATH;
   if (!existsSync(dictPath)) {
     return json({ version: 1, updatedAt: '', entries: [] });
   }
@@ -184,23 +189,33 @@ function handleGetDict(): Response {
   }
 }
 
+let dictSyncing = false;
+
 async function handleDictSync(): Promise<Response> {
-  const configPath = join(process.cwd(), 'nymph.yml');
-  if (existsSync(configPath)) {
-    const { spawnSync: spawnSyncChild } = await import('node:child_process');
-    spawnSyncChild(
-      process.execPath,
-      [
-        join(import.meta.dir, 'cli.ts'),
-        'dict',
-        'build',
-        '--config',
-        configPath,
-      ],
-      { shell: false, encoding: 'utf-8' },
-    );
+  if (dictSyncing) return json({ error: 'sync already in progress' }, 409);
+  dictSyncing = true;
+  try {
+    const configPath = join(process.cwd(), 'nymph.yml');
+    if (existsSync(configPath)) {
+      const { spawnSync } = await import('node:child_process');
+      spawnSync(
+        process.execPath,
+        [
+          join(import.meta.dir, 'cli.ts'),
+          'dict',
+          'build',
+          '--config',
+          configPath,
+          '--out',
+          DICT_JSON_PATH,
+        ],
+        { shell: false, encoding: 'utf-8' },
+      );
+    }
+    return handleGetDict();
+  } finally {
+    dictSyncing = false;
   }
-  return handleGetDict();
 }
 
 function handleGetComments(url: URL): Response {

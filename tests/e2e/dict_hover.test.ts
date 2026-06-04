@@ -1,9 +1,6 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures.ts';
-
-const DICT_DIR = join(process.cwd(), '.nymph');
-const DICT_PATH = join(DICT_DIR, 'dict.json');
 
 const MOCK_DICT = {
   version: 1,
@@ -21,17 +18,9 @@ const MOCK_DICT = {
 };
 
 test.describe('dict: 用語ホバーツールチップ', () => {
-  test.beforeAll(() => {
-    mkdirSync(DICT_DIR, { recursive: true });
-    writeFileSync(DICT_PATH, JSON.stringify(MOCK_DICT, null, 2));
-  });
-
-  test.afterAll(() => {
-    try {
-      rmSync(DICT_PATH);
-    } catch {
-      /* ignore */
-    }
+  test.beforeAll(async ({ dictDir, dictPath }) => {
+    mkdirSync(dictDir, { recursive: true });
+    writeFileSync(dictPath, JSON.stringify(MOCK_DICT, null, 2));
   });
 
   test('GET /dict が entries を返す', async ({ page }) => {
@@ -61,10 +50,18 @@ test.describe('dict: 用語ホバーツールチップ', () => {
     await expect(page.locator('[data-testid="dict-tooltip"]')).toContainText(
       'Sample',
     );
+    mkdirSync('playwright-screenshots', { recursive: true });
+    await page.screenshot({
+      path: 'playwright-screenshots/dict-tooltip.png',
+    });
   });
 
   test('辞書更新ボタンが存在する', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('[data-testid="dict-fetch-btn"]')).toBeVisible();
+    mkdirSync('playwright-screenshots', { recursive: true });
+    await page.screenshot({
+      path: 'playwright-screenshots/dict-fetch-btn.png',
+    });
   });
 });

@@ -3,6 +3,43 @@ import { dirname, join } from 'node:path';
 import type { DictFile } from './schema.ts';
 import type { NestedNode } from './tree.ts';
 
+export interface StalenessConfig {
+  ttl?: string; // "24h", "1h", "30m"
+}
+
+const DEFAULT_TTL_MS = 86400000; // 24h
+
+/**
+ * TTL 文字列をミリ秒に変換する。
+ * 対応形式: "24h", "1h", "30m" など（正の整数 + h/m）
+ * 不正形式・0値はデフォルト 86400000ms を返す。
+ */
+export function parseTtl(ttl: string): number {
+  const match = /^(\d+)([hm])$/.exec(ttl);
+  if (!match) return DEFAULT_TTL_MS;
+  const value = Number(match[1]);
+  // 0 は意味のない TTL なのでデフォルトにフォールバック
+  if (value === 0) return DEFAULT_TTL_MS;
+  const unit = match[2];
+  if (unit === 'h') return value * 3600 * 1000;
+  return value * 60 * 1000;
+}
+
+/**
+ * dict.json が stale かどうか判定する。
+ * - updatedAt が空文字または不正な日付文字列の場合は常に true
+ * - ttl 省略時は 24h 扱い
+ */
+export function isStale(dictFile: DictFile, config: StalenessConfig): boolean {
+  if (!dictFile.updatedAt) return true;
+  const ts = new Date(dictFile.updatedAt).getTime();
+  // 不正な日付文字列の場合は NaN になるので stale 扱い
+  if (Number.isNaN(ts)) return true;
+  const ttlMs = config.ttl ? parseTtl(config.ttl) : DEFAULT_TTL_MS;
+  const age = Date.now() - ts;
+  return age >= ttlMs;
+}
+
 export function readDictFile(outPath: string): DictFile | null {
   if (!existsSync(outPath)) return null;
   try {

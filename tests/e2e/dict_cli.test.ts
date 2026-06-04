@@ -39,6 +39,24 @@ test.describe('nymph dict build CLI', () => {
     expect(terms).toContain('リポジトリ');
   });
 
+  test('エンティティ（その他セクション）は除外される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const terms = dict.entries.map((e: { term: string }) => e.term);
+    expect(terms).not.toContain('エンティティ');
+  });
+
+  test('各エントリが DictEntry の全フィールドを持つ', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    for (const entry of dict.entries as Record<string, unknown>[]) {
+      expect(typeof entry.term).toBe('string');
+      expect(Array.isArray(entry.aliases)).toBe(true);
+      expect(typeof entry.definition).toBe('string');
+      expect(typeof entry.definitionHtml).toBe('string');
+      expect(typeof entry.source).toBe('string');
+      expect(typeof entry.sourceRef).toBe('string');
+    }
+  });
+
   test('--debug フラグで中間ファイルが出力される', () => {
     execSync(
       `bun run src/cli.ts dict build --config tests/fixtures/dict/nymph.yml --out ${debugOut} --debug --debug-dir ${debugDir}`,

@@ -1,7 +1,14 @@
-import { spawnSync } from 'node:child_process';
+import * as cp from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { getAdapter } from './adapter.ts';
-import { writeDebugArtifacts, writeDictFile, writeRawCache } from './cache.ts';
+import {
+  isStale,
+  readDictFile,
+  writeDebugArtifacts,
+  writeDictFile,
+  writeRawCache,
+} from './cache.ts';
 import { loadConfig } from './config.ts';
 import type { DictEntry, DictFile } from './schema.ts';
 import { select, selectRelative } from './selector.ts';
@@ -16,10 +23,49 @@ export interface BuildOptions {
   debug?: boolean;
   debugDir?: string;
   cwd?: string;
+  /** true かつ fresh な dict.json があれば既存 dict.json をそのまま返す（デフォルト false） */
+  skipIfFresh?: boolean;
+}
+
+/**
+ * 引数リストに glob パターン（* や ?）が含まれる場合に Bun.Glob で展開する。
+ * cmd[0] 自体は展開しない。
+ */
+function expandGlobArgs(args: string[], cwd: string): string[] {
+  const expanded: string[] = [];
+  for (const arg of args) {
+    if (arg.includes('*') || arg.includes('?')) {
+      const glob = new Bun.Glob(arg);
+      const matches = [...glob.scanSync({ cwd, absolute: false })].sort();
+      expanded.push(...matches);
+    } else {
+      expanded.push(arg);
+    }
+  }
+  return expanded;
+}
+
+/**
+ * spawnSync の結果を検証し、エラーの場合は例外をスローする。
+ */
+function assertSpawnResult(
+  result: { error?: Error; status: number | null; stderr: string },
+  sourceName: string,
+): void {
+  if (result.error) {
+    throw new Error(
+      `source "${sourceName}": コマンド実行エラー: ${result.error.message}`,
+    );
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      `source "${sourceName}": コマンドが終了コード ${result.status} で終了しました。stderr: ${result.stderr}`,
+    );
+  }
 }
 
 export async function buildDict(options: BuildOptions): Promise<DictFile> {
-  const { configPath, debug = false } = options;
+  const { configPath, debug = false, skipIfFresh = false } = options;
   const cwd = options.cwd ?? process.cwd();
 
   const config = loadConfig(configPath);
@@ -29,6 +75,14 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
   const debugDir = options.debugDir ?? join(cwd, '.nymph/debug');
   const rawCacheDir = join(cwd, '.nymph/raw');
 
+  // TTL スキップ: skipIfFresh=true かつ dict.json が fresh なら early return
+  if (skipIfFresh && existsSync(outPath)) {
+    const existing = readDictFile(outPath);
+    if (existing && !isStale(existing, { ttl: config.dict?.ttl })) {
+      return existing;
+    }
+  }
+
   const allEntries: DictEntry[] = [];
 
   for (const source of config.sources) {
@@ -37,25 +91,40 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
       throw new Error(`source "${source.name}": fetch.cmd が空です`);
     }
 
-    // Execute with shell:false for security
-    const result = spawnSync(cmd[0], cmd.slice(1), {
-      shell: false,
-      encoding: 'utf-8',
-      cwd,
-    });
+    const baseArgs = cmd.slice(1);
+    const hasGlob = baseArgs.some((a) => a.includes('*') || a.includes('?'));
 
-    if (result.error) {
-      throw new Error(
-        `source "${source.name}": コマンド実行エラー: ${result.error.message}`,
-      );
-    }
-    if (result.status !== 0) {
-      throw new Error(
-        `source "${source.name}": コマンドが終了コード ${result.status} で終了しました。stderr: ${result.stderr}`,
-      );
-    }
+    let raw: string;
 
-    const raw = result.stdout;
+    if (hasGlob) {
+      // glob 展開: 展開されたファイルごとにコマンドを個別実行して raw を結合
+      const expandedArgs = expandGlobArgs(baseArgs, cwd);
+      if (expandedArgs.length === 0) {
+        throw new Error(
+          `source "${source.name}": glob パターンに一致するファイルが見つかりません`,
+        );
+      }
+      const rawParts: string[] = [];
+      for (const file of expandedArgs) {
+        const result = cp.spawnSync(cmd[0], [file], {
+          shell: false,
+          encoding: 'utf-8',
+          cwd,
+        });
+        assertSpawnResult(result, source.name);
+        rawParts.push(result.stdout);
+      }
+      raw = rawParts.join('\n');
+    } else {
+      // Execute with shell:false for security
+      const result = cp.spawnSync(cmd[0], baseArgs, {
+        shell: false,
+        encoding: 'utf-8',
+        cwd,
+      });
+      assertSpawnResult(result, source.name);
+      raw = result.stdout;
+    }
 
     if (debug) {
       writeRawCache(rawCacheDir, source.name, raw);

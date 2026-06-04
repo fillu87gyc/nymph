@@ -51,7 +51,7 @@ async function main() {
     const subArgs = rawArgs.slice(1);
     if (subArgs[0] === 'build') {
       const { buildDict } = await import('./dict/build.ts');
-      let configPath = 'nymph.yml';
+      let configPath = '.nymph/config.yml';
       let outPath: string | undefined;
       let debug = false;
       let debugDir: string | undefined;

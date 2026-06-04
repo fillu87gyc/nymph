@@ -195,7 +195,7 @@ async function handleDictSync(): Promise<Response> {
   if (dictSyncing) return json({ error: 'sync already in progress' }, 409);
   dictSyncing = true;
   try {
-    const configPath = join(process.cwd(), 'nymph.yml');
+    const configPath = join(process.cwd(), '.nymph/config.yml');
     if (existsSync(configPath)) {
       const { spawnSync } = await import('node:child_process');
       spawnSync(

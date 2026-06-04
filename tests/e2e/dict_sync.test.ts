@@ -35,7 +35,8 @@ test.describe('dict: POST /dict/sync', () => {
   test.beforeAll(async ({ dictDir, dictPath }) => {
     mkdirSync(dictDir, { recursive: true });
     writeFileSync(dictPath, JSON.stringify(STALE_DICT, null, 2));
-    nymphYmlPath = join(process.cwd(), 'nymph.yml');
+    nymphYmlPath = join(process.cwd(), '.nymph/config.yml');
+    mkdirSync(join(process.cwd(), '.nymph'), { recursive: true });
     writeFileSync(nymphYmlPath, NYMPH_YML);
   });
 

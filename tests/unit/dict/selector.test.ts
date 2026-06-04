@@ -202,7 +202,7 @@ describe(':alias() 疑似クラス', () => {
     expect(nodes).toHaveLength(0);
   });
 
-  test("ダブルクォートでも動作する — h3:alias(\"text\")", () => {
+  test('ダブルクォートでも動作する — h3:alias("text")', () => {
     const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
     const tree = buildTree(md);
     const nodes = select(tree, 'h3:alias("Aggregate")');

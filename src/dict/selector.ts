@@ -303,7 +303,12 @@ export function selectRelative(
   for (let i = 1; i < parts.length; i++) {
     const part = parts[i];
     if (!part.combinator) break;
-    candidates = applyStep(candidates, part.combinator, part.selector, rootNodes);
+    candidates = applyStep(
+      candidates,
+      part.combinator,
+      part.selector,
+      rootNodes,
+    );
   }
   return candidates;
 }

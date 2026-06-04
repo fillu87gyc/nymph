@@ -97,10 +97,10 @@ describe('buildTree', () => {
 
     const namesLi = topLis.find((n) => n.text === 'コードの中の名前');
     expect(namesLi).toBeDefined();
-    expect(namesLi!.children).toHaveLength(1);
-    expect(namesLi!.children[0].type).toBe('li');
-    expect(namesLi!.children[0].text).toBe('term');
-    expect(namesLi!.children[0].parent).toBe(namesLi);
+    expect(namesLi?.children).toHaveLength(1);
+    expect(namesLi?.children[0].type).toBe('li');
+    expect(namesLi?.children[0].text).toBe('term');
+    expect(namesLi?.children[0].parent).toBe(namesLi);
   });
 
   test('parent 参照が正しく設定される', () => {

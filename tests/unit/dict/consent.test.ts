@@ -115,7 +115,9 @@ describe('isCommandHashAccepted / saveAcceptedHash', () => {
 
   it('accepted_hashes.json が存在しない場合は false', () => {
     // beforeEach で空の TMP_DIR が作られているが accepted_hashes.json はない
-    expect(existsSync(join(TMP_DIR, 'nymph', 'accepted_hashes.json'))).toBe(false);
+    expect(existsSync(join(TMP_DIR, 'nymph', 'accepted_hashes.json'))).toBe(
+      false,
+    );
     expect(isCommandHashAccepted('sha256:abc')).toBe(false);
   });
 

@@ -225,6 +225,9 @@ test.describe('フルスペック VRT', () => {
       ),
     ).toBeVisible({ timeout: 2000 });
 
+    // フォントが完全にロードされてからスクリーンショットを撮る
+    await page.evaluate(() => document.fonts.ready);
+
     // ── 8. 縦長 VRT スクリーンショット（viewport = doc 高さ → 単一フレーム）
     await expect(page).toHaveScreenshot('fullspec-vrt.png', {
       maxDiffPixels: 800,

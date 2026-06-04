@@ -99,6 +99,7 @@ function handleContent(url: URL): Response {
 
 function handleWatch(): Response {
   const paths = activePaths();
+  const dictPath = join(process.cwd(), '.nymph/dict.json');
   const encoder = new TextEncoder();
   const mtimes = new Map<string, number>();
   for (const p of paths) {
@@ -107,6 +108,13 @@ function handleWatch(): Response {
     } catch {
       mtimes.set(p, 0);
     }
+  }
+  // dict.json の初期 mtime を記録
+  let dictMtime = 0;
+  try {
+    dictMtime = statSync(dictPath).mtimeMs;
+  } catch {
+    /* dict.json が存在しない場合はスキップ */
   }
 
   let timer: ReturnType<typeof setInterval>;
@@ -128,6 +136,20 @@ function handleWatch(): Response {
             /* ignore deleted files */
           }
         }
+        // dict.json の変化を監視
+        try {
+          const mtime = statSync(dictPath).mtimeMs;
+          if (mtime !== dictMtime) {
+            ctrl.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ dictUpdated: true })}\n\n`,
+              ),
+            );
+            dictMtime = mtime;
+          }
+        } catch {
+          /* dict.json が存在しない場合はスキップ */
+        }
       }, 500);
       pingTimer = setInterval(() => {
         ctrl.enqueue(encoder.encode('data: {}\n\n'));
@@ -146,6 +168,39 @@ function handleWatch(): Response {
       Connection: 'keep-alive',
     },
   });
+}
+
+function handleGetDict(): Response {
+  const dictPath = join(process.cwd(), '.nymph/dict.json');
+  if (!existsSync(dictPath)) {
+    return json({ version: 1, updatedAt: '', entries: [] });
+  }
+  try {
+    return new Response(readFileSync(dictPath, 'utf-8'), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
+async function handleDictSync(): Promise<Response> {
+  const configPath = join(process.cwd(), 'nymph.yml');
+  if (existsSync(configPath)) {
+    const { spawnSync: spawnSyncChild } = await import('node:child_process');
+    spawnSyncChild(
+      process.execPath,
+      [
+        join(import.meta.dir, 'cli.ts'),
+        'dict',
+        'build',
+        '--config',
+        configPath,
+      ],
+      { shell: false, encoding: 'utf-8' },
+    );
+  }
+  return handleGetDict();
 }
 
 function handleGetComments(url: URL): Response {
@@ -411,6 +466,7 @@ export function createServer(port: number) {
         if (path === '/diff') return handleDiff();
         if (path === '/files') return handleFiles();
         if (path === '/checkpoint') return handleSetCheckpoint();
+        if (path === '/dict') return handleGetDict();
         const staticResp = serveStatic(url);
         if (staticResp) return staticResp;
         return new Response('Not found', { status: 404 });
@@ -423,6 +479,7 @@ export function createServer(port: number) {
         if (path === '/switch-file') return handleSwitchFile(req);
         if (path === '/active-file') return handleSetActiveFile(req);
         if (path === '/close-file') return handleCloseFile(req);
+        if (path === '/dict/sync') return handleDictSync();
       }
 
       return new Response('Not found', { status: 404 });

@@ -19,6 +19,8 @@ interface ToolbarProps {
   onToggleTheme: () => void;
   onSwitchFile: (path: string) => void;
   onCloseFile: (path: string) => void;
+  onDictSync?: () => void;
+  isDictSyncing?: boolean;
 }
 
 export function Toolbar({
@@ -38,6 +40,8 @@ export function Toolbar({
   onToggleTheme,
   onSwitchFile,
   onCloseFile,
+  onDictSync,
+  isDictSyncing,
 }: ToolbarProps) {
   return (
     <header id="toolbar" className={styles.toolbar}>
@@ -84,6 +88,16 @@ export function Toolbar({
           </span>
         )}
       </button>
+      {onDictSync && (
+        <button
+          data-testid="dict-fetch-btn"
+          className="btn"
+          onClick={onDictSync}
+          disabled={isDictSyncing}
+        >
+          {isDictSyncing ? '辞書更新中...' : '辞書更新'}
+        </button>
+      )}
       <button className="btn primary" id="btn-copy" onClick={onCopyReview}>
         レビューをコピー
       </button>

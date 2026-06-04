@@ -11,3 +11,5 @@ bun.lockb
 pnpm-lock.yaml
 coverage/
 test-results/
+.claude/worktrees/
+.nymph/

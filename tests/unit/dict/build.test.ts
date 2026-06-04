@@ -1,5 +1,5 @@
-import { describe, expect, test, afterEach } from 'vitest';
-import { existsSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { afterEach, describe, expect, test } from 'vitest';
 import { buildDict } from '../../../src/dict/build.ts';
 
 const CWD = process.cwd();

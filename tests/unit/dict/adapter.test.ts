@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describe, expect, test } from 'vitest';
 import { extractEntries } from '../../../src/dict/adapters/markdown.ts';
 
 const glossaryMd = readFileSync(
@@ -32,20 +32,20 @@ describe('markdown adapter', () => {
     const entries = extractEntries(glossaryMd, caseARules);
     const shuuyaku = entries.find((e) => e.term === '集約');
     expect(shuuyaku).toBeDefined();
-    expect(shuuyaku!.definition).toContain('集約とは');
-    expect(shuuyaku!.definition).not.toContain('<');
+    expect(shuuyaku?.definition).toContain('集約とは');
+    expect(shuuyaku?.definition).not.toContain('<');
   });
 
   test('definitionHtml フィールドが HTML を含む', () => {
     const entries = extractEntries(glossaryMd, caseARules);
     const shuuyaku = entries.find((e) => e.term === '集約');
-    expect(shuuyaku!.definitionHtml).toContain('<p>');
+    expect(shuuyaku?.definitionHtml).toContain('<p>');
   });
 
   test('aliases が空配列（エイリアスなし）', () => {
     const entries = extractEntries(glossaryMd, caseARules);
     const shuuyaku = entries.find((e) => e.term === '集約');
-    expect(shuuyaku!.aliases).toEqual([]);
+    expect(shuuyaku?.aliases).toEqual([]);
   });
 
   test('エイリアス付き用語のパース', () => {

@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { expect, test } from '@playwright/test';
 
 const NYMPH_ROOT = process.cwd();
 

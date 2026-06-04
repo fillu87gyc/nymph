@@ -28,7 +28,9 @@ export function computeCommandsHash(config: NymphYml): string {
   const canonical = sorted
     .map((s) => [s.name, ...(s.fetch?.cmd ?? [])].join('\x1f'))
     .join('\x1e');
-  return 'sha256:' + createHash('sha256').update(canonical, 'utf-8').digest('hex');
+  return (
+    'sha256:' + createHash('sha256').update(canonical, 'utf-8').digest('hex')
+  );
 }
 
 function loadAcceptedHashes(): Set<string> {

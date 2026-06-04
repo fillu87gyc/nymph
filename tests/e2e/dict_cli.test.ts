@@ -3,8 +3,11 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { computeCommandsHash, saveAcceptedHash } from '../../src/dict/consent.ts';
 import { loadConfig } from '../../src/dict/config.ts';
+import {
+  computeCommandsHash,
+  saveAcceptedHash,
+} from '../../src/dict/consent.ts';
 
 const NYMPH_ROOT = process.cwd();
 
@@ -186,15 +189,32 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
   });
 
   test.afterAll(() => {
-    try { rmSync(CONSENT_XDG, { recursive: true }); } catch { /* ignore */ }
+    try {
+      rmSync(CONSENT_XDG, { recursive: true });
+    } catch {
+      /* ignore */
+    }
     if (existsSync(outPath)) rmSync(outPath);
   });
 
   test('未承認の場合 nymph dict build は exit code 1 で失敗する', () => {
     const result = spawnSync(
       'bun',
-      ['run', 'src/cli.ts', 'dict', 'build', '--config', cfgPath, '--out', outPath],
-      { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_DATA_HOME: CONSENT_XDG } },
+      [
+        'run',
+        'src/cli.ts',
+        'dict',
+        'build',
+        '--config',
+        cfgPath,
+        '--out',
+        outPath,
+      ],
+      {
+        cwd: NYMPH_ROOT,
+        encoding: 'utf-8',
+        env: { ...process.env, XDG_DATA_HOME: CONSENT_XDG },
+      },
     );
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('nymph dict allow');
@@ -218,8 +238,21 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
   test('承認後は nymph dict build が成功する', () => {
     const result = spawnSync(
       'bun',
-      ['run', 'src/cli.ts', 'dict', 'build', '--config', cfgPath, '--out', outPath],
-      { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_DATA_HOME: CONSENT_XDG } },
+      [
+        'run',
+        'src/cli.ts',
+        'dict',
+        'build',
+        '--config',
+        cfgPath,
+        '--out',
+        outPath,
+      ],
+      {
+        cwd: NYMPH_ROOT,
+        encoding: 'utf-8',
+        env: { ...process.env, XDG_DATA_HOME: CONSENT_XDG },
+      },
     );
     expect(result.status).toBe(0);
     expect(existsSync(outPath)).toBe(true);
@@ -246,12 +279,29 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
       // その後 build しても未承認のまま
       const buildResult = spawnSync(
         'bun',
-        ['run', 'src/cli.ts', 'dict', 'build', '--config', cfgPath, '--out', '/tmp/test-reject.json'],
-        { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_DATA_HOME: REJECT_XDG } },
+        [
+          'run',
+          'src/cli.ts',
+          'dict',
+          'build',
+          '--config',
+          cfgPath,
+          '--out',
+          '/tmp/test-reject.json',
+        ],
+        {
+          cwd: NYMPH_ROOT,
+          encoding: 'utf-8',
+          env: { ...process.env, XDG_DATA_HOME: REJECT_XDG },
+        },
       );
       expect(buildResult.status).toBe(1);
     } finally {
-      try { rmSync(REJECT_XDG, { recursive: true }); } catch { /* ignore */ }
+      try {
+        rmSync(REJECT_XDG, { recursive: true });
+      } catch {
+        /* ignore */
+      }
     }
   });
 });

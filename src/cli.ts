@@ -60,7 +60,9 @@ async function main() {
       }
       try {
         const { loadConfig } = await import('./dict/config.ts');
-        const { computeCommandsHash, saveAcceptedHash } = await import('./dict/consent.ts');
+        const { computeCommandsHash, saveAcceptedHash } = await import(
+          './dict/consent.ts'
+        );
         const { createInterface } = await import('node:readline');
 
         const config = loadConfig(configPath);
@@ -70,7 +72,10 @@ async function main() {
         }
         console.log();
 
-        const rl = createInterface({ input: process.stdin, output: process.stdout });
+        const rl = createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
         const answer = await new Promise<string>((resolve) => {
           rl.question('これらのコマンドを承認しますか? [y/N] ', (ans) => {
             rl.close();
@@ -86,7 +91,9 @@ async function main() {
         saveAcceptedHash(computeCommandsHash(config));
         console.log('承認しました。nymph dict build を実行できます。');
       } catch (err) {
-        console.error(`エラー: ${err instanceof Error ? err.message : String(err)}`);
+        console.error(
+          `エラー: ${err instanceof Error ? err.message : String(err)}`,
+        );
         process.exit(1);
       }
       process.exit(0);
@@ -95,7 +102,9 @@ async function main() {
     if (subArgs[0] === 'build') {
       const { buildDict } = await import('./dict/build.ts');
       const { loadConfig } = await import('./dict/config.ts');
-      const { computeCommandsHash, isCommandHashAccepted } = await import('./dict/consent.ts');
+      const { computeCommandsHash, isCommandHashAccepted } = await import(
+        './dict/consent.ts'
+      );
       let configPath = '.nymph/config.yml';
       let outPath: string | undefined;
       let debug = false;

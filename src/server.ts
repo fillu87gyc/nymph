@@ -199,12 +199,17 @@ async function handleDictSync(): Promise<Response> {
     if (existsSync(configPath)) {
       // コマンド承認チェック（未承認の場合は実行せず 403 を返す）
       const { loadConfig } = await import('./dict/config.ts');
-      const { computeCommandsHash, isCommandHashAccepted } = await import('./dict/consent.ts');
+      const { computeCommandsHash, isCommandHashAccepted } = await import(
+        './dict/consent.ts'
+      );
       const config = loadConfig(configPath);
       const hash = computeCommandsHash(config);
       if (!isCommandHashAccepted(hash)) {
         return json(
-          { error: 'コマンドが未承認です。ターミナルで nymph dict allow を実行してください。' },
+          {
+            error:
+              'コマンドが未承認です。ターミナルで nymph dict allow を実行してください。',
+          },
           403,
         );
       }

@@ -19,7 +19,7 @@ export function clearTermHighlights(container: HTMLElement): void {
 function isBoundary(char: string | undefined): boolean {
   if (char === undefined) return true;
   // 空白・改行・句読点・括弧・記号などで区切られている
-  return /[\s　、。，．「」『』（）()\[\]{}<>,.!?;:'"'"""。、「」『』【】（）]/.test(
+  return /[\s　、。，．「」『』（）()[\]{}<>,.!?;:'"'"""。、「」『』【】（）]/.test(
     char,
   );
 }

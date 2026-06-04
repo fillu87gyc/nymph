@@ -11,7 +11,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   type BrowserContext,
@@ -24,13 +24,15 @@ const SAMPLE_PATH = join(process.cwd(), 'tests/fixtures/sample.md');
 const BASE_PORT = 6276;
 
 type WorkerFixtures = {
-  _workerServer: { port: number; fixturePath: string };
+  _workerServer: { port: number; fixturePath: string; dictDir: string };
 };
 
 type TestFixtures = {
   context: BrowserContext;
   fixturePath: string;
   commentsPath: string;
+  dictDir: string;
+  dictPath: string;
 };
 
 async function pollUntilReady(url: string, timeoutMs = 20000): Promise<void> {
@@ -55,21 +57,27 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         process.cwd(),
         `tests/fixtures/sample-w${workerInfo.workerIndex}.md`,
       );
+      const dictDir = join(process.cwd(), `.nymph-w${workerInfo.workerIndex}`);
 
       writeFileSync(fixturePath, readFileSync(SAMPLE_PATH, 'utf-8'));
+      mkdirSync(dictDir, { recursive: true });
 
       const proc = spawn(
         'bun',
         ['src/cli.ts', '-p', String(port), fixturePath],
         {
-          env: { ...process.env, NYMPH_NO_OPEN: '1' },
+          env: {
+            ...process.env,
+            NYMPH_NO_OPEN: '1',
+            NYMPH_DICT_DIR: dictDir,
+          },
           stdio: 'ignore',
         },
       );
 
       await pollUntilReady(`http://localhost:${port}/`);
 
-      await use({ port, fixturePath });
+      await use({ port, fixturePath, dictDir });
 
       proc.kill('SIGTERM');
       await Promise.race([
@@ -87,6 +95,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         } catch {
           /* ignore */
         }
+      }
+      try {
+        rmSync(dictDir, { recursive: true });
+      } catch {
+        /* ignore */
       }
     },
     { scope: 'worker' },
@@ -107,6 +120,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
   commentsPath: async ({ _workerServer }, use) => {
     await use(`${_workerServer.fixturePath}.comments.json`);
+  },
+
+  dictDir: async ({ _workerServer }, use) => {
+    await use(_workerServer.dictDir);
+  },
+
+  dictPath: async ({ _workerServer }, use) => {
+    await use(join(_workerServer.dictDir, 'dict.json'));
   },
 });
 

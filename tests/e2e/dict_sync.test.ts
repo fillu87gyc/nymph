@@ -2,10 +2,6 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures.ts';
 
-const DICT_DIR = join(process.cwd(), '.nymph');
-const DICT_PATH = join(DICT_DIR, 'dict.json');
-const NYMPH_YML_PATH = join(process.cwd(), 'nymph.yml');
-
 const STALE_DICT = {
   version: 1,
   updatedAt: new Date(Date.now() - 25 * 3600 * 1000).toISOString(),
@@ -34,15 +30,18 @@ dict:
 `;
 
 test.describe('dict: POST /dict/sync', () => {
-  test.beforeAll(() => {
-    mkdirSync(DICT_DIR, { recursive: true });
-    writeFileSync(DICT_PATH, JSON.stringify(STALE_DICT, null, 2));
-    writeFileSync(NYMPH_YML_PATH, NYMPH_YML);
+  let nymphYmlPath: string;
+
+  test.beforeAll(async ({ dictDir, dictPath }) => {
+    mkdirSync(dictDir, { recursive: true });
+    writeFileSync(dictPath, JSON.stringify(STALE_DICT, null, 2));
+    nymphYmlPath = join(process.cwd(), 'nymph.yml');
+    writeFileSync(nymphYmlPath, NYMPH_YML);
   });
 
   test.afterAll(() => {
     try {
-      rmSync(NYMPH_YML_PATH);
+      rmSync(nymphYmlPath);
     } catch {
       /* ignore */
     }

@@ -78,6 +78,7 @@ jobs:
     needs: build
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -131,6 +132,42 @@ jobs:
           name: e2e-screenshots
           path: playwright-screenshots/
           retention-days: 14
+      - name: スクリーンショットを PR description に埋め込む
+        if: github.event_name == 'pull_request' && always()
+        run: |
+          shopt -s nullglob
+          pngs=(playwright-screenshots/*.png)
+          [ ${#pngs[@]} -eq 0 ] && echo "No screenshots found, skipping." && exit 0
+
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          RUN_ID="${{ github.run_id }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          gh release view screenshots &>/dev/null || \
+            gh release create screenshots \
+              --title "PR Screenshots (auto-generated)" \
+              --notes "PR デモスクリーンショット置き場。手動削除しないこと。" \
+              --prerelease
+
+          IMAGE_TAGS=""
+          for f in playwright-screenshots/*.png; do
+            FNAME="${RUN_ID}-$(basename "$f")"
+            cp "$f" "/tmp/$FNAME"
+            gh release upload screenshots "/tmp/$FNAME" --clobber
+            URL="https://github.com/${OWNER}/${REPO}/releases/download/screenshots/${FNAME}"
+            IMAGE_TAGS="${IMAGE_TAGS}![$(basename "$f" .png)](${URL})\n"
+          done
+
+          CURRENT_BODY=$(gh pr view "$PR_NUMBER" --json body -q .body)
+          if echo "$CURRENT_BODY" | grep -q "^## デモ"; then
+            NEW_BODY=$(echo "$CURRENT_BODY" | sed '/^## デモ$/,$d')
+          else
+            NEW_BODY="$CURRENT_BODY"
+          fi
+          gh pr edit "$PR_NUMBER" --body "$(printf '%s\n\n## デモ\n%b' "$NEW_BODY" "$IMAGE_TAGS")"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

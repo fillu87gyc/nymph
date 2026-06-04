@@ -39,17 +39,24 @@ export function extractEntries(raw: string, rules: SourceRules): DictEntry[] {
     const definition = nodesToText(defNodes);
     const definitionHtml = nodesToHtml(defNodes);
 
-    // Extract aliases from parenthetical notation, e.g. "集約（Aggregate）"
+    // Aliases are extracted only when rules.aliases is specified.
+    // "term" → parenthetical notation in the term node itself.
+    // Any other selector → plain text of the matched nodes.
     const aliases: string[] = [];
-    const aliasMatch = termNode.text.match(/[（(]([A-Za-z][^）)]*)[）)]/);
-    if (aliasMatch) aliases.push(aliasMatch[1].trim());
-
-    // Extract aliases from explicit aliases selector if specified
     if (rules.aliases) {
       const aliasNodes = selectRelative(termNode, rules.aliases, tree);
       for (const aliasNode of aliasNodes) {
-        const text = nodeToPlainText(aliasNode);
-        if (text && !aliases.includes(text)) aliases.push(text);
+        if (aliasNode === termNode) {
+          const re = /[（(]([A-Za-z][^）)]*)[）)]/g;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(termNode.text)) !== null) {
+            const a = m[1].trim();
+            if (a && !aliases.includes(a)) aliases.push(a);
+          }
+        } else {
+          const text = nodeToPlainText(aliasNode);
+          if (text && !aliases.includes(text)) aliases.push(text);
+        }
       }
     }
 

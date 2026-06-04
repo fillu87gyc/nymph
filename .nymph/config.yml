@@ -4,7 +4,8 @@ sources:
       cmd: ["cat", "docs/UBIQUITOUS_LANGUAGE.md"]
     adapter: markdown
     rules:
-      term: "h3:has-alias"
+      term: "h3"
+      aliases: "term"
       definition: "term > p"
 
 dict:

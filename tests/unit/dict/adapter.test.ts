@@ -48,12 +48,20 @@ describe('markdown adapter', () => {
     expect(shuuyaku?.aliases).toEqual([]);
   });
 
-  test('エイリアス付き用語のパース', () => {
+  test('エイリアス付き用語のパース — aliases: "term" が必要', () => {
+    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('aliases キーなしの場合は aliases が空', () => {
     const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
     const rules = { term: 'h2 > h3', definition: 'term > p' };
     const entries = extractEntries(md, rules);
     expect(entries[0].term).toBe('集約');
-    expect(entries[0].aliases).toContain('Aggregate');
+    expect(entries[0].aliases).toEqual([]);
   });
 
   test('ケース B: h2 セレクタで複数エントリ', () => {
@@ -77,7 +85,15 @@ describe('markdown adapter', () => {
     expect(entries[0].definition).toContain('集約とは');
   });
 
-  test('rules.aliases と括弧表記エイリアスが両方あれば重複なく結合', () => {
+  test('aliases: "term" で括弧表記エイリアスを抽出する', () => {
+    const md = `## 集約（Aggregate）\n\n説明テキスト。\n`;
+    const rules = { term: 'h2', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('aliases: nested list セレクタのときは括弧表記を自動抽出しない', () => {
     const md = `## 集約（Aggregate）\n\n* コードの中の名前\n  * Agg\n* 説明\n  * 定義。\n`;
     const rules = {
       term: 'h2',
@@ -86,18 +102,8 @@ describe('markdown adapter', () => {
     };
     const entries = extractEntries(md, rules);
     expect(entries[0].term).toBe('集約');
-    expect(entries[0].aliases).toContain('Aggregate');
+    expect(entries[0].aliases).not.toContain('Aggregate'); // 暗黙抽出なし
     expect(entries[0].aliases).toContain('Agg');
-    // no duplicates
-    const unique = new Set(entries[0].aliases);
-    expect(unique.size).toBe(entries[0].aliases.length);
-  });
-
-  test('rules.aliases がない場合は従来の括弧抽出のみ', () => {
-    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
-    const rules = { term: 'h2 > h3', definition: 'term > p' };
-    const entries = extractEntries(md, rules);
-    expect(entries[0].aliases).toContain('Aggregate');
   });
 
   test('definition が複数ブロックの場合は連結される', () => {

@@ -47,6 +47,22 @@ jobs:
           bun-version-file: .tool-versions
       - run: bun install --frozen-lockfile
       - run: bun run build
+      - name: Verify dist contents
+        run: |
+          set -e
+          echo "=== dist/ structure ==="
+          find dist -type f | sort
+
+          [ -f dist/index.html ] || { echo "ERROR: dist/index.html not found"; exit 1; }
+          [ -s dist/index.html ] || { echo "ERROR: dist/index.html is empty"; exit 1; }
+
+          js_count=$(find dist/assets -name "*.js" -size +0c 2>/dev/null | wc -l)
+          [ "$js_count" -gt 0 ] || { echo "ERROR: no non-empty JS files in dist/assets/"; exit 1; }
+
+          css_count=$(find dist/assets -name "*.css" -size +0c 2>/dev/null | wc -l)
+          [ "$css_count" -gt 0 ] || { echo "ERROR: no non-empty CSS files in dist/assets/"; exit 1; }
+
+          echo "OK: dist/index.html, ${js_count} JS file(s), ${css_count} CSS file(s)"
       - uses: actions/upload-artifact@v7
         with:
           name: dist

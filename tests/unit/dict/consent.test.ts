@@ -11,10 +11,10 @@ import type { NymphYml } from '../../../src/dict/schema.ts';
 
 const TMP_DIR = join(tmpdir(), `nymph-consent-test-${process.pid}`);
 
-// テスト専用の XDG_CONFIG_HOME に切り替えて本物の ~/.config を汚染しない
+// テスト専用の XDG_DATA_HOME に切り替えて本物の ~/.local/share を汚染しない
 beforeEach(() => {
   mkdirSync(TMP_DIR, { recursive: true });
-  process.env.XDG_CONFIG_HOME = TMP_DIR;
+  process.env.XDG_DATA_HOME = TMP_DIR;
 });
 
 afterEach(() => {

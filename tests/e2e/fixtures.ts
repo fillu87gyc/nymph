@@ -82,7 +82,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             ...process.env,
             NYMPH_NO_OPEN: '1',
             NYMPH_DICT_DIR: dictDir,
-            XDG_CONFIG_HOME: nymphConfigDir,
+            XDG_DATA_HOME: nymphConfigDir,
           },
           stdio: 'ignore',
         },

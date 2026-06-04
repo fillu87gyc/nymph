@@ -5,11 +5,12 @@ import { dirname, join } from 'node:path';
 import type { NymphYml } from './schema.ts';
 
 /**
- * XDG_CONFIG_HOME が設定されていればそれを使い、なければ ~/.config を使う。
- * これによりテスト時に一時ディレクトリへ切り替えられる。
+ * direnv と同じく XDG_DATA_HOME（~/.local/share）に保存する。
+ * 承認済みハッシュはアプリが書くデータであり設定ファイルではない。
+ * テスト時は XDG_DATA_HOME 環境変数で一時ディレクトリに切り替えられる。
  */
 function getAcceptedHashesPath(): string {
-  const base = process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config');
+  const base = process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
   return join(base, 'nymph', 'accepted_hashes.json');
 }
 

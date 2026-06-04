@@ -52,9 +52,9 @@ test.describe('dict: POST /dict/sync', () => {
     mkdirSync(join(process.cwd(), '.nymph'), { recursive: true });
     writeFileSync(nymphYmlPath, NYMPH_YML);
 
-    // サーバープロセスの XDG_CONFIG_HOME にコマンドを事前承認しておく
-    const origXDG = process.env.XDG_CONFIG_HOME;
-    process.env.XDG_CONFIG_HOME = nymphConfigDir;
+    // サーバープロセスの XDG_DATA_HOME にコマンドを事前承認しておく
+    const origXDG = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = nymphConfigDir;
     try {
       const { parseConfig } = await import('../../src/dict/config.ts');
       const { computeCommandsHash, saveAcceptedHash } = await import(
@@ -62,8 +62,8 @@ test.describe('dict: POST /dict/sync', () => {
       );
       saveAcceptedHash(computeCommandsHash(parseConfig(NYMPH_YML)));
     } finally {
-      if (origXDG !== undefined) process.env.XDG_CONFIG_HOME = origXDG;
-      else delete process.env.XDG_CONFIG_HOME;
+      if (origXDG !== undefined) process.env.XDG_DATA_HOME = origXDG;
+      else delete process.env.XDG_DATA_HOME;
     }
   });
 

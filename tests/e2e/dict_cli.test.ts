@@ -9,7 +9,7 @@ import { loadConfig } from '../../src/dict/config.ts';
 const NYMPH_ROOT = process.cwd();
 
 /**
- * テスト専用の XDG_CONFIG_HOME。
+ * テスト専用の XDG_DATA_HOME。
  * 本物の ~/.config/nymph を汚染しないようワーカーごとに分離する。
  */
 const TEST_XDG = join(tmpdir(), `nymph-cli-e2e-${process.pid}`);
@@ -17,8 +17,8 @@ const TEST_XDG = join(tmpdir(), `nymph-cli-e2e-${process.pid}`);
 // テスト実行前にフィクスチャのコマンドを事前承認しておく
 test.beforeAll(() => {
   mkdirSync(TEST_XDG, { recursive: true });
-  const origXDG = process.env.XDG_CONFIG_HOME;
-  process.env.XDG_CONFIG_HOME = TEST_XDG;
+  const origXDG = process.env.XDG_DATA_HOME;
+  process.env.XDG_DATA_HOME = TEST_XDG;
   try {
     for (const cfgPath of [
       'tests/fixtures/dict/nymph.yml',
@@ -27,8 +27,8 @@ test.beforeAll(() => {
       saveAcceptedHash(computeCommandsHash(loadConfig(cfgPath)));
     }
   } finally {
-    if (origXDG !== undefined) process.env.XDG_CONFIG_HOME = origXDG;
-    else delete process.env.XDG_CONFIG_HOME;
+    if (origXDG !== undefined) process.env.XDG_DATA_HOME = origXDG;
+    else delete process.env.XDG_DATA_HOME;
   }
 });
 
@@ -40,9 +40,9 @@ test.afterAll(() => {
   }
 });
 
-/** CLI を実行するときに使う共通 env（テスト用 XDG_CONFIG_HOME を注入） */
+/** CLI を実行するときに使う共通 env（テスト用 XDG_DATA_HOME を注入） */
 function cliEnv() {
-  return { ...process.env, XDG_CONFIG_HOME: TEST_XDG };
+  return { ...process.env, XDG_DATA_HOME: TEST_XDG };
 }
 
 test.describe('nymph dict build CLI', () => {
@@ -194,7 +194,7 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
     const result = spawnSync(
       'bun',
       ['run', 'src/cli.ts', 'dict', 'build', '--config', cfgPath, '--out', outPath],
-      { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_CONFIG_HOME: CONSENT_XDG } },
+      { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_DATA_HOME: CONSENT_XDG } },
     );
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('nymph dict allow');
@@ -207,7 +207,7 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
       {
         cwd: NYMPH_ROOT,
         encoding: 'utf-8',
-        env: { ...process.env, XDG_CONFIG_HOME: CONSENT_XDG },
+        env: { ...process.env, XDG_DATA_HOME: CONSENT_XDG },
         input: 'y\n',
       },
     );
@@ -219,7 +219,7 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
     const result = spawnSync(
       'bun',
       ['run', 'src/cli.ts', 'dict', 'build', '--config', cfgPath, '--out', outPath],
-      { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_CONFIG_HOME: CONSENT_XDG } },
+      { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_DATA_HOME: CONSENT_XDG } },
     );
     expect(result.status).toBe(0);
     expect(existsSync(outPath)).toBe(true);
@@ -235,7 +235,7 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
         {
           cwd: NYMPH_ROOT,
           encoding: 'utf-8',
-          env: { ...process.env, XDG_CONFIG_HOME: REJECT_XDG },
+          env: { ...process.env, XDG_DATA_HOME: REJECT_XDG },
           input: 'N\n',
         },
       );
@@ -247,7 +247,7 @@ test.describe('nymph dict allow / build — 承認フロー', () => {
       const buildResult = spawnSync(
         'bun',
         ['run', 'src/cli.ts', 'dict', 'build', '--config', cfgPath, '--out', '/tmp/test-reject.json'],
-        { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_CONFIG_HOME: REJECT_XDG } },
+        { cwd: NYMPH_ROOT, encoding: 'utf-8', env: { ...process.env, XDG_DATA_HOME: REJECT_XDG } },
       );
       expect(buildResult.status).toBe(1);
     } finally {

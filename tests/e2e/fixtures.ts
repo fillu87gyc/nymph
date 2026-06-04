@@ -24,7 +24,12 @@ const SAMPLE_PATH = join(process.cwd(), 'tests/fixtures/sample.md');
 const BASE_PORT = 6276;
 
 type WorkerFixtures = {
-  _workerServer: { port: number; fixturePath: string; dictDir: string };
+  _workerServer: {
+    port: number;
+    fixturePath: string;
+    dictDir: string;
+    nymphConfigDir: string;
+  };
 };
 
 type TestFixtures = {
@@ -33,6 +38,8 @@ type TestFixtures = {
   commentsPath: string;
   dictDir: string;
   dictPath: string;
+  /** サーバープロセスが使う XDG_CONFIG_HOME（承認済みハッシュの保存先） */
+  nymphConfigDir: string;
 };
 
 async function pollUntilReady(url: string, timeoutMs = 20000): Promise<void> {
@@ -58,9 +65,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         `tests/fixtures/sample-w${workerInfo.workerIndex}.md`,
       );
       const dictDir = join(process.cwd(), `.nymph-w${workerInfo.workerIndex}`);
+      const nymphConfigDir = join(
+        process.cwd(),
+        `.nymph-config-w${workerInfo.workerIndex}`,
+      );
 
       writeFileSync(fixturePath, readFileSync(SAMPLE_PATH, 'utf-8'));
       mkdirSync(dictDir, { recursive: true });
+      mkdirSync(nymphConfigDir, { recursive: true });
 
       const proc = spawn(
         'bun',
@@ -70,6 +82,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             ...process.env,
             NYMPH_NO_OPEN: '1',
             NYMPH_DICT_DIR: dictDir,
+            XDG_CONFIG_HOME: nymphConfigDir,
           },
           stdio: 'ignore',
         },
@@ -77,7 +90,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
       await pollUntilReady(`http://localhost:${port}/`);
 
-      await use({ port, fixturePath, dictDir });
+      await use({ port, fixturePath, dictDir, nymphConfigDir });
 
       proc.kill('SIGTERM');
       await Promise.race([
@@ -96,10 +109,12 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           /* ignore */
         }
       }
-      try {
-        rmSync(dictDir, { recursive: true });
-      } catch {
-        /* ignore */
+      for (const d of [dictDir, nymphConfigDir]) {
+        try {
+          rmSync(d, { recursive: true });
+        } catch {
+          /* ignore */
+        }
       }
     },
     { scope: 'worker' },
@@ -128,6 +143,10 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
   dictPath: async ({ _workerServer }, use) => {
     await use(join(_workerServer.dictDir, 'dict.json'));
+  },
+
+  nymphConfigDir: async ({ _workerServer }, use) => {
+    await use(_workerServer.nymphConfigDir);
   },
 });
 

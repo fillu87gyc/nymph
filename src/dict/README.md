@@ -8,10 +8,10 @@ Markdown や JSON から用語とその定義を抽出し、統一された JSON
 
 ```
 myproject/
-├── nymph.yml          ← ここ（デフォルト）
 ├── docs/
 │   └── glossary.md
 └── .nymph/
+    ├── config.yml     ← ここ（デフォルト）
     └── dict.json      ← 出力先（デフォルト）
 ```
 

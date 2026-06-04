@@ -70,6 +70,8 @@ async function produceDiff(
     timeout: 5000,
   });
   await page.addStyleTag({ content: STABILIZE });
+  // フォントが完全にロードされてからスクリーンショットを撮る
+  await page.evaluate(() => document.fonts.ready);
 }
 
 test.describe('diff 右マージン表示 VRT', () => {

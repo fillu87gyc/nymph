@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describe, expect, test } from 'vitest';
 import { select, selectRelative } from '../../../src/dict/selector.ts';
 import type { NestedNode } from '../../../src/dict/tree.ts';
 import { buildTree } from '../../../src/dict/tree.ts';

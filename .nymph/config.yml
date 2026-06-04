@@ -1,0 +1,12 @@
+sources:
+  - name: ubiquitous-language
+    fetch:
+      cmd: ["cat", "docs/UBIQUITOUS_LANGUAGE.md"]
+    adapter: markdown
+    rules:
+      term: "h3"
+      definition: "term > p"
+
+dict:
+  ttl: "24h"
+  out: ".nymph/dict.json"

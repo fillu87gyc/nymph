@@ -1,0 +1,11 @@
+sources:
+  - name: glossary-aliases
+    fetch:
+      cmd: ["cat", "tests/fixtures/dict/glossary-aliases.md"]
+    adapter: markdown
+    rules:
+      term: "h2:contains('ユビキタス言語') > h3"
+      aliases: "term"
+      definition: "term > p"
+dict:
+  out: ".nymph/dict.json"

@@ -11,11 +11,13 @@
 ## 開発フロー
 
 ```
-1. 既存テスト全グリーン確認（bun run test && bun run test:e2e）
+1. 既存テスト全グリーン確認（bun run test && bun run build && bun run test:e2e）
 2. unit test を書く → 実装（TDD）
-3. E2E を書く → bun run test:e2e がグリーン
+3. E2E を書く → bun run build && bun run test:e2e がグリーン
 4. ← 完成
 ```
+
+> **注意**: E2E テストはビルド済み `dist/` を参照する。`bun run test:e2e` の前に必ず `bun run build` を実行すること。
 
 E2E が書けない場合は理由と代替案をユーザーに提示してから完了とする。
 省略できるのは実際の動作に影響しない変更のみ（CI 設定・テストコードの修正など）。

@@ -1,8 +1,8 @@
 /**
- * thyrs run driver
+ * naiad run driver
  *
  * Usage:
- *   bun .claude/skills/run-thyrs/driver.mjs <file.md> [--screenshot path.png] [--comment "text"]
+ *   bun .claude/skills/run-naiad/driver.mjs <file.md> [--screenshot path.png] [--comment "text"]
  *
  * 検証済み: bun で動作（node では playwright が解決できない）
  */
@@ -14,12 +14,12 @@ import { resolve } from 'node:path';
 const args = process.argv.slice(2);
 const mdFile = args.find(a => a.endsWith('.md')) ?? 'tests/fixtures/sample.md';
 const ssIdx = args.indexOf('--screenshot');
-const ssPath = ssIdx !== -1 ? args[ssIdx + 1] : '/tmp/thyrs-run.png';
+const ssPath = ssIdx !== -1 ? args[ssIdx + 1] : '/tmp/naiad-run.png';
 const commentIdx = args.indexOf('--comment');
 const commentText = commentIdx !== -1 ? args[commentIdx + 1] : null;
 
 const mdAbs = resolve(mdFile);
-const lockPath = `${mdAbs}.thyrs-lock`;
+const lockPath = `${mdAbs}.naiad-lock`;
 
 // lock ファイルが残っていたら削除
 if (existsSync(lockPath)) unlinkSync(lockPath);
@@ -28,7 +28,7 @@ const server = spawn('bun', ['run', 'src/cli.ts', '--no-open', mdAbs], {
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 
-// stdout からポートを取得（"thyrs   http://localhost:6276" 形式）
+// stdout からポートを取得（"naiad   http://localhost:6276" 形式）
 const port = await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error('server start timeout')), 5000);
   server.stdout.on('data', d => {
@@ -38,7 +38,7 @@ const port = await new Promise((res, rej) => {
   server.stderr.on('data', d => process.stderr.write(d));
 });
 
-console.log(`thyrs on http://localhost:${port}`);
+console.log(`naiad on http://localhost:${port}`);
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();

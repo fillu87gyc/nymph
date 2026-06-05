@@ -1,14 +1,14 @@
 ---
-name: run-thyrs
-description: Run, screenshot, and drive the thyrs app. Use when asked to run thyrs, start the app, take a screenshot, verify a change works visually, or test a feature in the real browser.
+name: run-naiad
+description: Run, screenshot, and drive the naiad app. Use when asked to run naiad, start the app, take a screenshot, verify a change works visually, or test a feature in the real browser.
 ---
 
-# run-thyrs
+# run-naiad
 
-thyrs は Bun サーバー（ポート 6276）+ React フロントエンドの Web アプリ。
+naiad は Bun サーバー（ポート 6276）+ React フロントエンドの Web アプリ。
 `dist/` をビルド済みの状態で `bun run src/cli.ts` で起動し、Playwright Chromium（headless）で駆動する。
 
-ドライバスクリプト: `.claude/skills/run-thyrs/driver.mjs`（`bun` で実行）
+ドライバスクリプト: `.claude/skills/run-naiad/driver.mjs`（`bun` で実行）
 
 ## Prerequisites
 
@@ -22,20 +22,20 @@ bunx playwright install chromium
 
 ```bash
 # スクリーンショットのみ
-bun .claude/skills/run-thyrs/driver.mjs tests/fixtures/sample.md --screenshot /tmp/out.png
+bun .claude/skills/run-naiad/driver.mjs tests/fixtures/sample.md --screenshot /tmp/out.png
 
 # コメントを追加してスクリーンショット
-bun .claude/skills/run-thyrs/driver.mjs tests/fixtures/sample.md \
+bun .claude/skills/run-naiad/driver.mjs tests/fixtures/sample.md \
   --comment "確認したいコメント" \
   --screenshot /tmp/out.png
 
 # 任意の .md ファイルで起動
-bun .claude/skills/run-thyrs/driver.mjs path/to/file.md --screenshot /tmp/out.png
+bun .claude/skills/run-naiad/driver.mjs path/to/file.md --screenshot /tmp/out.png
 ```
 
 出力例:
 ```
-thyrs on http://localhost:6276
+naiad on http://localhost:6276
 comment added
 screenshot → /tmp/out.png
 active: /path/to/file.md
@@ -58,6 +58,6 @@ bun run test:e2e    # Playwright、workers: 1（シリアル実行）
 
 - **`node` では動かない**: `playwright` パッケージの解決に `bun` が必要。必ず `bun driver.mjs` で実行する。
 - **`dist/` が古いと空白ページ**: フロントエンドを変更したら `bun run build` してからドライバを動かす。開発中は代わりに `bun run dev`（Vite HMR）を使う。
-- **ポート衝突**: 6276 が使用中の場合は 6277 以降に自動で移る。lock ファイル（`<file>.thyrs-lock`）に実際のポートが書き込まれる。ドライバは stdout からポートを読むので問題なし。
+- **ポート衝突**: 6276 が使用中の場合は 6277 以降に自動で移る。lock ファイル（`<file>.naiad-lock`）に実際のポートが書き込まれる。ドライバは stdout からポートを読むので問題なし。
 - **前回の `.comments.json` が残る**: ドライバは comments を消さない。E2E テストは `beforeEach` で削除しているが、ドライバ経由で動かす場合は手動削除が必要な場合がある。
 - **`bun run dev` との共存**: `bun run dev` が 6276 を使っている場合、ドライバは別ポートで起動する。

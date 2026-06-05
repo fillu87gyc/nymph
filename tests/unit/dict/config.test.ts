@@ -13,7 +13,7 @@ sources:
       term: "h2:contains('ユビキタス言語') > h3"
       definition: "term > p"
 dict:
-  out: ".thyrs/dict.json"
+  out: ".naiad/dict.json"
 `;
     const config = parseConfig(yaml);
     expect(config.sources).toHaveLength(1);
@@ -27,7 +27,7 @@ dict:
       "h2:contains('ユビキタス言語') > h3",
     );
     expect(config.sources[0].rules.definition).toBe('term > p');
-    expect(config.dict?.out).toBe('.thyrs/dict.json');
+    expect(config.dict?.out).toBe('.naiad/dict.json');
   });
 
   test('sources が空配列の場合', () => {
@@ -94,7 +94,7 @@ sources:
 sources: []
 dict:
   ttl: "1h"
-  out: ".thyrs/dict.json"
+  out: ".naiad/dict.json"
 `;
     const config = parseConfig(yaml);
     expect(config.dict?.ttl).toBe('1h');

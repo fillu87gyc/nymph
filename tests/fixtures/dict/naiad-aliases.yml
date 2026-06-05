@@ -1,10 +1,11 @@
 sources:
-  - name: glossary
+  - name: glossary-aliases
     fetch:
-      cmd: ["cat", "tests/fixtures/dict/glossary.md"]
+      cmd: ["cat", "tests/fixtures/dict/glossary-aliases.md"]
     adapter: markdown
     rules:
       term: "h2:contains('ユビキタス言語') > h3"
+      aliases: "term"
       definition: "term > p"
 dict:
-  out: ".thyrs/dict.json"
+  out: ".naiad/dict.json"

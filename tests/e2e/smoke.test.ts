@@ -10,7 +10,7 @@ const ORIGINAL = readFileSync(
 test.describe('smoke: 起動 → コンテンツ表示', () => {
   test('ページが正常に読み込まれる', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('[data-testid="brand"]')).toContainText('naiad');
+    await expect(page.locator('[data-testid="brand"]')).toContainText('thyrs');
   });
 
   test('ブランドロゴ横にバージョンが表示される', async ({ page }) => {

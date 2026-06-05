@@ -7,7 +7,7 @@ import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 const VERSION = '0.1.0';
 
 const HELP = `\
-使い方: naiad [オプション] [ファイル ...]
+使い方: thyrs [オプション] [ファイル ...]
 
   Markdown レビューツール — ホットリロードとインラインコメント付き
 
@@ -26,9 +26,9 @@ const HELP = `\
   legal                サードパーティライセンスを表示する
 
 例:
-  naiad README.md
-  naiad docs/*.md
-  naiad -p 8080 --no-open README.md
+  thyrs README.md
+  thyrs docs/*.md
+  thyrs -p 8080 --no-open README.md
 `;
 
 async function findPort(start = 6276): Promise<number> {
@@ -72,8 +72,8 @@ async function main() {
     const subArgs = rawArgs.slice(1);
 
     if (subArgs[0] === 'allow') {
-      // naiad dict allow — config.yml のコマンドを承認する（direnv allow 相当）
-      let configPath = '.naiad/config.yml';
+      // thyrs dict allow — config.yml のコマンドを承認する（direnv allow 相当）
+      let configPath = '.thyrs/config.yml';
       for (let i = 1; i < subArgs.length; i++) {
         if (subArgs[i] === '--config' || subArgs[i] === '-c') {
           configPath = subArgs[++i];
@@ -110,7 +110,7 @@ async function main() {
         }
 
         saveAcceptedHash(computeCommandsHash(config));
-        console.log('承認しました。naiad dict build を実行できます。');
+        console.log('承認しました。thyrs dict build を実行できます。');
       } catch (err) {
         console.error(
           `エラー: ${err instanceof Error ? err.message : String(err)}`,
@@ -126,7 +126,7 @@ async function main() {
       const { computeCommandsHash, isCommandHashAccepted } = await import(
         './dict/consent.ts'
       );
-      let configPath = '.naiad/config.yml';
+      let configPath = '.thyrs/config.yml';
       let outPath: string | undefined;
       let debug = false;
       let debugDir: string | undefined;
@@ -153,7 +153,7 @@ async function main() {
           for (const source of config.sources) {
             console.error(`  [${source.name}]  ${source.fetch.cmd.join(' ')}`);
           }
-          console.error(`\n承認するには: naiad dict allow`);
+          console.error(`\n承認するには: thyrs dict allow`);
           process.exit(1);
         }
 
@@ -172,7 +172,7 @@ async function main() {
       }
     } else {
       console.error(`エラー: 不明な dict サブコマンド: ${subArgs[0] ?? ''}`);
-      console.error('  使用可能: naiad dict build, naiad dict allow');
+      console.error('  使用可能: thyrs dict build, thyrs dict allow');
       process.exit(1);
     }
     process.exit(0);
@@ -180,7 +180,7 @@ async function main() {
 
   let paths: string[] = [];
   let portOverride: number | null = null;
-  let noOpen = !!process.env.NAIAD_NO_OPEN;
+  let noOpen = !!process.env.THYRS_NO_OPEN;
   const fileArgs: string[] = [];
 
   for (let i = 0; i < rawArgs.length; i++) {
@@ -205,7 +205,7 @@ async function main() {
       portOverride = n;
     } else if (arg.startsWith('-')) {
       console.error(`エラー: 不明なオプション: ${arg}`);
-      console.error('  naiad --help でヘルプを表示');
+      console.error('  thyrs --help でヘルプを表示');
       process.exit(1);
     } else {
       fileArgs.push(arg);
@@ -243,11 +243,11 @@ async function main() {
   const port = portOverride ?? (await findPort());
   const server = createServer(port);
 
-  const lockPath = paths.length > 0 ? `${paths[0]}.naiad-lock` : null;
+  const lockPath = paths.length > 0 ? `${paths[0]}.thyrs-lock` : null;
   if (lockPath) writeFileSync(lockPath, String(port));
 
   const url = `http://localhost:${port}`;
-  console.log(`naiad   ${url}`);
+  console.log(`thyrs   ${url}`);
   if (paths.length > 0) console.log(`監視中  ${paths.join(', ')}`);
   else console.log('ファイルをブラウザにドロップして開始');
   console.log('Ctrl+C で停止');

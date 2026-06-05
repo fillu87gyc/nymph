@@ -40,7 +40,7 @@ export function App() {
   const [toastState, setToastState] = useState({ msg: '', v: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [hljsTheme, setHljsTheme] = useState<'dark' | 'light'>(() => {
-    const saved = localStorage.getItem('naiad-theme');
+    const saved = localStorage.getItem('thyrs-theme');
     const theme = saved === 'light' ? 'light' : 'dark';
     document.documentElement.dataset.theme = theme;
     return theme;
@@ -167,7 +167,7 @@ export function App() {
     const next = hljsTheme === 'light' ? 'dark' : 'light';
     setHljsTheme(next);
     document.documentElement.dataset.theme = next;
-    localStorage.setItem('naiad-theme', next);
+    localStorage.setItem('thyrs-theme', next);
   }
 
   useEffect(() => {

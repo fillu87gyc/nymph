@@ -41,7 +41,7 @@ print(fibonacci(10))
 
 ```mermaid
 graph TD
-  A[Open naiad] --> B{Checkpoint set?}
+  A[Open thyrs] --> B{Checkpoint set?}
   B -->|Yes| C[Enable diff mode]
   B -->|No| D[Browse document]
   C --> E[Review changes]

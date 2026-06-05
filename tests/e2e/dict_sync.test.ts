@@ -17,7 +17,7 @@ const STALE_DICT = {
   ],
 };
 
-const NAIAD_YML = `sources:
+const THYRS_YML = `sources:
   - name: glossary
     fetch:
       cmd: ["cat", "tests/fixtures/dict/glossary.md"]
@@ -26,11 +26,11 @@ const NAIAD_YML = `sources:
       term: "h2:contains('ユビキタス言語') > h3"
       definition: "term > p"
 dict:
-  out: ".naiad/dict.json"
+  out: ".thyrs/dict.json"
 `;
 
-// NAIAD_YML と source name が異なるため別ハッシュになる（承認されていない）
-const UNAPPROVED_NAIAD_YML = `sources:
+// THYRS_YML と source name が異なるため別ハッシュになる（承認されていない）
+const UNAPPROVED_THYRS_YML = `sources:
   - name: unapproved-source
     fetch:
       cmd: ["cat", "tests/fixtures/dict/glossary.md"]
@@ -39,28 +39,28 @@ const UNAPPROVED_NAIAD_YML = `sources:
       term: "h2:contains('ユビキタス言語') > h3"
       definition: "term > p"
 dict:
-  out: ".naiad/dict.json"
+  out: ".thyrs/dict.json"
 `;
 
 test.describe('dict: POST /dict/sync', () => {
-  let naiadYmlPath: string;
+  let thyrsYmlPath: string;
 
-  test.beforeAll(async ({ dictDir, dictPath, naiadConfigDir }) => {
+  test.beforeAll(async ({ dictDir, dictPath, thyrsConfigDir }) => {
     mkdirSync(dictDir, { recursive: true });
     writeFileSync(dictPath, JSON.stringify(STALE_DICT, null, 2));
-    naiadYmlPath = join(process.cwd(), '.naiad/config.yml');
-    mkdirSync(join(process.cwd(), '.naiad'), { recursive: true });
-    writeFileSync(naiadYmlPath, NAIAD_YML);
+    thyrsYmlPath = join(process.cwd(), '.thyrs/config.yml');
+    mkdirSync(join(process.cwd(), '.thyrs'), { recursive: true });
+    writeFileSync(thyrsYmlPath, THYRS_YML);
 
     // サーバープロセスの XDG_DATA_HOME にコマンドを事前承認しておく
     const origXDG = process.env.XDG_DATA_HOME;
-    process.env.XDG_DATA_HOME = naiadConfigDir;
+    process.env.XDG_DATA_HOME = thyrsConfigDir;
     try {
       const { parseConfig } = await import('../../src/dict/config.ts');
       const { computeCommandsHash, saveAcceptedHash } = await import(
         '../../src/dict/consent.ts'
       );
-      saveAcceptedHash(computeCommandsHash(parseConfig(NAIAD_YML)));
+      saveAcceptedHash(computeCommandsHash(parseConfig(THYRS_YML)));
     } finally {
       if (origXDG !== undefined) process.env.XDG_DATA_HOME = origXDG;
       else delete process.env.XDG_DATA_HOME;
@@ -69,7 +69,7 @@ test.describe('dict: POST /dict/sync', () => {
 
   test.afterAll(() => {
     try {
-      rmSync(naiadYmlPath);
+      rmSync(thyrsYmlPath);
     } catch {
       /* ignore */
     }
@@ -104,18 +104,18 @@ test.describe('dict: POST /dict/sync', () => {
 });
 
 test.describe('dict: POST /dict/sync — 未承認コマンド', () => {
-  let naiadYmlPath: string;
+  let thyrsYmlPath: string;
 
   test.beforeAll(async () => {
-    naiadYmlPath = join(process.cwd(), '.naiad/config.yml');
-    mkdirSync(join(process.cwd(), '.naiad'), { recursive: true });
-    writeFileSync(naiadYmlPath, UNAPPROVED_NAIAD_YML);
-    // naiadConfigDir には UNAPPROVED_NAIAD_YML のハッシュを保存しない
+    thyrsYmlPath = join(process.cwd(), '.thyrs/config.yml');
+    mkdirSync(join(process.cwd(), '.thyrs'), { recursive: true });
+    writeFileSync(thyrsYmlPath, UNAPPROVED_THYRS_YML);
+    // thyrsConfigDir には UNAPPROVED_THYRS_YML のハッシュを保存しない
   });
 
   test.afterAll(() => {
     try {
-      rmSync(naiadYmlPath);
+      rmSync(thyrsYmlPath);
     } catch {
       /* ignore */
     }
@@ -125,6 +125,6 @@ test.describe('dict: POST /dict/sync — 未承認コマンド', () => {
     const res = await page.request.post('/dict/sync');
     expect(res.status()).toBe(403);
     const body = await res.json();
-    expect(body.error).toContain('naiad dict allow');
+    expect(body.error).toContain('thyrs dict allow');
   });
 });

@@ -3,9 +3,9 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { diffArrays } from 'diff';
 
-// NAIAD_DICT_DIR に絶対パスを指定した場合はそのまま使い、
-// 省略時は process.cwd()/.naiad を使う（E2E ワーカー分離に対応）。
-const _dictDir = process.env.NAIAD_DICT_DIR ?? join(process.cwd(), '.naiad');
+// THYRS_DICT_DIR に絶対パスを指定した場合はそのまま使い、
+// 省略時は process.cwd()/.thyrs を使う（E2E ワーカー分離に対応）。
+const _dictDir = process.env.THYRS_DICT_DIR ?? join(process.cwd(), '.thyrs');
 const DICT_JSON_PATH = join(_dictDir, 'dict.json');
 
 // shell を介さずに git を実行する（shell 経由のインジェクション余地を残さない）。
@@ -195,7 +195,7 @@ async function handleDictSync(): Promise<Response> {
   if (dictSyncing) return json({ error: 'sync already in progress' }, 409);
   dictSyncing = true;
   try {
-    const configPath = join(process.cwd(), '.naiad/config.yml');
+    const configPath = join(process.cwd(), '.thyrs/config.yml');
     if (existsSync(configPath)) {
       // コマンド承認チェック（未承認の場合は実行せず 403 を返す）
       const { loadConfig } = await import('./dict/config.ts');
@@ -208,7 +208,7 @@ async function handleDictSync(): Promise<Response> {
         return json(
           {
             error:
-              'コマンドが未承認です。ターミナルで naiad dict allow を実行してください。',
+              'コマンドが未承認です。ターミナルで thyrs dict allow を実行してください。',
           },
           403,
         );

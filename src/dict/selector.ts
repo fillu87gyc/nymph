@@ -89,7 +89,8 @@ export function extractAliasesFromText(text: string): string[] {
 function matchesSimple(node: NestedNode, sel: SimpleSelector): boolean {
   if (sel.type !== '*' && node.type !== sel.type) return false;
   if (sel.contains && !node.text.includes(sel.contains)) return false;
-  if (sel.hasAlias && extractAliasesFromText(node.text).length === 0) return false;
+  if (sel.hasAlias && extractAliasesFromText(node.text).length === 0)
+    return false;
   if (sel.alias) {
     const aliases = extractAliasesFromText(node.text);
     if (!aliases.some((a) => a.includes(sel.alias as string))) return false;

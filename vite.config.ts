@@ -1,26 +1,8 @@
 import react from '@vitejs/plugin-react';
-import license from 'rollup-plugin-license';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [
-    react(),
-    license({
-      thirdParty: {
-        output: {
-          file: 'dist/LICENSES.txt',
-          template(deps) {
-            return deps
-              .map(
-                (d) =>
-                  `${d.name} ${d.version ?? ''}\nLicense: ${d.license ?? 'UNKNOWN'}\n${d.licenseText ?? ''}`.trimEnd(),
-              )
-              .join('\n\n---\n\n');
-          },
-        },
-      },
-    }),
-  ],
+  plugins: [react()],
   root: '.',
   build: {
     outDir: 'dist',

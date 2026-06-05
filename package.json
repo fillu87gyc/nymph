@@ -1,14 +1,13 @@
 {
-  "name": "naiad",
+  "name": "nymph",
   "version": "0.1.0",
   "description": "Markdown review tool with hot reload and inline commenting",
-  "license": "MIT",
   "type": "module",
   "bin": {
-    "naiad": "src/cli.ts"
+    "nymph": "src/cli.ts"
   },
   "scripts": {
-    "dev": "NAIAD_NO_OPEN=1 concurrently -k -n server,vite -c cyan,magenta \"bun --watch src/cli.ts $NAIAD_FILES\" \"vite --open\"",
+    "dev": "NYMPH_NO_OPEN=1 concurrently -k -n server,vite -c cyan,magenta \"bun --watch src/cli.ts $NYMPH_FILES\" \"vite --open\"",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
@@ -46,7 +45,6 @@
     "mermaid": "^11.0.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "rollup-plugin-license": "^3.7.1",
     "typescript": "^6.0.0",
     "vite": "8",
     "vitest": "4"

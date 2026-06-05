@@ -165,7 +165,7 @@ rules:
 | `term + *` | term ノードの直後の兄弟 |
 | `term ~ *` | term ノードより後ろの兄弟すべて |
 | `term > li:contains('名前') > li` | term → 直下の「名前」li → さらに直下の li |
-| `term` | term ノード自身（aliases に指定した場合は括弧表記を抽出） |
+| `term` | term ノード自身（aliases に指定した場合は括弧・ハイフン・コロン記法を抽出） |
 
 ### セレクタ使用例
 
@@ -219,7 +219,7 @@ rules:
   definition: "description"  # 各オブジェクトの定義フィールド名
 ```
 
-JSON の各オブジェクトに `aliases` 配列フィールドがあれば自動的に取り込まれる。用語名に含まれる括弧表記（後述）からも aliases が抽出され、重複は除去される。
+JSON の各オブジェクトに `aliases` 配列フィールドがあれば自動的に取り込まれる。重複は除去される。
 
 ---
 
@@ -299,6 +299,7 @@ sources:
     adapter: markdown
     rules:
       term: "h2:contains('ユビキタス言語') > h3"
+      aliases: "term"        # 括弧・ハイフン・コロン記法からエイリアスを抽出
       definition: "term > p"
 dict:
   out: ".nymph/dict.json"

@@ -10,8 +10,10 @@ node_modules/
 bun.lockb
 pnpm-lock.yaml
 coverage/
+coverage-report/
 test-results/
 playwright-screenshots/
 .claude/worktrees/
+.claude/scheduled_tasks.lock
 .nymph/*
 !.nymph/config.yml

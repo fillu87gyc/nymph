@@ -28,7 +28,7 @@ sources:
     rules:
       term: "<セレクタ>"          # 用語ノードを選ぶセレクタ
       definition: "term <op> <セレクタ>"  # term を起点にした定義ノードの相対セレクタ
-      aliases: "term <op> <セレクタ>"    # （省略可）aliases を抽出するノードの相対セレクタ。"term" を指定すると括弧表記から自動抽出
+      aliases: "term <op> <セレクタ>"    # （省略可）"term" 指定で括弧・ハイフン・コロン記法から自動抽出
 
 dict:
   ttl: "24h"                     # キャッシュ有効期限（省略可。例: "1h", "30m"）

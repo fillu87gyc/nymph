@@ -139,14 +139,20 @@ bun run build      # プロダクションビルド (Vite 7)
 
 ```zsh
 nymphx() {
-  local f a=() nymph_dir
+  local nymph_dir origdir="$PWD"
   if [[ -f package.json ]] && grep -q '"name": "nymph"' package.json; then
     nymph_dir="$PWD"
   else
     nymph_dir="$(ghq list --full-path nymph | grep '/nymph$' | head -1)"
   fi
-  for f in "$@"; do a+=("${f:a}"); done
-  NYMPH_FILES="${a[*]}" bun --cwd "$nymph_dir" run dev
+  local -a a
+  for f in "$@"; do
+    case "$f" in
+      /*) a+=("$f") ;;
+      *)  a+=("$origdir/$f") ;;
+    esac
+  done
+  (cd "$nymph_dir" && NYMPH_FILES="${a[*]}" bun run dev)
 }
 ```
 

@@ -2,7 +2,7 @@
  * Per-worker server isolation fixture.
  *
  * Each Playwright worker gets its own:
- *   - thyrs server on port 6276 + workerIndex
+ *   - naiad server on port 6276 + workerIndex
  *   - fixture file copy  (tests/fixtures/sample-w{n}.md)
  *   - comments file      (sample-w{n}.md.comments.json)
  *
@@ -28,7 +28,7 @@ type WorkerFixtures = {
     port: number;
     fixturePath: string;
     dictDir: string;
-    thyrsConfigDir: string;
+    naiadConfigDir: string;
   };
 };
 
@@ -39,7 +39,7 @@ type TestFixtures = {
   dictDir: string;
   dictPath: string;
   /** サーバープロセスが使う XDG_CONFIG_HOME（承認済みハッシュの保存先） */
-  thyrsConfigDir: string;
+  naiadConfigDir: string;
 };
 
 async function pollUntilReady(url: string, timeoutMs = 20000): Promise<void> {
@@ -64,15 +64,15 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         process.cwd(),
         `tests/fixtures/sample-w${workerInfo.workerIndex}.md`,
       );
-      const dictDir = join(process.cwd(), `.thyrs-w${workerInfo.workerIndex}`);
-      const thyrsConfigDir = join(
+      const dictDir = join(process.cwd(), `.naiad-w${workerInfo.workerIndex}`);
+      const naiadConfigDir = join(
         process.cwd(),
-        `.thyrs-config-w${workerInfo.workerIndex}`,
+        `.naiad-config-w${workerInfo.workerIndex}`,
       );
 
       writeFileSync(fixturePath, readFileSync(SAMPLE_PATH, 'utf-8'));
       mkdirSync(dictDir, { recursive: true });
-      mkdirSync(thyrsConfigDir, { recursive: true });
+      mkdirSync(naiadConfigDir, { recursive: true });
 
       const proc = spawn(
         'bun',
@@ -80,9 +80,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         {
           env: {
             ...process.env,
-            THYRS_NO_OPEN: '1',
-            THYRS_DICT_DIR: dictDir,
-            XDG_DATA_HOME: thyrsConfigDir,
+            NAIAD_NO_OPEN: '1',
+            NAIAD_DICT_DIR: dictDir,
+            XDG_DATA_HOME: naiadConfigDir,
           },
           stdio: 'ignore',
         },
@@ -90,7 +90,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
       await pollUntilReady(`http://localhost:${port}/`);
 
-      await use({ port, fixturePath, dictDir, thyrsConfigDir });
+      await use({ port, fixturePath, dictDir, naiadConfigDir });
 
       proc.kill('SIGTERM');
       await Promise.race([
@@ -101,7 +101,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       for (const p of [
         fixturePath,
         `${fixturePath}.comments.json`,
-        `${fixturePath}.thyrs-lock`,
+        `${fixturePath}.naiad-lock`,
       ]) {
         try {
           rmSync(p);
@@ -109,7 +109,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           /* ignore */
         }
       }
-      for (const d of [dictDir, thyrsConfigDir]) {
+      for (const d of [dictDir, naiadConfigDir]) {
         try {
           rmSync(d, { recursive: true });
         } catch {
@@ -145,8 +145,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     await use(join(_workerServer.dictDir, 'dict.json'));
   },
 
-  thyrsConfigDir: async ({ _workerServer }, use) => {
-    await use(_workerServer.thyrsConfigDir);
+  naiadConfigDir: async ({ _workerServer }, use) => {
+    await use(_workerServer.naiadConfigDir);
   },
 });
 

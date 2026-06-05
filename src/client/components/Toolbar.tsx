@@ -46,7 +46,7 @@ export function Toolbar({
   return (
     <header id="toolbar" className={styles.toolbar}>
       <span className={styles.brand} data-testid="brand">
-        thyrs
+        naiad
         {version && (
           <span className={styles.brandVersion} data-testid="brand-version">
             {version}

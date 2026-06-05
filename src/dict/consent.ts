@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { ThyrsYml } from './schema.ts';
+import type { NaiadYml } from './schema.ts';
 
 /**
  * direnv と同じく XDG_DATA_HOME（~/.local/share）に保存する。
@@ -11,7 +11,7 @@ import type { ThyrsYml } from './schema.ts';
  */
 function getAcceptedHashesPath(): string {
   const base = process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
-  return join(base, 'thyrs', 'accepted_hashes.json');
+  return join(base, 'naiad', 'accepted_hashes.json');
 }
 
 /**
@@ -20,7 +20,7 @@ function getAcceptedHashesPath(): string {
  * ソースをname順にソートすることで順序変更に対してロバストにする。
  * ソース名・コマンド引数が1バイトでも変わればハッシュが変わる。
  */
-export function computeCommandsHash(config: ThyrsYml): string {
+export function computeCommandsHash(config: NaiadYml): string {
   const sorted = [...config.sources].sort((a, b) =>
     a.name.localeCompare(b.name),
   );

@@ -74,7 +74,7 @@ const PRESEEDED_COMMENTS = JSON.stringify(
       lineStart: 42,
       lineEnd: 50,
       block_type: 'mermaid',
-      context: { lang: 'mermaid', code: 'graph TD\n  A[Open thyrs]' },
+      context: { lang: 'mermaid', code: 'graph TD\n  A[Open naiad]' },
       text: 'Mermaid フロー図: チェックポイントと diff の分岐フロー',
     },
     {

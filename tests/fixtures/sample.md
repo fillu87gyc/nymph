@@ -1,6 +1,6 @@
 # Sample
 
-This is a test file for thyrs E2E tests.
+This is a test file for naiad E2E tests.
 
 | Name | Value |
 |------|-------|

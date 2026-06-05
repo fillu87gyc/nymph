@@ -1,9 +1,9 @@
-# thyrs
+# naiad
 
 AI が生成した Markdown・Mermaid をレビューするための軽量ツール。
 
 ```bash
-thyrs output.md
+naiad output.md
 ```
 
 ブラウザが開き、ファイルを監視して自動再レンダリングします。
@@ -22,25 +22,25 @@ thyrs output.md
 
 **bunx（インストール不要）**
 ```bash
-bunx thyrs *.md
+bunx naiad *.md
 ```
 
 **グローバルインストール**
 ```bash
-bun install -g thyrs
-thyrs *.md
+bun install -g naiad
+naiad *.md
 ```
 
 **単一バイナリ（Bun 不要で配布可）**
 ```bash
-bun build --compile src/cli.ts --outfile thyrs
-./thyrs *.md
+bun build --compile src/cli.ts --outfile naiad
+./naiad *.md
 ```
 
 **ローカル開発**
 ```bash
-git clone https://github.com/fillu87gyc/thyrs
-cd thyrs
+git clone https://github.com/fillu87gyc/naiad
+cd naiad
 bun install
 bun run src/cli.ts output.md
 ```
@@ -50,8 +50,8 @@ bun run src/cli.ts output.md
 ## 使い方
 
 ```bash
-thyrs output.md
-# thyrs   http://localhost:6276
+naiad output.md
+# naiad   http://localhost:6276
 # 監視中  /path/to/output.md
 # Ctrl+C で停止
 ```
@@ -59,13 +59,13 @@ thyrs output.md
 複数ファイルや glob も指定できます：
 
 ```bash
-thyrs *.md
+naiad *.md
 ```
 
 ### オプション
 
 ```
-使い方: thyrs [オプション] [ファイル ...]
+使い方: naiad [オプション] [ファイル ...]
 
 オプション:
   -p, --port <番号>    使用するポート番号 (デフォルト: 6276)
@@ -75,9 +75,9 @@ thyrs *.md
 ```
 
 ```bash
-thyrs -p 8080 output.md        # ポートを指定
-thyrs --no-open output.md      # ブラウザを開かずに起動
-thyrs --version                # バージョン確認
+naiad -p 8080 output.md        # ポートを指定
+naiad --no-open output.md      # ブラウザを開かずに起動
+naiad --version                # バージョン確認
 ```
 
 ---
@@ -108,17 +108,17 @@ Mermaid コードブロックをインラインでレンダリングします。
 
 ## ユビキタス言語辞書
 
-プロジェクトルートの `.thyrs/config.yml` を使って、`docs/UBIQUITOUS_LANGUAGE.md` から辞書ファイルを生成できます。
+プロジェクトルートの `.naiad/config.yml` を使って、`docs/UBIQUITOUS_LANGUAGE.md` から辞書ファイルを生成できます。
 
 ```bash
-thyrs dict build
+naiad dict build
 ```
 
-`.thyrs/dict.json` に辞書ファイルが出力されます（`.gitignore` 対象のため生成ファイルは追跡しません）。
+`.naiad/dict.json` に辞書ファイルが出力されます（`.gitignore` 対象のため生成ファイルは追跡しません）。
 
 ```bash
-# デバッグ出力（ノード木とマッチ結果を .thyrs/debug/ に保存）
-thyrs dict build --debug
+# デバッグ出力（ノード木とマッチ結果を .naiad/debug/ に保存）
+naiad dict build --debug
 ```
 
 用語集のソースは `docs/UBIQUITOUS_LANGUAGE.md` です。新しいモジュールや概念を追加したときはこちらも更新してください。
@@ -138,12 +138,12 @@ bun run build      # プロダクションビルド (Vite 7)
 **ghq を使っている場合の開発用ショートカット（`~/.zshrc`）**
 
 ```zsh
-thyrsx() {
-  local thyrs_dir origdir="$PWD"
-  if [[ -f package.json ]] && grep -q '"name": "thyrs"' package.json; then
-    thyrs_dir="$PWD"
+naiadx() {
+  local naiad_dir origdir="$PWD"
+  if [[ -f package.json ]] && grep -q '"name": "naiad"' package.json; then
+    naiad_dir="$PWD"
   else
-    thyrs_dir="$(ghq list --full-path thyrs | grep '/thyrs$' | head -1)"
+    naiad_dir="$(ghq list --full-path naiad | grep '/naiad$' | head -1)"
   fi
   local -a a
   for f in "$@"; do
@@ -152,28 +152,28 @@ thyrsx() {
       *)  a+=("$origdir/$f") ;;
     esac
   done
-  (cd "$thyrs_dir" && THYRS_FILES="${a[*]}" bun run dev)
+  (cd "$naiad_dir" && NAIAD_FILES="${a[*]}" bun run dev)
 }
 ```
 
 ```bash
-thyrsx *.md   # HMR 有効な開発モードで起動
+naiadx *.md   # HMR 有効な開発モードで起動
 ```
 
 ---
 
 ## Claude Code との連携
 
-Claude Code のプロジェクトに thyrs を追加すると、Edit ツールによるファイル編集時にコメントの行番号が自動追従します。
+Claude Code のプロジェクトに naiad を追加すると、Edit ツールによるファイル編集時にコメントの行番号が自動追従します。
 
 ```bash
-claude plugin install github:fillu87gyc/thyrs
+claude plugin install github:fillu87gyc/naiad
 ```
 
 Claude Code 上でフックをインストール：
 
 ```
-/thyrs:install
+/naiad:install
 ```
 
 仕組み：`PostToolUse` フックが Edit ツールの `old_string` / `new_string` を `/edit-op` エンドポイントに転送し、編集前後の行数差分でコメント位置を自動補正します。

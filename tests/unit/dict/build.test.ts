@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { buildDict } from '../../../src/dict/build.ts';
 
 const CWD = process.cwd();
-const CONFIG_PATH = `${CWD}/tests/fixtures/dict/thyrs.yml`;
+const CONFIG_PATH = `${CWD}/tests/fixtures/dict/naiad.yml`;
 const OUT_PATH = '/tmp/test-build-dict.json';
 const DEBUG_DIR = '/tmp/test-build-debug';
 
@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('buildDict', () => {
-  test('fixture thyrs.yml から DictFile を生成する', async () => {
+  test('fixture naiad.yml から DictFile を生成する', async () => {
     const result = await buildDict({
       configPath: CONFIG_PATH,
       outPath: OUT_PATH,
@@ -65,8 +65,8 @@ describe('buildDict', () => {
   });
 
   test('カスタム config で echo コマンドを使って build できる', async () => {
-    // Write a minimal thyrs.yml that uses echo (always available)
-    const tmpConfig = '/tmp/test-thyrs-echo.yml';
+    // Write a minimal naiad.yml that uses echo (always available)
+    const tmpConfig = '/tmp/test-naiad-echo.yml';
     writeFileSync(
       tmpConfig,
       `sources:\n  - name: test\n    fetch:\n      cmd: ["echo", "## 用語\\n\\n### テスト用語\\n\\nテスト定義。"]\n    adapter: markdown\n    rules:\n      term: "h3"\n      definition: "term > p"\n`,
@@ -85,7 +85,7 @@ describe('buildDict', () => {
   });
 
   test('存在しないコマンドの場合はエラーをスロー', async () => {
-    const tmpConfig = '/tmp/test-thyrs-bad.yml';
+    const tmpConfig = '/tmp/test-naiad-bad.yml';
     writeFileSync(
       tmpConfig,
       `sources:\n  - name: bad\n    fetch:\n      cmd: ["/nonexistent-binary-xyz", "arg"]\n    adapter: markdown\n    rules:\n      term: "h2"\n      definition: "term > p"\n`,

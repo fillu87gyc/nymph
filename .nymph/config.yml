@@ -5,6 +5,7 @@ sources:
     adapter: markdown
     rules:
       term: "h3"
+      aliases: "term"
       definition: "term > p"
 
 dict:

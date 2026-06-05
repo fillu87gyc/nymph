@@ -108,6 +108,155 @@ describe('select', () => {
   });
 });
 
+describe('selectRelative — 多段セレクタ', () => {
+  test('term > li:contains() > li — 2 段ネストを辿れる', () => {
+    const md = `## 用語\n\n* コードの中の名前\n  * MyAlias\n* 説明\n  * 定義テキスト\n`;
+    const tree = buildTree(md);
+    const h2Nodes = select(tree, 'h2');
+    expect(h2Nodes).toHaveLength(1);
+
+    const result = selectRelative(
+      h2Nodes[0],
+      "term > li:contains('コードの中の名前') > li",
+      tree,
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('MyAlias');
+  });
+
+  test('term > li:contains() > li — 定義ノードも取得できる', () => {
+    const md = `## 用語\n\n* コードの中の名前\n  * MyAlias\n* 説明\n  * 定義テキスト\n`;
+    const tree = buildTree(md);
+    const h2Nodes = select(tree, 'h2');
+
+    const result = selectRelative(
+      h2Nodes[0],
+      "term > li:contains('説明') > li",
+      tree,
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe('定義テキスト');
+  });
+});
+
+describe(':has-alias 疑似クラス', () => {
+  test('括弧（全角）を含むノードにマッチする', () => {
+    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n### リポジトリ\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('Aggregate');
+  });
+
+  test('括弧（半角）を含むノードにマッチする', () => {
+    const md = `## 用語集\n### リポジトリ(Repository)\nリポジトリとは...\n### エンティティ\nエンティティとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('Repository');
+  });
+
+  test('括弧なしのノードはマッチしない', () => {
+    const md = `## 用語集\n### 集約\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(0);
+  });
+
+  test('コンビネータと組み合わせ可能 — h2:contains() > h3:has-alias', () => {
+    const md = `## ユビキタス言語\n### 集約（Aggregate）\n集約とは...\n### リポジトリ\nリポジトリとは...\n## その他\n### エンティティ（Entity）\nエンティティとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h2:contains('ユビキタス言語') > h3:has-alias");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toBe('集約（Aggregate）');
+  });
+});
+
+describe(':alias() 疑似クラス', () => {
+  test('括弧内テキストに部分一致するノードにマッチする', () => {
+    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n### リポジトリ（Repository）\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('Aggregate')");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('集約');
+  });
+
+  test('部分一致: Repo で Repository にマッチする', () => {
+    const md = `## 用語集\n### リポジトリ（Repository）\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('Repo')");
+    expect(nodes).toHaveLength(1);
+  });
+
+  test('マッチしない場合は空', () => {
+    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('Repository')");
+    expect(nodes).toHaveLength(0);
+  });
+
+  test('括弧なしのノードはマッチしない', () => {
+    const md = `## 用語集\n### 集約\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('集約')");
+    expect(nodes).toHaveLength(0);
+  });
+
+  test('ダブルクォートでも動作する — h3:alias("text")', () => {
+    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:alias("Aggregate")');
+    expect(nodes).toHaveLength(1);
+  });
+});
+
+describe(':has-alias — ハイフン・コロン記法', () => {
+  test('ハイフン区切り "用語 - Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約 - Aggregate\n集約とは...\n### リポジトリ\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('集約');
+  });
+
+  test('スペースなしハイフン "用語 -Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約 -Aggregate\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+  });
+
+  test('コロン区切り "用語:Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約:Aggregate\n集約とは...\n### リポジトリ\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('集約');
+  });
+
+  test('全角コロン "用語：Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約：Aggregate\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+  });
+
+  test(':alias() がハイフン区切りのエイリアスに部分一致する', () => {
+    const md = `## 用語集\n### 集約 - Aggregate\n集約とは...\n### リポジトリ - Repository\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('Aggre')");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('集約');
+  });
+
+  test(':alias() がコロン区切りのエイリアスに部分一致する', () => {
+    const md = `## 用語集\n### 集約:Aggregate\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('Aggregate')");
+    expect(nodes).toHaveLength(1);
+  });
+});
+
 describe('selectRelative', () => {
   test('term > p — term の直下 p', () => {
     const tree = buildTree(glossaryMd);

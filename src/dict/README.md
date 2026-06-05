@@ -28,6 +28,7 @@ sources:
     rules:
       term: "<セレクタ>"          # 用語ノードを選ぶセレクタ
       definition: "term <op> <セレクタ>"  # term を起点にした定義ノードの相対セレクタ
+      aliases: "term <op> <セレクタ>"    # （省略可）"term" 指定で括弧・ハイフン・コロン記法から自動抽出
 
 dict:
   ttl: "24h"                     # キャッシュ有効期限（省略可。例: "1h", "30m"）
@@ -80,6 +81,27 @@ h1: ドメイン用語集
 
 対応するノード型：`h1` `h2` `h3` `h4` `h5` `h6` `p` `li` `code` `blockquote` `table`
 
+リストのネスト構造（`li > li`）も対応している。
+
+```markdown
+## 集約
+
+* コードの中の名前
+  * Aggregate
+* 説明
+  * 集約とは、整合性を保つべきオブジェクトの集まりである。
+```
+
+上記は次の木として扱われる：
+
+```
+h2: 集約
+├─ li: コードの中の名前
+│  └─ li: Aggregate
+└─ li: 説明
+   └─ li: 集約とは…
+```
+
 ### セレクタ構文
 
 #### 型セレクタ
@@ -101,8 +123,26 @@ h1: ドメイン用語集
 | セレクタ | 意味 |
 |---|---|
 | `h2:contains('テキスト')` | `text` フィールドに指定文字列を含む h2 |
+| `h3:has-alias` | エイリアス記法（括弧・ハイフン・コロン）を含む h3 |
+| `h3:alias('テキスト')` | 抽出されるエイリアスに指定文字列を含む h3（部分一致） |
 
 `'` と `"` の両方が使える。部分一致。
+
+`:has-alias` と `:alias()` はエイリアス自動抽出と同じ 3 種の記法（括弧・ハイフン・コロン）をすべて検出する。
+
+```yaml
+# エイリアスを持つ h3 だけを用語として選択
+rules:
+  term: "h3:has-alias"
+  definition: "term > p"
+```
+
+```yaml
+# 括弧内に "Aggregate" を含む h3 だけを選択
+rules:
+  term: "h3:alias('Aggregate')"
+  definition: "term > p"
+```
 
 #### コンビネータ
 
@@ -113,9 +153,10 @@ h1: ドメイン用語集
 | `A + B` | 隣接兄弟 | A の直後の兄弟で B にマッチするもの |
 | `A ~ B` | 後続兄弟 | A より後ろの兄弟全員で B にマッチするもの |
 
-#### 相対セレクタ（definition 専用）
+#### 相対セレクタ（definition / aliases 共通）
 
-`rules.definition` では `term` をアンカーとして定義ノードを指定する。
+`rules.definition` と `rules.aliases` では `term` をアンカーとして対象ノードを指定する。
+コンビネータを連鎖させた多段パスも使用できる。
 
 | セレクタ | 意味 |
 |---|---|
@@ -123,7 +164,22 @@ h1: ドメイン用語集
 | `term p` | マッチした term ノードの子孫 p |
 | `term + *` | term ノードの直後の兄弟 |
 | `term ~ *` | term ノードより後ろの兄弟すべて |
-| `term` | term ノード自身 |
+| `term > li:contains('名前') > li` | term → 直下の「名前」li → さらに直下の li |
+| `term` | term ノード自身（aliases に指定した場合は括弧・ハイフン・コロン記法を抽出） |
+
+**`aliases: "term"` の特殊動作**
+
+`aliases` に `"term"`（コンビネータなし）を指定した場合のみ、取得するテキストではなく
+**用語テキスト内の区切り記法を解析してエイリアスを抽出**する。
+区切り記法の詳細は「[エイリアス自動抽出](#エイリアス自動抽出)」を参照。
+
+```yaml
+# ○ "term" 単体 → 用語テキスト自体を解析して括弧・ハイフン・コロンから抽出
+aliases: "term"
+
+# ○ "term > ..." → 別ノードのプレーンテキストをそのままエイリアスとして使用
+aliases: "term > li:contains('名前') > li"
+```
 
 ### セレクタ使用例
 
@@ -133,6 +189,21 @@ h1: ドメイン用語集
 rules:
   term: "h2:contains('ユビキタス言語') > h3"
   definition: "term > p"
+```
+
+```yaml
+# ネストリストから aliases と definition を抽出する例
+#
+# 対象 Markdown:
+#   ## 集約
+#   * コードの中の名前
+#     * Aggregate
+#   * 説明
+#     * 集約とは…
+rules:
+  term: "h2"
+  aliases: "term > li:contains('コードの中の名前') > li"
+  definition: "term > li:contains('説明') > li"
 ```
 
 ```yaml
@@ -162,20 +233,34 @@ rules:
   definition: "description"  # 各オブジェクトの定義フィールド名
 ```
 
-JSON の各オブジェクトに `aliases` 配列フィールドがあれば自動的に取り込まれる。用語名に含まれる括弧表記（後述）からも aliases が抽出され、重複は除去される。
+JSON の各オブジェクトに `aliases` 配列フィールドがあれば自動的に取り込まれる。重複は除去される。
 
 ---
 
 ## エイリアス自動抽出
 
-用語テキストに丸括弧（全角・半角）で英語名が含まれる場合、自動的に `aliases` へ分離される。
+`aliases: "term"` を指定したとき（`"term"` 単体のみ。`"term > ..."` は対象外）、
+用語テキストから以下 3 種の記法でエイリアスと区切り文字以前のプレーンな用語名が抽出される。
+区切り文字以降は `aliases` に入り、`term` フィールドからは除去される。
 
-| 用語テキスト | `term` | `aliases` |
-|---|---|---|
-| `集約（Aggregate）` | `集約` | `["Aggregate"]` |
-| `リポジトリ(Repository)` | `リポジトリ` | `["Repository"]` |
-| `ドメインサービス（Domain Service）` | `ドメインサービス` | `["Domain Service"]` |
-| `リポジトリ` | `リポジトリ` | `[]` |
+### 対応記法
+
+| 記法 | 例 | `term` | `aliases` |
+|---|---|---|---|
+| 括弧（全角） | `集約（Aggregate）` | `集約` | `["Aggregate"]` |
+| 括弧（半角） | `リポジトリ(Repository)` | `リポジトリ` | `["Repository"]` |
+| ハイフン区切り | `集約 - Aggregate` | `集約` | `["Aggregate"]` |
+| ハイフン区切り（スペースなし） | `集約 -Aggregate` | `集約` | `["Aggregate"]` |
+| エムダッシュ区切り | `集約 — Aggregate` | `集約` | `["Aggregate"]` |
+| コロン区切り（半角） | `集約:Aggregate` | `集約` | `["Aggregate"]` |
+| コロン区切り（全角） | `集約：Aggregate` | `集約` | `["Aggregate"]` |
+| 記法なし | `リポジトリ` | `リポジトリ` | `[]` |
+
+ハイフン記法はセパレータの前にスペースが必要（`用語 -alias`）。コロン記法はスペース不要。
+
+複数記法が混在する場合はすべてのエイリアスが収集され、重複は除去される。
+
+また、`:has-alias` と `:alias('text')` セレクタも上記 3 種の記法すべてを検出する。
 
 ---
 
@@ -230,6 +315,7 @@ sources:
     adapter: markdown
     rules:
       term: "h2:contains('ユビキタス言語') > h3"
+      aliases: "term"        # 括弧・ハイフン・コロン記法からエイリアスを抽出
       definition: "term > p"
 dict:
   out: ".nymph/dict.json"

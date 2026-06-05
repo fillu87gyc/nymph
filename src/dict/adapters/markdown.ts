@@ -1,6 +1,6 @@
 import { registerAdapter } from '../adapter.ts';
 import type { DictEntry, SourceRules } from '../schema.ts';
-import { select, selectRelative } from '../selector.ts';
+import { extractAliasesFromText, select, selectRelative } from '../selector.ts';
 import type { NestedNode } from '../tree.ts';
 import { buildTree } from '../tree.ts';
 
@@ -39,12 +39,29 @@ export function extractEntries(raw: string, rules: SourceRules): DictEntry[] {
     const definition = nodesToText(defNodes);
     const definitionHtml = nodesToHtml(defNodes);
 
-    // Extract aliases: if term text contains parenthetical English e.g. "集約（Aggregate）"
+    // Aliases are extracted only when rules.aliases is specified.
+    // "term" → parenthetical notation in the term node itself.
+    // Any other selector → plain text of the matched nodes.
     const aliases: string[] = [];
-    const aliasMatch = termNode.text.match(/[（(]([A-Za-z][^）)]*)[）)]/);
-    if (aliasMatch) aliases.push(aliasMatch[1].trim());
+    if (rules.aliases) {
+      const aliasNodes = selectRelative(termNode, rules.aliases, tree);
+      for (const aliasNode of aliasNodes) {
+        if (aliasNode === termNode) {
+          for (const a of extractAliasesFromText(termNode.text)) {
+            if (!aliases.includes(a)) aliases.push(a);
+          }
+        } else {
+          const text = nodeToPlainText(aliasNode);
+          if (text && !aliases.includes(text)) aliases.push(text);
+        }
+      }
+    }
 
-    const termText = termNode.text.replace(/[（(][^）)]*[）)]/g, '').trim();
+    const termText = termNode.text
+      .replace(/[（(][^）)]*[）)]/g, '')
+      .replace(/ [-–—] *.+$/, '')
+      .replace(/[：:] *.+$/, '')
+      .trim();
 
     entries.push({
       term: termText,

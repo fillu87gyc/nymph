@@ -111,6 +111,58 @@ test.describe('nymph dict build CLI', () => {
   });
 });
 
+test.describe('nymph dict build CLI — markdown aliases', () => {
+  const outPath = '/tmp/test-dict-md-aliases.json';
+
+  test.beforeAll(() => {
+    if (existsSync(outPath)) rmSync(outPath);
+  });
+
+  test('nymph-aliases.yml → dict.json が生成される', () => {
+    execSync(
+      `bun run src/cli.ts dict build --config tests/fixtures/dict/nymph-aliases.yml --out ${outPath}`,
+      { cwd: NYMPH_ROOT, encoding: 'utf-8' },
+    );
+    expect(existsSync(outPath)).toBe(true);
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    expect(dict.entries.length).toBeGreaterThan(0);
+  });
+
+  test('括弧表記（全角）— 集約（Aggregate）から aliases が抽出される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const entry = dict.entries.find((e: { term: string }) => e.term === '集約');
+    expect(entry).toBeDefined();
+    expect(entry.aliases).toContain('Aggregate');
+    expect(entry.term).not.toContain('Aggregate');
+  });
+
+  test('ハイフン区切り — リポジトリ - Repository から aliases が抽出される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const entry = dict.entries.find(
+      (e: { term: string }) => e.term === 'リポジトリ',
+    );
+    expect(entry).toBeDefined();
+    expect(entry.aliases).toContain('Repository');
+    expect(entry.term).not.toContain('Repository');
+  });
+
+  test('コロン区切り — ドメインサービス：Domain Service から aliases が抽出される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const entry = dict.entries.find(
+      (e: { term: string }) => e.term === 'ドメインサービス',
+    );
+    expect(entry).toBeDefined();
+    expect(entry.aliases).toContain('Domain Service');
+    expect(entry.term).not.toContain('Domain Service');
+  });
+
+  test('エンティティ（別セクション）は除外される', () => {
+    const dict = JSON.parse(readFileSync(outPath, 'utf-8'));
+    const terms = dict.entries.map((e: { term: string }) => e.term);
+    expect(terms).not.toContain('エンティティ');
+  });
+});
+
 test.describe('nymph dict build CLI — json adapter', () => {
   const outPath = '/tmp/test-dict-json-adapter.json';
 

@@ -28,6 +28,36 @@ function headingType(depth: HeadingDepth): NestedNode['type'] {
   return `h${depth}` as NestedNode['type'];
 }
 
+function processListItem(item: Tokens.ListItem): NestedNode {
+  // Extract text from non-list tokens to avoid including nested list text
+  const textParts = item.tokens
+    .filter((t) => t.type !== 'list')
+    .map((t) => ('text' in t ? String((t as { text: string }).text) : ''))
+    .join('')
+    .trim();
+  const text = textParts || item.text;
+
+  const node: NestedNode = {
+    type: 'li',
+    text,
+    raw: item.raw,
+    html: `<li>${text}</li>`,
+    children: [],
+  };
+
+  for (const tok of item.tokens) {
+    if (tok.type === 'list') {
+      for (const subItem of (tok as Tokens.List).items) {
+        const child = processListItem(subItem);
+        child.parent = node;
+        node.children.push(child);
+      }
+    }
+  }
+
+  return node;
+}
+
 function tokenToNode(token: Token): NestedNode | null {
   const renderer = new marked.Renderer();
   const renderSingle = (tok: Token): string => {
@@ -67,16 +97,7 @@ function tokenToNode(token: Token): NestedNode | null {
   }
 
   if (token.type === 'list') {
-    const items: NestedNode[] = [];
-    for (const item of token.items) {
-      items.push({
-        type: 'li',
-        text: item.text,
-        raw: item.raw,
-        html: `<li>${item.text}</li>`,
-        children: [],
-      });
-    }
+    const items = token.items.map(processListItem);
     return items.length > 0 ? items[0] : null;
   }
 
@@ -126,17 +147,7 @@ function tokenToNodes(token: Token): NestedNode[] {
   };
 
   if (token.type === 'list') {
-    const items: NestedNode[] = [];
-    for (const item of token.items) {
-      items.push({
-        type: 'li',
-        text: item.text,
-        raw: item.raw,
-        html: `<li>${item.text}</li>`,
-        children: [],
-      });
-    }
-    return items;
+    return token.items.map(processListItem);
   }
 
   const single = tokenToNode(token);

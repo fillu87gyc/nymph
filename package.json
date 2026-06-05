@@ -1,6 +1,6 @@
 {
   "name": "@fillu87gyc/nymph",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Markdown review tool with hot reload and inline commenting",
   "license": "MIT",
   "type": "module",

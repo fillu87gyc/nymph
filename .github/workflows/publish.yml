@@ -21,6 +21,11 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .tool-versions
+      - name: タグからバージョンを反映
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version
+          sed -i "s/^const VERSION = '.*';/const VERSION = '$VERSION';/" src/cli.ts
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: npm publish --provenance --access public

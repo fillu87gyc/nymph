@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { Glob } from 'bun';
 import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 
-const VERSION = '0.1.0';
+const VERSION = '1.0.0';
 
 const HELP = `\
 使い方: nymph [オプション] [ファイル ...]

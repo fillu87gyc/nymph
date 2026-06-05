@@ -51,23 +51,48 @@ function parseSimple(raw: string): SimpleSelector {
   };
 }
 
-const BRACKET_PATTERN = /[（(]([^）)]+)[）)]/;
+/**
+ * Extract all aliases from a term text string.
+ * Supports three notation styles:
+ *   - Parenthetical:  用語（Alias）  or  用語(Alias)
+ *   - Hyphen/dash:    用語 - Alias   or  用語 —Alias  (space before separator required)
+ *   - Colon:          用語:Alias     or  用語：Alias
+ */
+export function extractAliasesFromText(text: string): string[] {
+  const aliases: string[] = [];
+
+  // Parenthetical: 用語（Alias）or 用語(Alias)
+  const bracketRe = /[（(]([^）)]+)[）)]/g;
+  let m: RegExpExecArray | null;
+  while ((m = bracketRe.exec(text)) !== null) {
+    const a = m[1].trim();
+    if (a && !aliases.includes(a)) aliases.push(a);
+  }
+
+  // Hyphen/dash: 用語 - Alias (space before hyphen required, space after optional)
+  const hyphenM = text.match(/ [-–—] *(.+)$/);
+  if (hyphenM) {
+    const a = hyphenM[1].trim();
+    if (a && !aliases.includes(a)) aliases.push(a);
+  }
+
+  // Colon: 用語:Alias or 用語：Alias
+  const colonM = text.match(/[：:] *(.+)$/);
+  if (colonM) {
+    const a = colonM[1].trim();
+    if (a && !aliases.includes(a)) aliases.push(a);
+  }
+
+  return aliases;
+}
 
 function matchesSimple(node: NestedNode, sel: SimpleSelector): boolean {
   if (sel.type !== '*' && node.type !== sel.type) return false;
   if (sel.contains && !node.text.includes(sel.contains)) return false;
-  if (sel.hasAlias && !BRACKET_PATTERN.test(node.text)) return false;
+  if (sel.hasAlias && extractAliasesFromText(node.text).length === 0) return false;
   if (sel.alias) {
-    const re = /[（(]([^）)]+)[）)]/g;
-    let m: RegExpExecArray | null;
-    let found = false;
-    while ((m = re.exec(node.text)) !== null) {
-      if (m[1].includes(sel.alias)) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) return false;
+    const aliases = extractAliasesFromText(node.text);
+    if (!aliases.some((a) => a.includes(sel.alias as string))) return false;
   }
   return true;
 }

@@ -1,6 +1,6 @@
 import { registerAdapter } from '../adapter.ts';
 import type { DictEntry, SourceRules } from '../schema.ts';
-import { select, selectRelative } from '../selector.ts';
+import { extractAliasesFromText, select, selectRelative } from '../selector.ts';
 import type { NestedNode } from '../tree.ts';
 import { buildTree } from '../tree.ts';
 
@@ -47,11 +47,8 @@ export function extractEntries(raw: string, rules: SourceRules): DictEntry[] {
       const aliasNodes = selectRelative(termNode, rules.aliases, tree);
       for (const aliasNode of aliasNodes) {
         if (aliasNode === termNode) {
-          const re = /[（(]([A-Za-z][^）)]*)[）)]/g;
-          let m: RegExpExecArray | null;
-          while ((m = re.exec(termNode.text)) !== null) {
-            const a = m[1].trim();
-            if (a && !aliases.includes(a)) aliases.push(a);
+          for (const a of extractAliasesFromText(termNode.text)) {
+            if (!aliases.includes(a)) aliases.push(a);
           }
         } else {
           const text = nodeToPlainText(aliasNode);
@@ -60,7 +57,11 @@ export function extractEntries(raw: string, rules: SourceRules): DictEntry[] {
       }
     }
 
-    const termText = termNode.text.replace(/[（(][^）)]*[）)]/g, '').trim();
+    const termText = termNode.text
+      .replace(/[（(][^）)]*[）)]/g, '')
+      .replace(/ [-–—] *.+$/, '')
+      .replace(/[：:] *.+$/, '')
+      .trim();
 
     entries.push({
       term: termText,

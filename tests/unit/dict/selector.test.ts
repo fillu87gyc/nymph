@@ -210,6 +210,53 @@ describe(':alias() 疑似クラス', () => {
   });
 });
 
+describe(':has-alias — ハイフン・コロン記法', () => {
+  test('ハイフン区切り "用語 - Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約 - Aggregate\n集約とは...\n### リポジトリ\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('集約');
+  });
+
+  test('スペースなしハイフン "用語 -Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約 -Aggregate\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+  });
+
+  test('コロン区切り "用語:Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約:Aggregate\n集約とは...\n### リポジトリ\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('集約');
+  });
+
+  test('全角コロン "用語：Alias" を :has-alias が検出する', () => {
+    const md = `## 用語集\n### 集約：Aggregate\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, 'h3:has-alias');
+    expect(nodes).toHaveLength(1);
+  });
+
+  test(':alias() がハイフン区切りのエイリアスに部分一致する', () => {
+    const md = `## 用語集\n### 集約 - Aggregate\n集約とは...\n### リポジトリ - Repository\nリポジトリとは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('Aggre')");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].text).toContain('集約');
+  });
+
+  test(':alias() がコロン区切りのエイリアスに部分一致する', () => {
+    const md = `## 用語集\n### 集約:Aggregate\n集約とは...\n`;
+    const tree = buildTree(md);
+    const nodes = select(tree, "h3:alias('Aggregate')");
+    expect(nodes).toHaveLength(1);
+  });
+});
+
 describe('selectRelative', () => {
   test('term > p — term の直下 p', () => {
     const tree = buildTree(glossaryMd);

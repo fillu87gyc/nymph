@@ -72,9 +72,9 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
   const config = loadConfig(configPath);
 
   const outPath =
-    options.outPath ?? config.dict?.out ?? join(cwd, '.naiad/dict.json');
-  const debugDir = options.debugDir ?? join(cwd, '.naiad/debug');
-  const rawCacheDir = join(cwd, '.naiad/raw');
+    options.outPath ?? config.dict?.out ?? join(cwd, '.nymph/dict.json');
+  const debugDir = options.debugDir ?? join(cwd, '.nymph/debug');
+  const rawCacheDir = join(cwd, '.nymph/raw');
 
   // TTL スキップ: skipIfFresh=true かつ dict.json が fresh なら early return
   if (skipIfFresh && existsSync(outPath)) {

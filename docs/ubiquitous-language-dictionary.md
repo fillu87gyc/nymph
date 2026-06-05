@@ -1,21 +1,21 @@
 # ユビキタス言語辞書 — 設計ロードマップ
 
 > ステータス: **設計フェーズ（実装前）**
-> このドキュメントは「どこで・どう naiad.yml を扱い、どう責務を分けるか」を整理し、
+> このドキュメントは「どこで・どう nymph.yml を扱い、どう責務を分けるか」を整理し、
 > 段階実装のロードマップを定義する。コードはまだ書かない。
 
 ---
 
 ## 1. 目的
 
-Markdown で書かれたユビキタス言語（用語集）を **辞書化** し、naiad で Markdown を
+Markdown で書かれたユビキタス言語（用語集）を **辞書化** し、nymph で Markdown を
 レビューしているときに **用語にマウスホバーすると定義が引ける** ようにする。
 
 辞書のソースは GitHub 上にあることも、ローカルにあることもある。どこから・どんな
-コマンドで取得するかは設定ファイル（`naiad.yml`）に書け、naiad 側には強制フェッチ
+コマンドで取得するかは設定ファイル（`nymph.yml`）に書け、nymph 側には強制フェッチ
 ボタンと「1 日 1 回 / `updatedAt` が古いときだけ取りに行く」自動更新を持たせる。
 
-これにより、辞書の実体は **永続化された `dict.json`** に集約され、naiad 本体は
+これにより、辞書の実体は **永続化された `dict.json`** に集約され、nymph 本体は
 インメモリ管理から脱却する。
 
 ---
@@ -27,33 +27,33 @@ Markdown で書かれたユビキタス言語（用語集）を **辞書化** �
 
 ```
                     ┌──────────────┐
-   naiad.yml  ──────│  ① Fetch     │──── raw cache（取得した生ソース + メタ）
-  （宣言的設定）       │   レイヤ       │      .naiad/cache/<source>.raw
+   nymph.yml  ──────│  ① Fetch     │──── raw cache（取得した生ソース + メタ）
+  （宣言的設定）       │   レイヤ       │      .nymph/cache/<source>.raw
                     └──────────────┘            │
                                                 ▼
                     ┌──────────────┐
-   naiad.yml  ──────│  ② Convert   │──── dict.json（naiad が解釈できる正準形式）
-  （構造 DSL）         │  (Adapter)   │      .naiad/dict.json
+   nymph.yml  ──────│  ② Convert   │──── dict.json（nymph が解釈できる正準形式）
+  （構造 DSL）         │  (Adapter)   │      .nymph/dict.json
                     └──────────────┘            │
                        ▲ injectable             ▼
                     markdown / json / csv …
                                                 ▼
                     ┌──────────────┐
-                    │  ③ naiad     │──── ホバーで定義表示 / 強制フェッチボタン
+                    │  ③ nymph     │──── ホバーで定義表示 / 強制フェッチボタン
                     │  (server+UI) │      dict.json **だけ** を読む
                     └──────────────┘
 ```
 
 | # | レイヤ | 入力 | 出力 | 責務 |
 |---|--------|------|------|------|
-| ① | **Fetch** | `naiad.yml` の `fetch` 指定 | 生ソース + `updatedAt` | ソースをどこからどう取るか。`cat`（ローカル）/ `gh`（GitHub）等。TTL 判定もここ。 |
-| ② | **Convert（Adapter）** | 生ソース + `naiad.yml` の構造 DSL | `dict.json` | 各表現（markdown / json / csv …）を正準形式へ変換する **緩衝材**。injectable。 |
-| ③ | **naiad** | `dict.json` | ホバー辞書 UI | 辞書の中身を**読むだけ**。ソースの場所も構造 DSL も知らない。 |
+| ① | **Fetch** | `nymph.yml` の `fetch` 指定 | 生ソース + `updatedAt` | ソースをどこからどう取るか。`cat`（ローカル）/ `gh`（GitHub）等。TTL 判定もここ。 |
+| ② | **Convert（Adapter）** | 生ソース + `nymph.yml` の構造 DSL | `dict.json` | 各表現（markdown / json / csv …）を正準形式へ変換する **緩衝材**。injectable。 |
+| ③ | **nymph** | `dict.json` | ホバー辞書 UI | 辞書の中身を**読むだけ**。ソースの場所も構造 DSL も知らない。 |
 
 ### この分割が効く理由
 
-- **dict.json が唯一の境界契約**。naiad 本体は yml も markdown 構造も fetch コマンドも
-  知らない。ソース表現が増えても（json / csv / Notion エクスポート…）naiad は無改修。
+- **dict.json が唯一の境界契約**。nymph 本体は yml も markdown 構造も fetch コマンドも
+  知らない。ソース表現が増えても（json / csv / Notion エクスポート…）nymph は無改修。
 - **インメモリ脱却**: 辞書は `dict.json` に永続化され、`updatedAt` で鮮度管理。
   プロセス再起動でも状態が消えない。
 - **セキュリティ境界が明確**（→ §4）。任意コマンド実行は ① に閉じ込め、
@@ -61,38 +61,38 @@ Markdown で書かれたユビキタス言語（用語集）を **辞書化** �
 
 ---
 
-## 3. naiad.yml をどこで・どう扱うか
+## 3. nymph.yml をどこで・どう扱うか
 
 > 回答③「yml をそもそもどこでどう扱うのか整理したい」への回答。
 
 ### 置き場所
 
-- プロジェクトルートの `naiad.yml`（naiad を起動するカレントディレクトリで探索）。
-- 既存 ROADMAP の `.naiad.toml` 構想とは別物。辞書専用の宣言を持つので YAML を採用
+- プロジェクトルートの `nymph.yml`（nymph を起動するカレントディレクトリで探索）。
+- 既存 ROADMAP の `.nymph.toml` 構想とは別物。辞書専用の宣言を持つので YAML を採用
   （ネストした構造 DSL と相性が良い）。将来、汎用設定と統合する余地は残す。
 
 ### 誰が読むか — 「2 つの実行主体」を分離
 
-`naiad.yml` を読む主体は **2 つに分ける**。これが責務整理の肝。
+`nymph.yml` を読む主体は **2 つに分ける**。これが責務整理の肝。
 
-1. **`naiad dict` サブコマンド（CLI / ビルド時）** — ① Fetch と ② Convert を実行。
+1. **`nymph dict` サブコマンド（CLI / ビルド時）** — ① Fetch と ② Convert を実行。
    yml をフルに解釈し、必要なら外部コマンド（`gh` 等）を起動して `dict.json` を生成する。
    **危険な操作（コマンド実行）はここに閉じ込める。**
 
    ```
-   naiad dict build      # fetch + convert を一度実行して dict.json を更新
-   naiad dict build --debug   # 中間生成物（raw cache, パース木, マッチ結果）を吐く
+   nymph dict build      # fetch + convert を一度実行して dict.json を更新
+   nymph dict build --debug   # 中間生成物（raw cache, パース木, マッチ結果）を吐く
    ```
 
-2. **`naiad`（HTTP サーバ / 常駐）** — `dict.json` を読むだけ。
-   強制フェッチボタンが押されたら、サーバは **`naiad dict build` を子プロセスとして
+2. **`nymph`（HTTP サーバ / 常駐）** — `dict.json` を読むだけ。
+   強制フェッチボタンが押されたら、サーバは **`nymph dict build` を子プロセスとして
    spawn する**（自前で yml を eval しない）。完了後 `dict.json` を再読込して SSE で通知。
 
 ```
 ブラウザ［強制フェッチ］
    │ POST /dict/sync
    ▼
-naiad server ── spawn ──▶ `naiad dict build`（① + ②）──▶ dict.json 更新
+nymph server ── spawn ──▶ `nymph dict build`（① + ②）──▶ dict.json 更新
    │                                                          │
    └──────────────── 再読込 + SSE 通知 ◀──────────────────────┘
 ```
@@ -102,25 +102,25 @@ naiad server ── spawn ──▶ `naiad dict build`（① + ②）──▶ d
 
 ### デバッグ（要件「デバッグも含め」）
 
-`naiad dict build --debug` で各段の中間生成物を `.naiad/debug/` に出力する。
+`nymph dict build --debug` で各段の中間生成物を `.nymph/debug/` に出力する。
 
 - `raw/<source>.md` — fetch した生ソース
 - `tree/<source>.json` — markdown を木構造化した中間表現（§5 の tree）
 - `match/<source>.json` — セレクタが何にマッチしたか（用語/定義の対応）
 - `dict.json` — 最終結果
 
-これにより「セレクタが意図通り当たっているか」を naiad を起動せず検証できる。
+これにより「セレクタが意図通り当たっているか」を nymph を起動せず検証できる。
 
 ---
 
 ## 4. セキュリティ — fetch コマンドの扱い
 
-> 回答③に紐づく論点。現行 naiad はサーバをループバック固定・shell 非経由で運用している。
+> 回答③に紐づく論点。現行 nymph はサーバをループバック固定・shell 非経由で運用している。
 
-方針: **任意コマンドは `naiad dict` サブコマンド（明示的なユーザ操作）に限定し、
+方針: **任意コマンドは `nymph dict` サブコマンド（明示的なユーザ操作）に限定し、
 HTTP リクエストハンドラから直接 shell を叩かない。**
 
-- `naiad.yml` の `fetch.cmd` は **argv 配列**で書く（shell 文字列ではない）。
+- `nymph.yml` の `fetch.cmd` は **argv 配列**で書く（shell 文字列ではない）。
   `spawnSync(cmd[0], cmd.slice(1), { shell: false })` で実行 → シェルインジェクション面を残さない。
 
   ```yaml
@@ -129,13 +129,13 @@ HTTP リクエストハンドラから直接 shell を叩かない。**
   # cmd: ["gh", "api", "repos/org/repo/contents/glossary.md", "--jq", ".content"]  # GitHub
   ```
 
-- glob が必要なケース（`docs/lang/*.md`）は、shell に頼らず naiad 側の `Glob`
+- glob が必要なケース（`docs/lang/*.md`）は、shell に頼らず nymph 側の `Glob`
   （`cli.ts` 既存）で展開してから複数ソースとして扱う。`["sh","-c", ...]` をユーザが
   明示的に書くことは妨げないが、推奨はしない。
-- 強制フェッチボタン → サーバは固定的に `naiad dict build` を spawn するだけ。
+- 強制フェッチボタン → サーバは固定的に `nymph dict build` を spawn するだけ。
   リクエストボディからコマンドを受け取って実行することは **しない**。
-- README に「`naiad.yml` の `fetch.cmd` はローカルの信頼された設定であり、
-  naiad を起動するユーザと同じ権限で実行される」旨を明記する。
+- README に「`nymph.yml` の `fetch.cmd` はローカルの信頼された設定であり、
+  nymph を起動するユーザと同じ権限で実行される」旨を明記する。
 
 ---
 
@@ -212,7 +212,7 @@ sources:
 sources:
   - name: lang-docs
     fetch:
-      cmd: ["cat", "docs/lang/*.md"]   # glob は naiad 側で展開（§4）
+      cmd: ["cat", "docs/lang/*.md"]   # glob は nymph 側で展開（§4）
     adapter: markdown
     rules:
       term: "h2"            # 第 2 見出し = タイトル
@@ -225,7 +225,7 @@ sources:
 
 ## 6. dict.json — 正準スキーマ（境界契約）
 
-naiad が読む唯一の形式。Adapter の出力 = naiad の入力。
+nymph が読む唯一の形式。Adapter の出力 = nymph の入力。
 
 ```json
 {
@@ -253,21 +253,21 @@ naiad が読む唯一の形式。Adapter の出力 = naiad の入力。
 
 ## 7. 鮮度管理 — TTL / updatedAt / 強制フェッチ
 
-- **強制フェッチボタン**（Toolbar）: `POST /dict/sync` → `naiad dict build` を spawn。
-- **自動更新（デフォルト 1 日 1 回）**: naiad 起動時とポーリング時に
-  `now - dict.updatedAt > ttl`（既定 24h）なら自動 sync。`ttl` は `naiad.yml` で上書き可。
+- **強制フェッチボタン**（Toolbar）: `POST /dict/sync` → `nymph dict build` を spawn。
+- **自動更新（デフォルト 1 日 1 回）**: nymph 起動時とポーリング時に
+  `now - dict.updatedAt > ttl`（既定 24h）なら自動 sync。`ttl` は `nymph.yml` で上書き可。
 - **`updatedAt` 比較**: ソース側にも更新時刻があるなら（`gh` の commit 日時等）、
   ソースが dict より新しいときだけ convert する最適化を ① で行える（将来拡張）。
 
 ```yaml
 dict:
   ttl: 24h        # 省略時 24h
-  out: .naiad/dict.json
+  out: .nymph/dict.json
 ```
 
 ---
 
-## 8. naiad 側のホバー UI
+## 8. nymph 側のホバー UI
 
 - サーバ: `GET /dict` で `dict.json` を返す（`/comments` パターン踏襲）。
   `POST /dict/sync` で再生成。`/watch` SSE に dict 更新通知を相乗り。
@@ -293,10 +293,10 @@ export interface DictAdapter {
 }
 ```
 
-- レジストリに登録し、`naiad.yml` の `adapter:` で選択。
+- レジストリに登録し、`nymph.yml` の `adapter:` で選択。
 - 初期実装は `markdown`（§5 のセレクタエンジン）。
 - 将来 `json`（JSONPath 風 rules）/ `csv`（列マッピング）を追加しても
-  dict.json 契約は不変 → naiad 無改修。
+  dict.json 契約は不変 → nymph 無改修。
 
 ---
 
@@ -309,15 +309,15 @@ export interface DictAdapter {
 責務分割・DSL・スキーマ・セキュリティ境界の合意。
 
 ### Phase 1 — Convert コア（MVP の心臓）
-- `naiad.yml` パース（YAML 依存を追加）。
+- `nymph.yml` パース（YAML 依存を追加）。
 - Markdown → tree（§5.1）。
 - CSS セレクタ風エンジン（§5.2）。
 - `markdown` Adapter → `dict.json`。
-- `naiad dict build`（ローカル `cat` のみ）+ `--debug`。
+- `nymph dict build`（ローカル `cat` のみ）+ `--debug`。
 - **テスト**: セレクタエンジンとアダプタの unit を厚く（TDD）。E2E は CLI の
   入出力スナップショット（yml + 固定 md → 期待 dict.json）。
 
-### Phase 2 — naiad 消費 + ホバー UI
+### Phase 2 — nymph 消費 + ホバー UI
 - `GET /dict` / `useDict()` / 用語ハイライト / ホバーツールチップ。
 - **テスト**: フック・コンポーネント unit。**E2E（完成の定義）**: 辞書を読み込み、
   用語にホバー → 定義ツールチップが出ることを Playwright で確認。
@@ -339,6 +339,6 @@ export interface DictAdapter {
 - YAML パーサ依存の選定（`yaml` パッケージ等）。bundle/配布への影響確認。
 - 用語マッチの粒度（完全一致 / 形態素 / 大文字小文字・送り仮名揺れ）。日本語の
   部分一致は誤爆しやすいので初期は「entries の語の完全境界一致」から。
-- `dict.json` / `.naiad/` の `.gitignore` 方針（生成物をコミットするか）。
+- `dict.json` / `.nymph/` の `.gitignore` 方針（生成物をコミットするか）。
 - 複数ソースの用語衝突時のマージ規則（後勝ち / ソース優先度）。
 - 強制フェッチ中の UI 状態（多重起動防止・進捗表示）。

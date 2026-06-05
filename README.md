@@ -1,9 +1,9 @@
-# naiad
+# nymph
 
 AI が生成した Markdown・Mermaid をレビューするための軽量ツール。
 
 ```bash
-naiad output.md
+nymph output.md
 ```
 
 ブラウザが開き、ファイルを監視して自動再レンダリングします。
@@ -22,25 +22,25 @@ naiad output.md
 
 **bunx（インストール不要）**
 ```bash
-bunx naiad *.md
+bunx nymph *.md
 ```
 
 **グローバルインストール**
 ```bash
-bun install -g naiad
-naiad *.md
+bun install -g nymph
+nymph *.md
 ```
 
 **単一バイナリ（Bun 不要で配布可）**
 ```bash
-bun build --compile src/cli.ts --outfile naiad
-./naiad *.md
+bun build --compile src/cli.ts --outfile nymph
+./nymph *.md
 ```
 
 **ローカル開発**
 ```bash
-git clone https://github.com/fillu87gyc/naiad
-cd naiad
+git clone https://github.com/fillu87gyc/nymph
+cd nymph
 bun install
 bun run src/cli.ts output.md
 ```
@@ -50,8 +50,8 @@ bun run src/cli.ts output.md
 ## 使い方
 
 ```bash
-naiad output.md
-# naiad   http://localhost:6276
+nymph output.md
+# nymph   http://localhost:6276
 # 監視中  /path/to/output.md
 # Ctrl+C で停止
 ```
@@ -59,13 +59,13 @@ naiad output.md
 複数ファイルや glob も指定できます：
 
 ```bash
-naiad *.md
+nymph *.md
 ```
 
 ### オプション
 
 ```
-使い方: naiad [オプション] [ファイル ...]
+使い方: nymph [オプション] [ファイル ...]
 
 オプション:
   -p, --port <番号>    使用するポート番号 (デフォルト: 6276)
@@ -75,9 +75,9 @@ naiad *.md
 ```
 
 ```bash
-naiad -p 8080 output.md        # ポートを指定
-naiad --no-open output.md      # ブラウザを開かずに起動
-naiad --version                # バージョン確認
+nymph -p 8080 output.md        # ポートを指定
+nymph --no-open output.md      # ブラウザを開かずに起動
+nymph --version                # バージョン確認
 ```
 
 ---
@@ -108,17 +108,17 @@ Mermaid コードブロックをインラインでレンダリングします。
 
 ## ユビキタス言語辞書
 
-プロジェクトルートの `.naiad/config.yml` を使って、`docs/UBIQUITOUS_LANGUAGE.md` から辞書ファイルを生成できます。
+プロジェクトルートの `.nymph/config.yml` を使って、`docs/UBIQUITOUS_LANGUAGE.md` から辞書ファイルを生成できます。
 
 ```bash
-naiad dict build
+nymph dict build
 ```
 
-`.naiad/dict.json` に辞書ファイルが出力されます（`.gitignore` 対象のため生成ファイルは追跡しません）。
+`.nymph/dict.json` に辞書ファイルが出力されます（`.gitignore` 対象のため生成ファイルは追跡しません）。
 
 ```bash
-# デバッグ出力（ノード木とマッチ結果を .naiad/debug/ に保存）
-naiad dict build --debug
+# デバッグ出力（ノード木とマッチ結果を .nymph/debug/ に保存）
+nymph dict build --debug
 ```
 
 用語集のソースは `docs/UBIQUITOUS_LANGUAGE.md` です。新しいモジュールや概念を追加したときはこちらも更新してください。
@@ -138,12 +138,12 @@ bun run build      # プロダクションビルド (Vite 7)
 **ghq を使っている場合の開発用ショートカット（`~/.zshrc`）**
 
 ```zsh
-naiadx() {
-  local naiad_dir origdir="$PWD"
-  if [[ -f package.json ]] && grep -q '"name": "naiad"' package.json; then
-    naiad_dir="$PWD"
+nymphx() {
+  local nymph_dir origdir="$PWD"
+  if [[ -f package.json ]] && grep -q '"name": "nymph"' package.json; then
+    nymph_dir="$PWD"
   else
-    naiad_dir="$(ghq list --full-path naiad | grep '/naiad$' | head -1)"
+    nymph_dir="$(ghq list --full-path nymph | grep '/nymph$' | head -1)"
   fi
   local -a a
   for f in "$@"; do
@@ -152,28 +152,28 @@ naiadx() {
       *)  a+=("$origdir/$f") ;;
     esac
   done
-  (cd "$naiad_dir" && NAIAD_FILES="${a[*]}" bun run dev)
+  (cd "$nymph_dir" && NYMPH_FILES="${a[*]}" bun run dev)
 }
 ```
 
 ```bash
-naiadx *.md   # HMR 有効な開発モードで起動
+nymphx *.md   # HMR 有効な開発モードで起動
 ```
 
 ---
 
 ## Claude Code との連携
 
-Claude Code のプロジェクトに naiad を追加すると、Edit ツールによるファイル編集時にコメントの行番号が自動追従します。
+Claude Code のプロジェクトに nymph を追加すると、Edit ツールによるファイル編集時にコメントの行番号が自動追従します。
 
 ```bash
-claude plugin install github:fillu87gyc/naiad
+claude plugin install github:fillu87gyc/nymph
 ```
 
 Claude Code 上でフックをインストール：
 
 ```
-/naiad:install
+/nymph:install
 ```
 
 仕組み：`PostToolUse` フックが Edit ツールの `old_string` / `new_string` を `/edit-op` エンドポイントに転送し、編集前後の行数差分でコメント位置を自動補正します。

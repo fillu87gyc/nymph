@@ -7,9 +7,9 @@ import {
   isCommandHashAccepted,
   saveAcceptedHash,
 } from '../../../src/dict/consent.ts';
-import type { NaiadYml } from '../../../src/dict/schema.ts';
+import type { NymphYml } from '../../../src/dict/schema.ts';
 
-const TMP_DIR = join(tmpdir(), `naiad-consent-test-${process.pid}`);
+const TMP_DIR = join(tmpdir(), `nymph-consent-test-${process.pid}`);
 
 // テスト専用の XDG_DATA_HOME に切り替えて本物の ~/.local/share を汚染しない
 beforeEach(() => {
@@ -26,7 +26,7 @@ afterEach(() => {
   }
 });
 
-function makeConfig(sources: { name: string; cmd: string[] }[]): NaiadYml {
+function makeConfig(sources: { name: string; cmd: string[] }[]): NymphYml {
   return {
     sources: sources.map((s) => ({
       name: s.name,
@@ -115,14 +115,14 @@ describe('isCommandHashAccepted / saveAcceptedHash', () => {
 
   it('accepted_hashes.json が存在しない場合は false', () => {
     // beforeEach で空の TMP_DIR が作られているが accepted_hashes.json はない
-    expect(existsSync(join(TMP_DIR, 'naiad', 'accepted_hashes.json'))).toBe(
+    expect(existsSync(join(TMP_DIR, 'nymph', 'accepted_hashes.json'))).toBe(
       false,
     );
     expect(isCommandHashAccepted('sha256:abc')).toBe(false);
   });
 
   it('accepted_hashes.json が破損していても false（クラッシュしない）', () => {
-    const dir = join(TMP_DIR, 'naiad');
+    const dir = join(TMP_DIR, 'nymph');
     mkdirSync(dir, { recursive: true });
     const { writeFileSync } = require('node:fs');
     writeFileSync(join(dir, 'accepted_hashes.json'), 'NOT_VALID_JSON', 'utf-8');

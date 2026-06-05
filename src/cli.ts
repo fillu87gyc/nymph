@@ -7,7 +7,7 @@ import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 const VERSION = '0.1.0';
 
 const HELP = `\
-使い方: naiad [オプション] [ファイル ...]
+使い方: nymph [オプション] [ファイル ...]
 
   Markdown レビューツール — ホットリロードとインラインコメント付き
 
@@ -20,15 +20,10 @@ const HELP = `\
   -v, --version        バージョンを表示して終了
   -h, --help           このヘルプを表示して終了
 
-サブコマンド:
-  dict build           用語辞書をビルドする
-  dict allow           辞書ビルドのコマンドを承認する
-  legal                サードパーティライセンスを表示する
-
 例:
-  naiad README.md
-  naiad docs/*.md
-  naiad -p 8080 --no-open README.md
+  nymph README.md
+  nymph docs/*.md
+  nymph -p 8080 --no-open README.md
 `;
 
 async function findPort(start = 6276): Promise<number> {
@@ -51,29 +46,13 @@ async function findPort(start = 6276): Promise<number> {
 async function main() {
   const rawArgs = process.argv.slice(2);
 
-  // legal サブコマンド処理
-  if (rawArgs[0] === 'legal') {
-    const { readFileSync, existsSync } = await import('node:fs');
-    const licensesPath = resolve(import.meta.dir, '../dist/LICENSES.txt');
-    if (!existsSync(licensesPath)) {
-      console.error(
-        'ライセンスファイルが見つかりません（dist/LICENSES.txt）。',
-      );
-      console.error('bun run build を実行してから再試行してください。');
-      process.exit(1);
-    }
-    process.stdout.write(readFileSync(licensesPath, 'utf8'));
-    process.stdout.write('\n');
-    process.exit(0);
-  }
-
   // dict サブコマンド処理
   if (rawArgs[0] === 'dict') {
     const subArgs = rawArgs.slice(1);
 
     if (subArgs[0] === 'allow') {
-      // naiad dict allow — config.yml のコマンドを承認する（direnv allow 相当）
-      let configPath = '.naiad/config.yml';
+      // nymph dict allow — config.yml のコマンドを承認する（direnv allow 相当）
+      let configPath = '.nymph/config.yml';
       for (let i = 1; i < subArgs.length; i++) {
         if (subArgs[i] === '--config' || subArgs[i] === '-c') {
           configPath = subArgs[++i];
@@ -110,7 +89,7 @@ async function main() {
         }
 
         saveAcceptedHash(computeCommandsHash(config));
-        console.log('承認しました。naiad dict build を実行できます。');
+        console.log('承認しました。nymph dict build を実行できます。');
       } catch (err) {
         console.error(
           `エラー: ${err instanceof Error ? err.message : String(err)}`,
@@ -126,7 +105,7 @@ async function main() {
       const { computeCommandsHash, isCommandHashAccepted } = await import(
         './dict/consent.ts'
       );
-      let configPath = '.naiad/config.yml';
+      let configPath = '.nymph/config.yml';
       let outPath: string | undefined;
       let debug = false;
       let debugDir: string | undefined;
@@ -153,7 +132,7 @@ async function main() {
           for (const source of config.sources) {
             console.error(`  [${source.name}]  ${source.fetch.cmd.join(' ')}`);
           }
-          console.error(`\n承認するには: naiad dict allow`);
+          console.error(`\n承認するには: nymph dict allow`);
           process.exit(1);
         }
 
@@ -172,7 +151,7 @@ async function main() {
       }
     } else {
       console.error(`エラー: 不明な dict サブコマンド: ${subArgs[0] ?? ''}`);
-      console.error('  使用可能: naiad dict build, naiad dict allow');
+      console.error('  使用可能: nymph dict build, nymph dict allow');
       process.exit(1);
     }
     process.exit(0);
@@ -180,7 +159,7 @@ async function main() {
 
   let paths: string[] = [];
   let portOverride: number | null = null;
-  let noOpen = !!process.env.NAIAD_NO_OPEN;
+  let noOpen = !!process.env.NYMPH_NO_OPEN;
   const fileArgs: string[] = [];
 
   for (let i = 0; i < rawArgs.length; i++) {
@@ -205,7 +184,7 @@ async function main() {
       portOverride = n;
     } else if (arg.startsWith('-')) {
       console.error(`エラー: 不明なオプション: ${arg}`);
-      console.error('  naiad --help でヘルプを表示');
+      console.error('  nymph --help でヘルプを表示');
       process.exit(1);
     } else {
       fileArgs.push(arg);
@@ -243,11 +222,11 @@ async function main() {
   const port = portOverride ?? (await findPort());
   const server = createServer(port);
 
-  const lockPath = paths.length > 0 ? `${paths[0]}.naiad-lock` : null;
+  const lockPath = paths.length > 0 ? `${paths[0]}.nymph-lock` : null;
   if (lockPath) writeFileSync(lockPath, String(port));
 
   const url = `http://localhost:${port}`;
-  console.log(`naiad   ${url}`);
+  console.log(`nymph   ${url}`);
   if (paths.length > 0) console.log(`監視中  ${paths.join(', ')}`);
   else console.log('ファイルをブラウザにドロップして開始');
   console.log('Ctrl+C で停止');

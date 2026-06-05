@@ -33,7 +33,7 @@ test.describe('hljs テーマ link portal', () => {
     page,
   }) => {
     // localStorage がなければ dark がデフォルト
-    await page.evaluate(() => localStorage.removeItem('naiad-theme'));
+    await page.evaluate(() => localStorage.removeItem('nymph-theme'));
     await page.reload();
     await expect(
       page.locator('#content [data-testid="md-block"]').first(),
@@ -130,7 +130,7 @@ test.describe('テーマ状態の永続化', () => {
     );
     await page.locator('#btn-theme').click();
     const saved = await page.evaluate(() =>
-      localStorage.getItem('naiad-theme'),
+      localStorage.getItem('nymph-theme'),
     );
     const after = await page.evaluate(
       () => document.documentElement.dataset.theme,

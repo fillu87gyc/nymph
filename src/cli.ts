@@ -20,6 +20,11 @@ const HELP = `\
   -v, --version        バージョンを表示して終了
   -h, --help           このヘルプを表示して終了
 
+サブコマンド:
+  dict build           用語辞書をビルドする
+  dict allow           辞書ビルドのコマンドを承認する
+  legal                サードパーティライセンスを表示する
+
 例:
   naiad README.md
   naiad docs/*.md
@@ -45,6 +50,20 @@ async function findPort(start = 6276): Promise<number> {
 
 async function main() {
   const rawArgs = process.argv.slice(2);
+
+  // legal サブコマンド処理
+  if (rawArgs[0] === 'legal') {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const licensesPath = resolve(import.meta.dir, '../dist/LICENSES.txt');
+    if (!existsSync(licensesPath)) {
+      console.error('ライセンスファイルが見つかりません（dist/LICENSES.txt）。');
+      console.error('bun run build を実行してから再試行してください。');
+      process.exit(1);
+    }
+    process.stdout.write(readFileSync(licensesPath, 'utf8'));
+    process.stdout.write('\n');
+    process.exit(0);
+  }
 
   // dict サブコマンド処理
   if (rawArgs[0] === 'dict') {

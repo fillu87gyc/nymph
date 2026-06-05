@@ -1,4 +1,4 @@
-# nymph — Claude 向け開発ガイド
+# naiad — Claude 向け開発ガイド
 
 ## 開発ポリシー
 

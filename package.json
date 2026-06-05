@@ -1,10 +1,14 @@
 {
-  "name": "nymph",
+  "name": "@fillu87gyc/nymph",
   "version": "0.1.0",
   "description": "Markdown review tool with hot reload and inline commenting",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "nymph": "src/cli.ts"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "dev": "NYMPH_NO_OPEN=1 concurrently -k -n server,vite -c cyan,magenta \"bun --watch src/cli.ts $NYMPH_FILES\" \"vite --open\"",

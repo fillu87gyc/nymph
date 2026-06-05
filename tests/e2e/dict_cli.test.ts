@@ -25,6 +25,7 @@ test.beforeAll(() => {
   try {
     for (const cfgPath of [
       'tests/fixtures/dict/nymph.yml',
+      'tests/fixtures/dict/nymph-aliases.yml',
       'tests/fixtures/dict/nymph-json.yml',
     ]) {
       saveAcceptedHash(computeCommandsHash(loadConfig(cfgPath)));
@@ -121,7 +122,7 @@ test.describe('nymph dict build CLI — markdown aliases', () => {
   test('nymph-aliases.yml → dict.json が生成される', () => {
     execSync(
       `bun run src/cli.ts dict build --config tests/fixtures/dict/nymph-aliases.yml --out ${outPath}`,
-      { cwd: NYMPH_ROOT, encoding: 'utf-8' },
+      { cwd: NYMPH_ROOT, encoding: 'utf-8', env: cliEnv() },
     );
     expect(existsSync(outPath)).toBe(true);
     const dict = JSON.parse(readFileSync(outPath, 'utf-8'));

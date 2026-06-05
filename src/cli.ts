@@ -56,7 +56,9 @@ async function main() {
     const { readFileSync, existsSync } = await import('node:fs');
     const licensesPath = resolve(import.meta.dir, '../dist/LICENSES.txt');
     if (!existsSync(licensesPath)) {
-      console.error('ライセンスファイルが見つかりません（dist/LICENSES.txt）。');
+      console.error(
+        'ライセンスファイルが見つかりません（dist/LICENSES.txt）。',
+      );
       console.error('bun run build を実行してから再試行してください。');
       process.exit(1);
     }

@@ -238,11 +238,11 @@ test.describe('コメントパネルのリサイズ', () => {
     // stopDrag saves offsetHeight synchronously, but React may not have
     // flushed the new height to the DOM yet — wait until it's set.
     await page.waitForFunction(
-      () => localStorage.getItem('nymph-panel-height') !== null,
+      () => localStorage.getItem('naiad-panel-height') !== null,
       { timeout: 2000 },
     );
     const saved = await page.evaluate(() =>
-      localStorage.getItem('nymph-panel-height'),
+      localStorage.getItem('naiad-panel-height'),
     );
     expect(Number(saved)).toBeGreaterThan(0);
   });
@@ -250,7 +250,7 @@ test.describe('コメントパネルのリサイズ', () => {
   test('保存したパネル高さがリロード後に復元される', async ({ page }) => {
     // 既定(210)と十分に異なる高さを localStorage に保存しておく
     await page.evaluate(() =>
-      localStorage.setItem('nymph-panel-height', '380'),
+      localStorage.setItem('naiad-panel-height', '380'),
     );
     await page.reload();
     await expect(
@@ -320,7 +320,7 @@ test.describe('テーマ切替', () => {
   test('テーマが localStorage に保存される', async ({ page }) => {
     await page.locator('#btn-theme').click();
     const saved = await page.evaluate(() =>
-      localStorage.getItem('nymph-theme'),
+      localStorage.getItem('naiad-theme'),
     );
     expect(saved).not.toBeNull();
   });
@@ -362,7 +362,7 @@ test.describe('削除済みコメントの表示', () => {
         lineStart: 3,
         lineEnd: 3,
         block_type: 'selection',
-        context: '【NYMPH_TEST_ORPHAN_DOES_NOT_EXIST_XYZ_99999】',
+        context: '【NAIAD_TEST_ORPHAN_DOES_NOT_EXIST_XYZ_99999】',
         selection_offset: 0,
         text: '孤立コメント',
       },

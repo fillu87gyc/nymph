@@ -22,7 +22,7 @@ export function DrawioModal({
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="nymph" version="1.0">
+<mxfile host="naiad" version="1.0">
   <diagram id="mermaid-${Date.now()}" name="Mermaid Export">
     <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" page="1"
       pageWidth="1169" pageHeight="827" math="0" shadow="0">

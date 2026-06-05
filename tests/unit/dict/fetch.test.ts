@@ -21,7 +21,7 @@ describe('buildDict fetch', () => {
 
   test('spawnSync が shell:false で呼ばれる', async () => {
     await buildDict({
-      configPath: `${process.cwd()}/tests/fixtures/dict/nymph.yml`,
+      configPath: `${process.cwd()}/tests/fixtures/dict/naiad.yml`,
       outPath: '/tmp/test-fetch-mock.json',
       cwd: process.cwd(),
     });
@@ -55,7 +55,7 @@ describe('buildDict fetch', () => {
     writeFileSync(outPath, JSON.stringify(freshDict));
 
     const result = await buildDict({
-      configPath: `${process.cwd()}/tests/fixtures/dict/nymph.yml`,
+      configPath: `${process.cwd()}/tests/fixtures/dict/naiad.yml`,
       outPath,
       cwd: process.cwd(),
       skipIfFresh: true,

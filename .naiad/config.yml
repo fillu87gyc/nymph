@@ -10,4 +10,4 @@ sources:
 
 dict:
   ttl: "24h"
-  out: ".nymph/dict.json"
+  out: ".naiad/dict.json"

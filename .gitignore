@@ -5,7 +5,7 @@ dist/
 build/
 .venv/
 *.comments.json
-*.nymph-lock
+*.naiad-lock
 node_modules/
 bun.lockb
 pnpm-lock.yaml
@@ -15,5 +15,5 @@ test-results/
 playwright-screenshots/
 .claude/worktrees/
 .claude/scheduled_tasks.lock
-.nymph/*
-!.nymph/config.yml
+.naiad/*
+!.naiad/config.yml

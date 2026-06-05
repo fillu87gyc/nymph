@@ -1,10 +1,10 @@
-# nymph install
+# naiad install
 
-nymph の PostToolUse フックをインストールします。以下の手順を実行してください。
+naiad の PostToolUse フックをインストールします。以下の手順を実行してください。
 
 ## 1. フックスクリプトを配置
 
-`~/.claude/plugins/nymph/` ディレクトリを作成し、`hook.sh` を以下の内容で書き込んでください:
+`~/.claude/plugins/naiad/` ディレクトリを作成し、`hook.sh` を以下の内容で書き込んでください:
 
 ```sh
 #!/bin/sh
@@ -22,7 +22,7 @@ except Exception:
 
 [ -z "$FILE_PATH" ] && exit 0
 
-LOCK="${FILE_PATH}.nymph-lock"
+LOCK="${FILE_PATH}.naiad-lock"
 [ -f "$LOCK" ] || exit 0
 
 PORT=$(cat "$LOCK")
@@ -38,7 +38,7 @@ fi
 書き込み後、実行権限を付与してください:
 
 ```sh
-chmod +x ~/.claude/plugins/nymph/hook.sh
+chmod +x ~/.claude/plugins/naiad/hook.sh
 ```
 
 ## 2. ~/.claude/settings.json に PostToolUse フックを追加
@@ -51,10 +51,10 @@ chmod +x ~/.claude/plugins/nymph/hook.sh
   "hooks": [
     {
       "type": "command",
-      "command": "~/.claude/plugins/nymph/hook.sh"
+      "command": "~/.claude/plugins/naiad/hook.sh"
     }
   ]
 }
 ```
 
-完了したら「nymph フックをインストールしました」と報告してください。
+完了したら「naiad フックをインストールしました」と報告してください。

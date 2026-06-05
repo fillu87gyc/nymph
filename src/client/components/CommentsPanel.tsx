@@ -28,7 +28,7 @@ export function CommentsPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(
     () =>
-      parseInt(localStorage.getItem('nymph-panel-height') || '0', 10) ||
+      parseInt(localStorage.getItem('naiad-panel-height') || '0', 10) ||
       PANEL_DEFAULT_H,
   );
 
@@ -49,7 +49,7 @@ export function CommentsPanel({
       document.removeEventListener('mouseup', stopDrag);
       if (panelRef.current) {
         localStorage.setItem(
-          'nymph-panel-height',
+          'naiad-panel-height',
           String(panelRef.current.offsetHeight),
         );
       }

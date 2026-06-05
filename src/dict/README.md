@@ -2,22 +2,22 @@
 
 Markdown や JSON から用語とその定義を抽出し、統一された JSON 辞書ファイル（`dict.json`）を生成するモジュール。
 
-## naiad.yml の置き場所
+## thyrs.yml の置き場所
 
-プロジェクトルートに `naiad.yml` を置く。`--config` オプションで別パスを指定することもできる。
+プロジェクトルートに `thyrs.yml` を置く。`--config` オプションで別パスを指定することもできる。
 
 ```
 myproject/
 ├── docs/
 │   └── glossary.md
-└── .naiad/
+└── .thyrs/
     ├── config.yml     ← ここ（デフォルト）
     └── dict.json      ← 出力先（デフォルト）
 ```
 
 ---
 
-## naiad.yml の構造
+## thyrs.yml の構造
 
 ```yaml
 sources:
@@ -32,7 +32,7 @@ sources:
 
 dict:
   ttl: "24h"                     # キャッシュ有効期限（省略可。例: "1h", "30m"）
-  out: ".naiad/dict.json"        # 出力パス（省略可）
+  out: ".thyrs/dict.json"        # 出力パス（省略可）
 ```
 
 `fetch.cmd` はシェルを介さず直接 spawn される。glob パターン（`*`, `?`）を含む引数はファイルに展開される。
@@ -280,14 +280,14 @@ interface DictEntry {
   aliases: string[];     // 英語別名など
   definition: string;    // 定義のプレーンテキスト
   definitionHtml: string; // 定義の HTML
-  source: string;        // naiad.yml の sources[].name
+  source: string;        // thyrs.yml の sources[].name
   sourceRef: string;     // 予約（現在は常に ""）
 }
 ```
 
 ### サンプル出力
 
-以下の Markdown と naiad.yml を使った場合：
+以下の Markdown と thyrs.yml を使った場合：
 
 **glossary.md**
 
@@ -305,7 +305,7 @@ interface DictEntry {
 リポジトリとは、集約の永続化と再構築を担うオブジェクトである。
 ```
 
-**naiad.yml**
+**thyrs.yml**
 
 ```yaml
 sources:
@@ -318,10 +318,10 @@ sources:
       aliases: "term"        # 括弧・ハイフン・コロン記法からエイリアスを抽出
       definition: "term > p"
 dict:
-  out: ".naiad/dict.json"
+  out: ".thyrs/dict.json"
 ```
 
-**出力 (.naiad/dict.json)**
+**出力 (.thyrs/dict.json)**
 
 ```json
 {
@@ -356,5 +356,5 @@ dict:
 
 | ファイル | 内容 |
 |---|---|
-| `.naiad/debug/tree/<name>.json` | Markdown から構築したノード木 |
-| `.naiad/debug/match/<name>.json` | セレクタがマッチした term→definition の対応 |
+| `.thyrs/debug/tree/<name>.json` | Markdown から構築したノード木 |
+| `.thyrs/debug/match/<name>.json` | セレクタがマッチした term→definition の対応 |

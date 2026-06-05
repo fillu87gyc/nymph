@@ -1,14 +1,14 @@
 {
-  "name": "naiad",
+  "name": "thyrs",
   "version": "0.1.0",
   "description": "Markdown review tool with hot reload and inline commenting",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "naiad": "src/cli.ts"
+    "thyrs": "src/cli.ts"
   },
   "scripts": {
-    "dev": "NAIAD_NO_OPEN=1 concurrently -k -n server,vite -c cyan,magenta \"bun --watch src/cli.ts $NAIAD_FILES\" \"vite --open\"",
+    "dev": "THYRS_NO_OPEN=1 concurrently -k -n server,vite -c cyan,magenta \"bun --watch src/cli.ts $THYRS_FILES\" \"vite --open\"",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

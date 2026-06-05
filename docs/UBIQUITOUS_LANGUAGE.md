@@ -8,7 +8,7 @@
 ## 目次
 
 1. [コアドメイン — 辞書エントリ](#1-コアドメイン--辞書エントリ)
-2. [設定（naiad.yml）](#2-設定naiadyml)
+2. [設定（thyrs.yml）](#2-設定thyrsyml)
 3. [ノード木](#3-ノード木)
 4. [セレクタシステム](#4-セレクタシステム)
 5. [アダプタ](#5-アダプタ)
@@ -52,7 +52,7 @@
 
 ### ソース名（source）
 
-エントリの出所を表す識別子。`naiad.yml` の `sources[].name` が入る。
+エントリの出所を表す識別子。`thyrs.yml` の `sources[].name` が入る。
 
 ### ソース参照（sourceRef）
 
@@ -87,11 +87,11 @@ interface DictFile {
 
 ---
 
-## 2. 設定（naiad.yml）
+## 2. 設定（thyrs.yml）
 
 ### 設定ファイル（config）
 
-モジュールの動作を制御する YAML ファイル。デフォルトはプロジェクトルートの `.naiad/config.yml`。
+モジュールの動作を制御する YAML ファイル。デフォルトはプロジェクトルートの `.thyrs/config.yml`。
 
 ```yaml
 sources:
@@ -104,7 +104,7 @@ sources:
       definition: "term > p"
 dict:
   ttl: "24h"
-  out: ".naiad/dict.json"
+  out: ".thyrs/dict.json"
 ```
 
 ### ソース設定（SourceConfig）
@@ -136,7 +136,7 @@ interface SourceRules {
 
 ### 出力パス（out）
 
-`dict.json` の書き込み先。省略時は `.naiad/dict.json`。
+`dict.json` の書き込み先。省略時は `.thyrs/dict.json`。
 
 ---
 
@@ -311,12 +311,12 @@ rules:
 
 ### デバッグ成果物（debug artifacts）
 
-`--debug` フラグ使用時に `.naiad/debug/` 以下に出力される中間ファイル群。
+`--debug` フラグ使用時に `.thyrs/debug/` 以下に出力される中間ファイル群。
 
 | ファイル | 内容 |
 |---|---|
-| `.naiad/debug/tree/<name>.json` | Markdown から構築したノード木（parent 参照なし） |
-| `.naiad/debug/match/<name>.json` | セレクタがマッチした term → definition の対応 |
+| `.thyrs/debug/tree/<name>.json` | Markdown から構築したノード木（parent 参照なし） |
+| `.thyrs/debug/match/<name>.json` | セレクタがマッチした term → definition の対応 |
 
 ### parent 参照の剥離（strip parent）
 
@@ -324,7 +324,7 @@ rules:
 
 ### raw キャッシュ（raw cache）
 
-デバッグ時に `.naiad/raw/<name>.txt` へ書き出すフェッチ後の生テキスト。
+デバッグ時に `.thyrs/raw/<name>.txt` へ書き出すフェッチ後の生テキスト。
 
 ---
 
@@ -356,9 +356,9 @@ writeDictFile
 | フィールド | 意味 | デフォルト |
 |---|---|---|
 | `configPath` | config.yml のパス | （必須） |
-| `outPath` | dict.json の出力先 | `config.dict.out` か `.naiad/dict.json` |
+| `outPath` | dict.json の出力先 | `config.dict.out` か `.thyrs/dict.json` |
 | `debug` | デバッグ成果物を出力するか | `false` |
-| `debugDir` | デバッグ出力先ディレクトリ | `.naiad/debug` |
+| `debugDir` | デバッグ出力先ディレクトリ | `.thyrs/debug` |
 | `cwd` | コマンド実行の作業ディレクトリ | `process.cwd()` |
 | `skipIfFresh` | fresh な dict.json があれば再ビルドをスキップするか | `false` |
 
@@ -375,7 +375,7 @@ writeDictFile
 ## 概念間の関係
 
 ```
-.naiad/config.yml (NaiadYml)
+.thyrs/config.yml (ThyrsYml)
   └── sources[] (SourceConfig)
         ├── fetch.cmd  ──spawn──▶  raw テキスト
         ├── adapter    ──▶  DictAdapter.extract()
@@ -385,7 +385,7 @@ writeDictFile
               ├── term       → セレクタ or フィールド名
               └── definition → 相対セレクタ or フィールド名
 
-DictEntry[]  ──writeDictFile──▶  .naiad/dict.json (DictFile)
+DictEntry[]  ──writeDictFile──▶  .thyrs/dict.json (DictFile)
                                           ↑
                                      isStale? ──No──▶ skipIfFresh で早期リターン
 ```

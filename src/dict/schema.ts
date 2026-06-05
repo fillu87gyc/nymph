@@ -26,7 +26,7 @@ export interface SourceConfig {
   rules: SourceRules;
 }
 
-export interface NaiadYml {
+export interface ThyrsYml {
   sources: SourceConfig[];
   dict?: { ttl?: string; out?: string };
 }

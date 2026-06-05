@@ -149,6 +149,10 @@ test.describe('diff 表示', () => {
     fixturePath,
   }) => {
     await page.locator('#btn-checkpoint').click();
+    await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+      'data-has-checkpoint',
+      'true',
+    );
     writeFileSync(
       fixturePath,
       ORIGINAL.replace('Some content here.', 'Replaced content.'),

@@ -13,4 +13,5 @@ coverage/
 test-results/
 playwright-screenshots/
 .claude/worktrees/
-.nymph/
+.nymph/*
+!.nymph/config.yml

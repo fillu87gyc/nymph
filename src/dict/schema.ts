@@ -16,6 +16,7 @@ export interface DictFile {
 export interface SourceRules {
   term: string;
   definition: string;
+  aliases?: string;
 }
 
 export interface SourceConfig {

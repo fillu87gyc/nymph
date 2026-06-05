@@ -49,9 +49,63 @@ async function main() {
   // dict サブコマンド処理
   if (rawArgs[0] === 'dict') {
     const subArgs = rawArgs.slice(1);
+
+    if (subArgs[0] === 'allow') {
+      // nymph dict allow — config.yml のコマンドを承認する（direnv allow 相当）
+      let configPath = '.nymph/config.yml';
+      for (let i = 1; i < subArgs.length; i++) {
+        if (subArgs[i] === '--config' || subArgs[i] === '-c') {
+          configPath = subArgs[++i];
+        }
+      }
+      try {
+        const { loadConfig } = await import('./dict/config.ts');
+        const { computeCommandsHash, saveAcceptedHash } = await import(
+          './dict/consent.ts'
+        );
+        const { createInterface } = await import('node:readline');
+
+        const config = loadConfig(configPath);
+        console.log(`\n${configPath} に含まれるコマンド:\n`);
+        for (const source of config.sources) {
+          console.log(`  [${source.name}]  ${source.fetch.cmd.join(' ')}`);
+        }
+        console.log();
+
+        const rl = createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        const answer = await new Promise<string>((resolve) => {
+          rl.question('これらのコマンドを承認しますか? [y/N] ', (ans) => {
+            rl.close();
+            resolve(ans.trim());
+          });
+        });
+
+        if (!['y', 'yes'].includes(answer.toLowerCase())) {
+          console.log('キャンセルしました。');
+          process.exit(0);
+        }
+
+        saveAcceptedHash(computeCommandsHash(config));
+        console.log('承認しました。nymph dict build を実行できます。');
+      } catch (err) {
+        console.error(
+          `エラー: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        process.exit(1);
+      }
+      process.exit(0);
+    }
+
     if (subArgs[0] === 'build') {
       const { buildDict } = await import('./dict/build.ts');
-      let configPath = 'nymph.yml';
+      const { loadConfig } = await import('./dict/config.ts');
+      const { computeCommandsHash, isCommandHashAccepted } = await import(
+        './dict/consent.ts'
+      );
+      let configPath = '.nymph/config.yml';
       let outPath: string | undefined;
       let debug = false;
       let debugDir: string | undefined;
@@ -70,6 +124,18 @@ async function main() {
       }
 
       try {
+        // コマンド承認チェック
+        const config = loadConfig(configPath);
+        const hash = computeCommandsHash(config);
+        if (!isCommandHashAccepted(hash)) {
+          console.error(`エラー: ${configPath} のコマンドは未承認です。\n`);
+          for (const source of config.sources) {
+            console.error(`  [${source.name}]  ${source.fetch.cmd.join(' ')}`);
+          }
+          console.error(`\n承認するには: nymph dict allow`);
+          process.exit(1);
+        }
+
         const result = await buildDict({
           configPath,
           outPath,
@@ -85,7 +151,7 @@ async function main() {
       }
     } else {
       console.error(`エラー: 不明な dict サブコマンド: ${subArgs[0] ?? ''}`);
-      console.error('  使用可能: nymph dict build');
+      console.error('  使用可能: nymph dict build, nymph dict allow');
       process.exit(1);
     }
     process.exit(0);

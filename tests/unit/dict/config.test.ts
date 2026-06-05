@@ -51,6 +51,39 @@ sources:
     expect(config.dict).toBeUndefined();
   });
 
+  test('rules.aliases フィールドをパース', () => {
+    const yaml = `
+sources:
+  - name: glossary
+    fetch:
+      cmd: ["cat", "glossary.md"]
+    adapter: markdown
+    rules:
+      term: "h2"
+      aliases: "term > li:contains('names') > li"
+      definition: "term > li:contains('説明') > li"
+`;
+    const config = parseConfig(yaml);
+    expect(config.sources[0].rules.aliases).toBe(
+      "term > li:contains('names') > li",
+    );
+  });
+
+  test('rules.aliases が省略された場合は undefined', () => {
+    const yaml = `
+sources:
+  - name: test
+    fetch:
+      cmd: ["cat", "test.md"]
+    adapter: markdown
+    rules:
+      term: "h2"
+      definition: "term > p"
+`;
+    const config = parseConfig(yaml);
+    expect(config.sources[0].rules.aliases).toBeUndefined();
+  });
+
   test('不正な YAML でエラーをスロー', () => {
     const yaml = `invalid: [unclosed bracket`;
     expect(() => parseConfig(yaml)).toThrow();

@@ -195,9 +195,25 @@ async function handleDictSync(): Promise<Response> {
   if (dictSyncing) return json({ error: 'sync already in progress' }, 409);
   dictSyncing = true;
   try {
-    const configPath = join(process.cwd(), 'nymph.yml');
+    const configPath = join(process.cwd(), '.nymph/config.yml');
     if (existsSync(configPath)) {
-      const { spawnSync } = await import('node:child_process');
+      // コマンド承認チェック（未承認の場合は実行せず 403 を返す）
+      const { loadConfig } = await import('./dict/config.ts');
+      const { computeCommandsHash, isCommandHashAccepted } = await import(
+        './dict/consent.ts'
+      );
+      const config = loadConfig(configPath);
+      const hash = computeCommandsHash(config);
+      if (!isCommandHashAccepted(hash)) {
+        return json(
+          {
+            error:
+              'コマンドが未承認です。ターミナルで nymph dict allow を実行してください。',
+          },
+          403,
+        );
+      }
+
       spawnSync(
         process.execPath,
         [

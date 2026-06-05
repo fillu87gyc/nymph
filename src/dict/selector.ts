@@ -5,13 +5,25 @@ type NodeType = NestedNode['type'];
 interface SimpleSelector {
   type: NodeType | '*';
   contains?: string;
+  hasAlias?: boolean;
+  alias?: string;
 }
 
-// Parse a simple selector like "h2", "h3:contains('text')", "*"
+// Parse a simple selector like "h2", "h3:contains('text')", "h3:has-alias", "h3:alias('text')", "*"
 function parseSimple(raw: string): SimpleSelector {
   const containsMatch = raw.match(/:contains\(['"](.+?)['"]\)/);
   const contains = containsMatch ? containsMatch[1] : undefined;
-  const typePart = raw.replace(/:contains\(['"].*?['"]\)/g, '').trim();
+
+  const aliasMatch = raw.match(/:alias\(['"](.+?)['"]\)/);
+  const alias = aliasMatch ? aliasMatch[1] : undefined;
+
+  const hasAlias = /:has-alias/.test(raw);
+
+  const typePart = raw
+    .replace(/:contains\(['"].*?['"]\)/g, '')
+    .replace(/:alias\(['"].*?['"]\)/g, '')
+    .replace(/:has-alias/g, '')
+    .trim();
 
   const validTypes: Array<NodeType | '*'> = [
     'h1',
@@ -31,12 +43,58 @@ function parseSimple(raw: string): SimpleSelector {
     ? (typePart as NodeType | '*')
     : '*';
 
-  return { type, contains };
+  return {
+    type,
+    contains,
+    hasAlias: hasAlias || undefined,
+    alias,
+  };
+}
+
+/**
+ * Extract all aliases from a term text string.
+ * Supports three notation styles:
+ *   - Parenthetical:  用語（Alias）  or  用語(Alias)
+ *   - Hyphen/dash:    用語 - Alias   or  用語 —Alias  (space before separator required)
+ *   - Colon:          用語:Alias     or  用語：Alias
+ */
+export function extractAliasesFromText(text: string): string[] {
+  const aliases: string[] = [];
+
+  // Parenthetical: 用語（Alias）or 用語(Alias)
+  const bracketRe = /[（(]([^）)]+)[）)]/g;
+  let m: RegExpExecArray | null;
+  while ((m = bracketRe.exec(text)) !== null) {
+    const a = m[1].trim();
+    if (a && !aliases.includes(a)) aliases.push(a);
+  }
+
+  // Hyphen/dash: 用語 - Alias (space before hyphen required, space after optional)
+  const hyphenM = text.match(/ [-–—] *(.+)$/);
+  if (hyphenM) {
+    const a = hyphenM[1].trim();
+    if (a && !aliases.includes(a)) aliases.push(a);
+  }
+
+  // Colon: 用語:Alias or 用語：Alias
+  const colonM = text.match(/[：:] *(.+)$/);
+  if (colonM) {
+    const a = colonM[1].trim();
+    if (a && !aliases.includes(a)) aliases.push(a);
+  }
+
+  return aliases;
 }
 
 function matchesSimple(node: NestedNode, sel: SimpleSelector): boolean {
   if (sel.type !== '*' && node.type !== sel.type) return false;
   if (sel.contains && !node.text.includes(sel.contains)) return false;
+  if (sel.hasAlias && extractAliasesFromText(node.text).length === 0)
+    return false;
+  if (sel.alias) {
+    const aliases = extractAliasesFromText(node.text);
+    if (!aliases.some((a) => a.includes(sel.alias as string))) return false;
+  }
   return true;
 }
 
@@ -113,6 +171,17 @@ function parseSelectorParts(selector: string): SelectorPart[] {
     if (ch === ':' && s.slice(i).startsWith(':contains(')) {
       const quoteChar = s[i + ':contains('.length];
       const closeIdx = s.indexOf(quoteChar + ')', i + ':contains('.length + 1);
+      if (closeIdx !== -1) {
+        current += s.slice(i, closeIdx + 2);
+        i = closeIdx + 2;
+        continue;
+      }
+    }
+
+    // Skip over :alias('...') or :alias("...") without splitting on interior chars
+    if (ch === ':' && s.slice(i).startsWith(':alias(')) {
+      const quoteChar = s[i + ':alias('.length];
+      const closeIdx = s.indexOf(quoteChar + ')', i + ':alias('.length + 1);
       if (closeIdx !== -1) {
         current += s.slice(i, closeIdx + 2);
         i = closeIdx + 2;
@@ -235,55 +304,37 @@ export function select(nodes: NestedNode[], selector: string): NestedNode[] {
 }
 
 /**
- * Resolve a definition selector relative to a matched term node.
- * The literal string "term" in the selector is replaced by the term node.
- *
- * E.g. "term > p" means: direct children p of termNode
- *      "term ~ *" means: siblings after termNode
+ * Resolve a selector relative to a matched term node.
+ * The literal string "term" is the anchor; subsequent combinator+selector steps
+ * are applied in sequence, supporting multi-step paths such as
+ * "term > li:contains('names') > li".
  */
 export function selectRelative(
   termNode: NestedNode,
   relSelector: string,
   rootNodes: NestedNode[],
 ): NestedNode[] {
-  // Replace "term" token with the termNode anchor and evaluate
   const trimmed = relSelector.trim();
-
-  // Check if the selector starts with "term"
-  if (!trimmed.startsWith('term')) {
-    // Fall back to normal select with empty roots (not useful but safe)
-    return [];
-  }
+  if (!trimmed.startsWith('term')) return [];
 
   const rest = trimmed.slice('term'.length).trim();
+  if (!rest) return [termNode];
 
-  if (!rest) {
-    // Just "term" — return the term node itself
-    return [termNode];
+  // Prepend a wildcard placeholder so parseSelectorParts can tokenize cleanly.
+  // The resulting parts[0] (the '*') is skipped; we start traversal from termNode.
+  const parts = parseSelectorParts(`* ${rest}`);
+  if (parts.length < 2) return [termNode];
+
+  let candidates = [termNode];
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part.combinator) break;
+    candidates = applyStep(
+      candidates,
+      part.combinator,
+      part.selector,
+      rootNodes,
+    );
   }
-
-  // Parse the combinator and right selector
-  let combinator: Combinator;
-  let rightStr: string;
-
-  if (rest.startsWith('>')) {
-    combinator = '>';
-    rightStr = rest.slice(1).trim();
-  } else if (rest.startsWith('+')) {
-    combinator = '+';
-    rightStr = rest.slice(1).trim();
-  } else if (rest.startsWith('~')) {
-    combinator = '~';
-    rightStr = rest.slice(1).trim();
-  } else if (rest.startsWith(' ')) {
-    combinator = ' ';
-    rightStr = rest.trim();
-  } else {
-    combinator = ' ';
-    rightStr = rest;
-  }
-
-  const rightSel = parseSimple(rightStr);
-  // Pass rootNodes so ~ and + work correctly on root-level term nodes
-  return applyStep([termNode], combinator, rightSel, rootNodes);
+  return candidates;
 }

@@ -48,12 +48,20 @@ describe('markdown adapter', () => {
     expect(shuuyaku?.aliases).toEqual([]);
   });
 
-  test('エイリアス付き用語のパース', () => {
+  test('エイリアス付き用語のパース — aliases: "term" が必要', () => {
+    const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('aliases キーなしの場合は aliases が空', () => {
     const md = `## 用語集\n### 集約（Aggregate）\n集約とは...\n`;
     const rules = { term: 'h2 > h3', definition: 'term > p' };
     const entries = extractEntries(md, rules);
     expect(entries[0].term).toBe('集約');
-    expect(entries[0].aliases).toContain('Aggregate');
+    expect(entries[0].aliases).toEqual([]);
   });
 
   test('ケース B: h2 セレクタで複数エントリ', () => {
@@ -61,6 +69,89 @@ describe('markdown adapter', () => {
     const rules = { term: 'h2', definition: 'term > p' };
     const entries = extractEntries(md, rules);
     expect(entries.length).toBe(2);
+  });
+
+  test('rules.aliases セレクタでエイリアスを抽出できる', () => {
+    const md = `## 集約\n\n* コードの中の名前\n  * Aggregate\n* 説明\n  * 集約とは整合性を保つオブジェクトの集まりである。\n`;
+    const rules = {
+      term: 'h2',
+      aliases: "term > li:contains('コードの中の名前') > li",
+      definition: "term > li:contains('説明') > li",
+    };
+    const entries = extractEntries(md, rules);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+    expect(entries[0].definition).toContain('集約とは');
+  });
+
+  test('aliases: "term" で括弧表記エイリアスを抽出する', () => {
+    const md = `## 集約（Aggregate）\n\n説明テキスト。\n`;
+    const rules = { term: 'h2', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('aliases: nested list セレクタのときは括弧表記を自動抽出しない', () => {
+    const md = `## 集約（Aggregate）\n\n* コードの中の名前\n  * Agg\n* 説明\n  * 定義。\n`;
+    const rules = {
+      term: 'h2',
+      aliases: "term > li:contains('コードの中の名前') > li",
+      definition: "term > li:contains('説明') > li",
+    };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).not.toContain('Aggregate'); // 暗黙抽出なし
+    expect(entries[0].aliases).toContain('Agg');
+  });
+
+  test('aliases: "term" でハイフン区切りエイリアスを抽出する', () => {
+    const md = `## 用語集\n### 集約 - Aggregate\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('aliases: "term" でスペースなしハイフン "用語 -Alias" を抽出する', () => {
+    const md = `## 用語集\n### 集約 -Aggregate\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('aliases: "term" でコロン区切りエイリアスを抽出する', () => {
+    const md = `## 用語集\n### 集約:Aggregate\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('aliases: "term" で全角コロン区切りエイリアスを抽出する', () => {
+    const md = `## 用語集\n### 集約：Aggregate\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].aliases).toContain('Aggregate');
+  });
+
+  test('ハイフン区切りのとき term から区切り以降が除去される', () => {
+    const md = `## 用語集\n### 集約 - Aggregate\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].term).not.toContain('Aggregate');
+  });
+
+  test('コロン区切りのとき term から区切り以降が除去される', () => {
+    const md = `## 用語集\n### 集約:Aggregate\n集約とは...\n`;
+    const rules = { term: 'h2 > h3', aliases: 'term', definition: 'term > p' };
+    const entries = extractEntries(md, rules);
+    expect(entries[0].term).toBe('集約');
+    expect(entries[0].term).not.toContain('Aggregate');
   });
 
   test('definition が複数ブロックの場合は連結される', () => {

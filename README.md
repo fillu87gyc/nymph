@@ -106,6 +106,25 @@ Mermaid コードブロックをインラインでレンダリングします。
 
 ---
 
+## ユビキタス言語辞書
+
+プロジェクトルートの `.nymph/config.yml` を使って、`docs/UBIQUITOUS_LANGUAGE.md` から辞書ファイルを生成できます。
+
+```bash
+nymph dict build
+```
+
+`.nymph/dict.json` に辞書ファイルが出力されます（`.gitignore` 対象のため生成ファイルは追跡しません）。
+
+```bash
+# デバッグ出力（ノード木とマッチ結果を .nymph/debug/ に保存）
+nymph dict build --debug
+```
+
+用語集のソースは `docs/UBIQUITOUS_LANGUAGE.md` です。新しいモジュールや概念を追加したときはこちらも更新してください。
+
+---
+
 ## 開発
 
 ```bash

@@ -22,12 +22,12 @@ nymph output.md
 
 **bunx（インストール不要）**
 ```bash
-bunx nymph *.md
+bunx @fillu87gyc/nymph *.md
 ```
 
 **グローバルインストール**
 ```bash
-bun install -g nymph
+bun install -g @fillu87gyc/nymph
 nymph *.md
 ```
 
@@ -140,7 +140,7 @@ bun run build      # プロダクションビルド (Vite 7)
 ```zsh
 nymphx() {
   local nymph_dir origdir="$PWD"
-  if [[ -f package.json ]] && grep -q '"name": "nymph"' package.json; then
+  if [[ -f package.json ]] && grep -q '"name": "@fillu87gyc/nymph"' package.json; then
     nymph_dir="$PWD"
   else
     nymph_dir="$(ghq list --full-path nymph | grep '/nymph$' | head -1)"

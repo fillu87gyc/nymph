@@ -137,4 +137,65 @@ describe('applyTermHighlights', () => {
     applyTermHighlights(container, [makeEntry('Aggregate', [])]);
     expect(container.querySelectorAll('mark[data-dict-term]')).toHaveLength(0);
   });
+
+  describe('前方一致する複数エントリの優先順位（長い方が優先）', () => {
+    test('長いエントリが存在する場合、短いエントリの一部としてマッチしない', () => {
+      const container = makeContainer('<p>静岡県焼津市。</p>');
+      applyTermHighlights(container, [
+        makeEntry('静岡県'),
+        makeEntry('静岡県焼津市'),
+      ]);
+      const marks = container.querySelectorAll<HTMLElement>(
+        'mark[data-dict-term]',
+      );
+      expect(marks).toHaveLength(1);
+      expect(marks[0].getAttribute('data-dict-term')).toBe('静岡県焼津市');
+      expect(marks[0].textContent).toBe('静岡県焼津市');
+    });
+
+    test('長いエントリにマッチしない場合は短いエントリがマッチする', () => {
+      const container = makeContainer('<p>静岡県。は広い。</p>');
+      applyTermHighlights(container, [
+        makeEntry('静岡県'),
+        makeEntry('静岡県焼津市'),
+      ]);
+      const marks = container.querySelectorAll<HTMLElement>(
+        'mark[data-dict-term]',
+      );
+      expect(marks).toHaveLength(1);
+      expect(marks[0].getAttribute('data-dict-term')).toBe('静岡県');
+      expect(marks[0].textContent).toBe('静岡県');
+    });
+
+    test('両エントリが異なる位置に出現する場合それぞれ独立してマッチする', () => {
+      const container = makeContainer('<p>静岡県、静岡県焼津市。</p>');
+      applyTermHighlights(container, [
+        makeEntry('静岡県'),
+        makeEntry('静岡県焼津市'),
+      ]);
+      const marks = container.querySelectorAll<HTMLElement>(
+        'mark[data-dict-term]',
+      );
+      expect(marks).toHaveLength(2);
+      const terms = Array.from(marks).map((m) =>
+        m.getAttribute('data-dict-term'),
+      );
+      expect(terms).toContain('静岡県');
+      expect(terms).toContain('静岡県焼津市');
+    });
+
+    test('エントリの登録順序に関わらず長い方が優先される', () => {
+      const container = makeContainer('<p>静岡県焼津市。</p>');
+      // 長いエントリを先に登録した場合
+      applyTermHighlights(container, [
+        makeEntry('静岡県焼津市'),
+        makeEntry('静岡県'),
+      ]);
+      const marks = container.querySelectorAll<HTMLElement>(
+        'mark[data-dict-term]',
+      );
+      expect(marks).toHaveLength(1);
+      expect(marks[0].getAttribute('data-dict-term')).toBe('静岡県焼津市');
+    });
+  });
 });

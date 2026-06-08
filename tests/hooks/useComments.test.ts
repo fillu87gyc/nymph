@@ -174,6 +174,28 @@ describe('useComments', () => {
     expect(result.current.nextId).toBe(1);
   });
 
+  test('clearOrphaned で指定 id のコメントのみ削除される', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'orphaned'));
+    await act(() =>
+      result.current.addComment({ ...pending, lineStart: 5 }, 'keep'),
+    );
+    expect(result.current.comments).toHaveLength(2);
+    const orphanedId = result.current.comments[0].id;
+    await act(() => result.current.clearOrphaned(new Set([orphanedId])));
+    expect(result.current.comments).toHaveLength(1);
+    expect(result.current.comments[0].text).toBe('keep');
+  });
+
+  test('clearOrphaned に空の Set を渡すとコメントは変わらない', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'keep'));
+    await act(() => result.current.clearOrphaned(new Set()));
+    expect(result.current.comments).toHaveLength(1);
+  });
+
   test('addComment は POST /comments を呼ぶ', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch');
     const { result } = renderHook(() => useComments(), { wrapper });

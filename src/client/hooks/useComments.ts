@@ -78,6 +78,17 @@ export function useComments() {
     if (updated) postComments(updated);
   }, [mutate]);
 
+  const clearOrphaned = useCallback(
+    async (ids: Set<number>) => {
+      const updated = await mutate(
+        (current: Comment[] = []) => current.filter((c) => !ids.has(c.id)),
+        { revalidate: false },
+      );
+      if (updated) postComments(updated);
+    },
+    [mutate],
+  );
+
   return {
     comments,
     nextId,
@@ -85,5 +96,6 @@ export function useComments() {
     updateComment,
     deleteComment,
     clearAll,
+    clearOrphaned,
   };
 }

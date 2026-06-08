@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { expect, type Page, test } from './fixtures.ts';
 
 async function addComment(page: Page, text: string) {
@@ -102,14 +101,32 @@ test.describe('コメントの編集', () => {
   });
 });
 
-test.describe('全コメント削除', () => {
-  test('ゴミ箱アイコン → 確認モーダル → 削除', async ({ page }) => {
+test.describe('コメント削除モーダル', () => {
+  test('ゴミ箱アイコン → モーダルが開く', async ({ page }) => {
+    await addComment(page, 'comment 1');
+    await page.locator('#btn-clear-all').click();
+    await expect(page.locator('#confirm-modal')).toBeVisible();
+    await page.locator('#btn-confirm-cancel').click();
+  });
+
+  test('孤立コメントなし: すべて削除がデフォルト選択', async ({ page }) => {
+    await addComment(page, 'comment');
+    await page.locator('#btn-clear-all').click();
+    await expect(page.locator('#confirm-modal')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="choice-all"] input[type="radio"]'),
+    ).toBeChecked();
+    await page.locator('#btn-confirm-cancel').click();
+  });
+
+  test('すべて削除 → コメントが全件消える', async ({ page }) => {
     await addComment(page, 'comment 1');
     await addComment(page, 'comment 2');
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(2);
 
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
+    await page.locator('[data-testid="choice-all"]').click();
     await page.locator('#btn-confirm-ok').click();
 
     await expect(
@@ -119,12 +136,96 @@ test.describe('全コメント削除', () => {
     await expect(page.locator('#no-comments')).toBeVisible();
   });
 
-  test('確認モーダルでキャンセルするとコメントが残る', async ({ page }) => {
+  test('キャンセルするとコメントが残る', async ({ page }) => {
     await addComment(page, 'keep me');
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.locator('#btn-confirm-cancel').click();
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
+  });
+
+  test('孤立コメントあり: 削除済みのみがデフォルト選択・削除済みオプションが enabled', async ({
+    page,
+    fixturePath,
+  }) => {
+    await addComment(page, 'will be orphaned');
+    const original = readFileSync(fixturePath, 'utf-8');
+    const modified = original.replace(
+      /\| Name \| Value \|[\s\S]*?\| bar {2}\| 2 {5}\|\n/,
+      '',
+    );
+    writeFileSync(fixturePath, modified);
+    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
+      { timeout: 8000 },
+    );
+
+    await page.locator('#btn-clear-all').click();
+    await expect(page.locator('#confirm-modal')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="choice-orphaned"] input[type="radio"]'),
+    ).toBeChecked();
+    await expect(
+      page.locator('[data-testid="choice-orphaned"] input[type="radio"]'),
+    ).toBeEnabled();
+
+    await page.locator('#btn-confirm-cancel').click();
+    writeFileSync(fixturePath, original);
+  });
+
+  test('削除済みのみ削除できる', async ({ page, fixturePath }) => {
+    await addComment(page, 'orphaned comment');
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1, {
+      timeout: 3000,
+    });
+
+    const original = readFileSync(fixturePath, 'utf-8');
+    const modified = original.replace(
+      /\| Name \| Value \|[\s\S]*?\| bar {2}\| 2 {5}\|\n/,
+      '',
+    );
+    writeFileSync(fixturePath, modified);
+
+    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
+      { timeout: 8000 },
+    );
+
+    await page.locator('#btn-clear-all').click();
+    await expect(page.locator('#confirm-modal')).toBeVisible();
+    await page.locator('[data-testid="choice-orphaned"]').click();
+    await page.locator('#btn-confirm-ok').click();
+
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0, {
+      timeout: 3000,
+    });
+    await expect(page.locator('#no-comments')).toBeVisible();
+
+    writeFileSync(fixturePath, original);
+  });
+
+  test('削除済みオプションでキャンセルするとコメントが残る', async ({
+    page,
+    fixturePath,
+  }) => {
+    await addComment(page, 'will stay');
+
+    const original = readFileSync(fixturePath, 'utf-8');
+    const modified = original.replace(
+      /\| Name \| Value \|[\s\S]*?\| bar {2}\| 2 {5}\|\n/,
+      '',
+    );
+    writeFileSync(fixturePath, modified);
+
+    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
+      { timeout: 8000 },
+    );
+
+    await page.locator('#btn-clear-all').click();
+    await expect(page.locator('#confirm-modal')).toBeVisible();
+    await page.locator('#btn-confirm-cancel').click();
+
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
+
+    writeFileSync(fixturePath, original);
   });
 });
 

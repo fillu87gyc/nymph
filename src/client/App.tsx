@@ -4,7 +4,7 @@ import { useSWRConfig } from 'swr';
 import styles from './App.module.css';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
-import { ConfirmModal } from './components/ConfirmModal.tsx';
+import { ConfirmModal, type DeleteMode } from './components/ConfirmModal.tsx';
 import { ContentArea } from './components/ContentArea.tsx';
 import { DictTooltip } from './components/DictTooltip.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
@@ -78,8 +78,14 @@ export function App() {
 
   const contentRef = useRef<HTMLDivElement>(null);
   const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
-  const { comments, addComment, updateComment, deleteComment, clearAll } =
-    useComments();
+  const {
+    comments,
+    addComment,
+    updateComment,
+    deleteComment,
+    clearAll,
+    clearOrphaned,
+  } = useComments();
   const { files, activeFile, switchFile, closeFile } = useFiles();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {
@@ -322,7 +328,7 @@ export function App() {
       .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
-  // Clear all
+  // Clear comments
   function handleClearAll() {
     if (!comments.length) {
       toast('コメントがありません');
@@ -330,11 +336,18 @@ export function App() {
     }
     setConfirmOpen(true);
   }
-  function confirmClearAll() {
-    clearAll();
+
+  function confirmAction(mode: DeleteMode) {
+    if (mode === 'all') {
+      clearAll();
+      setPanelOpen(false);
+      toast('コメントをすべて削除しました');
+    } else {
+      const count = orphanedCommentIds.size;
+      clearOrphaned(orphanedCommentIds);
+      toast(`削除済みコメントを${count}件削除しました`);
+    }
     setConfirmOpen(false);
-    setPanelOpen(false);
-    toast('コメントをすべて削除しました');
   }
 
   // Checkpoint
@@ -477,7 +490,8 @@ export function App() {
       />
       <ConfirmModal
         open={confirmOpen}
-        onConfirm={confirmClearAll}
+        orphanedCount={orphanedCommentIds.size}
+        onConfirm={confirmAction}
         onClose={() => setConfirmOpen(false)}
       />
       <DrawioModal

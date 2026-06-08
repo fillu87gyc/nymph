@@ -104,7 +104,7 @@ export function Toolbar({
       <button
         className="btn icon"
         id="btn-clear-all"
-        title="コメントをすべて削除"
+        title="コメントを削除"
         onClick={onClearAll}
       >
         <svg

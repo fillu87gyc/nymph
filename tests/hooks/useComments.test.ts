@@ -183,9 +183,7 @@ describe('useComments', () => {
     );
     expect(result.current.comments).toHaveLength(2);
     const orphanedId = result.current.comments[0].id;
-    await act(() =>
-      result.current.clearOrphaned(new Set([orphanedId])),
-    );
+    await act(() => result.current.clearOrphaned(new Set([orphanedId])));
     expect(result.current.comments).toHaveLength(1);
     expect(result.current.comments[0].text).toBe('keep');
   });

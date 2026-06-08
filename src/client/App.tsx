@@ -80,8 +80,14 @@ export function App() {
 
   const contentRef = useRef<HTMLDivElement>(null);
   const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
-  const { comments, addComment, updateComment, deleteComment, clearAll, clearOrphaned } =
-    useComments();
+  const {
+    comments,
+    addComment,
+    updateComment,
+    deleteComment,
+    clearAll,
+    clearOrphaned,
+  } = useComments();
   const { files, activeFile, switchFile, closeFile } = useFiles();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {

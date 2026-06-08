@@ -138,22 +138,22 @@ test.describe('削除済みのみ削除', () => {
   test('削除済みコメントを削除できる', async ({ page, fixturePath }) => {
     // テーブルブロックにコメント追加（後で孤立化する）
     await addComment(page, 'orphaned comment');
-    await expect(
-      page.locator('[data-testid="comment-item"]'),
-    ).toHaveCount(1, { timeout: 3000 });
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1, {
+      timeout: 3000,
+    });
 
     // fixture からテーブルブロックを削除してコメントを孤立化
     const original = readFileSync(fixturePath, 'utf-8');
     const modified = original.replace(
-      /\| Name \| Value \|[\s\S]*?\| bar  \| 2     \|\n/,
+      /\| Name \| Value \|[\s\S]*?\| bar {2}\| 2 {5}\|\n/,
       '',
     );
     writeFileSync(fixturePath, modified);
 
     // 孤立バッジが表示されるまで待つ
-    await expect(
-      page.locator('[data-testid="c-deleted"]').first(),
-    ).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
+      { timeout: 8000 },
+    );
 
     // btn-clear-orphaned が有効になる
     await expect(page.locator('#btn-clear-orphaned')).toBeEnabled();
@@ -164,9 +164,9 @@ test.describe('削除済みのみ削除', () => {
     await page.locator('#btn-confirm-ok').click();
 
     // コメントが消える
-    await expect(
-      page.locator('[data-testid="comment-item"]'),
-    ).toHaveCount(0, { timeout: 3000 });
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0, {
+      timeout: 3000,
+    });
     await expect(page.locator('#no-comments')).toBeVisible();
 
     // fixture を元に戻す
@@ -181,22 +181,20 @@ test.describe('削除済みのみ削除', () => {
 
     const original = readFileSync(fixturePath, 'utf-8');
     const modified = original.replace(
-      /\| Name \| Value \|[\s\S]*?\| bar  \| 2     \|\n/,
+      /\| Name \| Value \|[\s\S]*?\| bar {2}\| 2 {5}\|\n/,
       '',
     );
     writeFileSync(fixturePath, modified);
 
-    await expect(
-      page.locator('[data-testid="c-deleted"]').first(),
-    ).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
+      { timeout: 8000 },
+    );
 
     await page.locator('#btn-clear-orphaned').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.locator('#btn-confirm-cancel').click();
 
-    await expect(
-      page.locator('[data-testid="comment-item"]'),
-    ).toHaveCount(1);
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
 
     writeFileSync(fixturePath, original);
   });

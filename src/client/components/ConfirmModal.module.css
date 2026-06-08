@@ -21,19 +21,60 @@
 }
 .box {
   position: relative;
-  width: 300px;
+  width: 320px;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: 10px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
-.msg {
-  padding: 18px 16px 14px;
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 14px 8px;
+}
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: start;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+.choice input[type="radio"] {
+  grid-row: 1 / 3;
+  margin-top: 2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.choiceSelected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.choiceDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.choiceDisabled input[type="radio"] {
+  cursor: not-allowed;
+}
+.choiceLabel {
   font-size: 13px;
+  font-weight: 600;
   color: var(--text);
-  text-align: center;
-  margin: 0;
+}
+.choiceDesc {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
 }
 .foot {
   display: flex;

@@ -4,7 +4,7 @@ import { useSWRConfig } from 'swr';
 import styles from './App.module.css';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
-import { ConfirmModal } from './components/ConfirmModal.tsx';
+import { ConfirmModal, type DeleteMode } from './components/ConfirmModal.tsx';
 import { ContentArea } from './components/ContentArea.tsx';
 import { DictTooltip } from './components/DictTooltip.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
@@ -72,9 +72,7 @@ export function App() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingDisplayCtx, setEditingDisplayCtx] = useState('');
   const [editingInitialText, setEditingInitialText] = useState('');
-  const [pendingConfirm, setPendingConfirm] = useState<
-    'all' | 'orphaned' | null
-  >(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [drawioOpen, setDrawioOpen] = useState(false);
   const [drawioCode, setDrawioCode] = useState<string | null>(null);
 
@@ -330,34 +328,26 @@ export function App() {
       .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
-  // Clear all / clear orphaned
+  // Clear comments
   function handleClearAll() {
     if (!comments.length) {
       toast('コメントがありません');
       return;
     }
-    setPendingConfirm('all');
+    setConfirmOpen(true);
   }
 
-  function handleClearOrphaned() {
-    if (orphanedCommentIds.size === 0) {
-      toast('削除済みコメントがありません');
-      return;
-    }
-    setPendingConfirm('orphaned');
-  }
-
-  function confirmAction() {
-    if (pendingConfirm === 'all') {
+  function confirmAction(mode: DeleteMode) {
+    if (mode === 'all') {
       clearAll();
       setPanelOpen(false);
       toast('コメントをすべて削除しました');
-    } else if (pendingConfirm === 'orphaned') {
+    } else {
       const count = orphanedCommentIds.size;
       clearOrphaned(orphanedCommentIds);
       toast(`削除済みコメントを${count}件削除しました`);
     }
-    setPendingConfirm(null);
+    setConfirmOpen(false);
   }
 
   // Checkpoint
@@ -440,7 +430,6 @@ export function App() {
         version={appVersion}
         updateTime={updateTime}
         commentCount={comments.length}
-        orphanedCount={orphanedCommentIds.size}
         diffMode={diffMode}
         checkpointSet={checkpointSet}
         isConnected={isConnected}
@@ -448,7 +437,6 @@ export function App() {
         activeFile={activeFile}
         onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
-        onClearOrphaned={handleClearOrphaned}
         onClearAll={handleClearAll}
         onCheckpoint={handleCheckpoint}
         onToggleDiff={toggleDiff}
@@ -501,19 +489,10 @@ export function App() {
         }}
       />
       <ConfirmModal
-        open={pendingConfirm !== null}
-        title={
-          pendingConfirm === 'orphaned'
-            ? '削除済みコメントを削除'
-            : '全コメントを削除'
-        }
-        message={
-          pendingConfirm === 'orphaned'
-            ? '元のテキストが削除されたコメントのみ削除します。'
-            : '本当に消していいですか？'
-        }
+        open={confirmOpen}
+        orphanedCount={orphanedCommentIds.size}
         onConfirm={confirmAction}
-        onClose={() => setPendingConfirm(null)}
+        onClose={() => setConfirmOpen(false)}
       />
       <DrawioModal
         open={drawioOpen}

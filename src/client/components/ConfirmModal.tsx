@@ -2,11 +2,19 @@ import styles from './ConfirmModal.module.css';
 
 interface ConfirmModalProps {
   open: boolean;
+  title: string;
+  message: string;
   onConfirm: () => void;
   onClose: () => void;
 }
 
-export function ConfirmModal({ open, onConfirm, onClose }: ConfirmModalProps) {
+export function ConfirmModal({
+  open,
+  title,
+  message,
+  onConfirm,
+  onClose,
+}: ConfirmModalProps) {
   if (!open) return null;
   return (
     <div id="confirm-modal" className={styles.modal}>
@@ -16,8 +24,8 @@ export function ConfirmModal({ open, onConfirm, onClose }: ConfirmModalProps) {
         onClick={onClose}
       />
       <div id="confirm-box" className={styles.box}>
-        <div className={styles.head}>全コメントを削除</div>
-        <p className={styles.msg}>本当に消していいですか？</p>
+        <div className={styles.head}>{title}</div>
+        <p className={styles.msg}>{message}</p>
         <div className={styles.foot}>
           <button
             type="button"

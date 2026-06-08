@@ -6,6 +6,7 @@ interface ToolbarProps {
   version: string;
   updateTime: string;
   commentCount: number;
+  orphanedCount: number;
   diffMode: boolean;
   checkpointSet: boolean;
   isConnected: boolean;
@@ -13,6 +14,7 @@ interface ToolbarProps {
   activeFile: string | null;
   onTogglePanel: () => void;
   onCopyReview: () => void;
+  onClearOrphaned: () => void;
   onClearAll: () => void;
   onCheckpoint: () => void;
   onToggleDiff: () => void;
@@ -27,6 +29,7 @@ export function Toolbar({
   version,
   updateTime,
   commentCount,
+  orphanedCount,
   diffMode,
   checkpointSet,
   isConnected,
@@ -34,6 +37,7 @@ export function Toolbar({
   activeFile,
   onTogglePanel,
   onCopyReview,
+  onClearOrphaned,
   onClearAll,
   onCheckpoint,
   onToggleDiff,
@@ -100,6 +104,32 @@ export function Toolbar({
       )}
       <button className="btn primary" id="btn-copy" onClick={onCopyReview}>
         レビューをコピー
+      </button>
+      <button
+        className="btn icon"
+        id="btn-clear-orphaned"
+        title="削除済みコメントのみ削除"
+        disabled={orphanedCount === 0}
+        onClick={onClearOrphaned}
+      >
+        <span className={styles.clearOrphanedIcon}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M1.5 3.5h11M5.5 3.5V2.5h3v1M3 3.5l.9 8h6.2l.9-8"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className={styles.clearOrphanedBadge}>済</span>
+        </span>
       </button>
       <button
         className="btn icon"

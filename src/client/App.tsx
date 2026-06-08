@@ -72,13 +72,15 @@ export function App() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingDisplayCtx, setEditingDisplayCtx] = useState('');
   const [editingInitialText, setEditingInitialText] = useState('');
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<
+    'all' | 'orphaned' | null
+  >(null);
   const [drawioOpen, setDrawioOpen] = useState(false);
   const [drawioCode, setDrawioCode] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
-  const { comments, addComment, updateComment, deleteComment, clearAll } =
+  const { comments, addComment, updateComment, deleteComment, clearAll, clearOrphaned } =
     useComments();
   const { files, activeFile, switchFile, closeFile } = useFiles();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
@@ -322,19 +324,34 @@ export function App() {
       .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
-  // Clear all
+  // Clear all / clear orphaned
   function handleClearAll() {
     if (!comments.length) {
       toast('コメントがありません');
       return;
     }
-    setConfirmOpen(true);
+    setPendingConfirm('all');
   }
-  function confirmClearAll() {
-    clearAll();
-    setConfirmOpen(false);
-    setPanelOpen(false);
-    toast('コメントをすべて削除しました');
+
+  function handleClearOrphaned() {
+    if (orphanedCommentIds.size === 0) {
+      toast('削除済みコメントがありません');
+      return;
+    }
+    setPendingConfirm('orphaned');
+  }
+
+  function confirmAction() {
+    if (pendingConfirm === 'all') {
+      clearAll();
+      setPanelOpen(false);
+      toast('コメントをすべて削除しました');
+    } else if (pendingConfirm === 'orphaned') {
+      const count = orphanedCommentIds.size;
+      clearOrphaned(orphanedCommentIds);
+      toast(`削除済みコメントを${count}件削除しました`);
+    }
+    setPendingConfirm(null);
   }
 
   // Checkpoint
@@ -417,6 +434,7 @@ export function App() {
         version={appVersion}
         updateTime={updateTime}
         commentCount={comments.length}
+        orphanedCount={orphanedCommentIds.size}
         diffMode={diffMode}
         checkpointSet={checkpointSet}
         isConnected={isConnected}
@@ -424,6 +442,7 @@ export function App() {
         activeFile={activeFile}
         onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
+        onClearOrphaned={handleClearOrphaned}
         onClearAll={handleClearAll}
         onCheckpoint={handleCheckpoint}
         onToggleDiff={toggleDiff}
@@ -476,9 +495,19 @@ export function App() {
         }}
       />
       <ConfirmModal
-        open={confirmOpen}
-        onConfirm={confirmClearAll}
-        onClose={() => setConfirmOpen(false)}
+        open={pendingConfirm !== null}
+        title={
+          pendingConfirm === 'orphaned'
+            ? '削除済みコメントを削除'
+            : '全コメントを削除'
+        }
+        message={
+          pendingConfirm === 'orphaned'
+            ? '元のテキストが削除されたコメントのみ削除します。'
+            : '本当に消していいですか？'
+        }
+        onConfirm={confirmAction}
+        onClose={() => setPendingConfirm(null)}
       />
       <DrawioModal
         open={drawioOpen}

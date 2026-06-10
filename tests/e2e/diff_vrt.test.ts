@@ -1,11 +1,11 @@
 /**
- * diff 右マージン表示 VRT
+ * 差分チェックモード VRT
  *
- * git diff 風の差分表示（本文は中央のまま、削除(−)→追加(+)を右マージンに
- * 積み重ねて文字単位ハイライト）に特化した VRT。
+ * GitHub の "Files changed" 風の全画面 split ビュー（左=チェックポイント、
+ * 右=現在、余白なし・行番号付き・文字単位ハイライト）に特化した VRT。
  *
  * フルスペック VRT が「全要素を 1 枚に詰め込みすぎ」だったため、diff の見た目
- * 検証はこちらに分離している（fullspec 側は diff モードを ON にしない）。
+ * 検証はこちらに分離している（fullspec 側は差分チェックモードを ON にしない）。
  */
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -27,9 +27,9 @@ const STABILIZE = `
   #update-time, [data-testid="brand-version"] { visibility: hidden !important; }
 `;
 
-// before を読み込み → checkpoint → after に変更 → diff ON、までを行う。
+// before を読み込み → checkpoint → after に変更 → 差分チェックモード ON、までを行う。
 // afterMarker は変更後の本文に現れる文字列。本文が SSE で再描画され切ってから
-// diff を ON にすることで（本文＝変更後の表示）スクリーンショットを安定させる。
+// モードを切り替えることでスクリーンショットを安定させる。
 async function produceDiff(
   page: Page,
   fixturePath: string,
@@ -65,7 +65,7 @@ async function produceDiff(
     },
   );
   await expect(
-    page.locator('[data-testid="diff-aside"] [data-testid="diff-side-del"]'),
+    page.locator('[data-testid="diff-cell-old"][data-line-type="delete"]'),
   ).toBeVisible({
     timeout: 5000,
   });
@@ -74,29 +74,22 @@ async function produceDiff(
   await page.evaluate(() => document.fonts.ready);
 }
 
-test.describe('diff 右マージン表示 VRT', () => {
-  test.beforeEach(async ({ commentsPath }) => {
-    try {
-      rmSync(commentsPath);
-    } catch {
-      /* ignore */
-    }
+test.describe('差分チェックモード VRT', () => {
+  test.beforeEach(async ({ fixturePath, commentsPath }) => {
+    rmSync(commentsPath, { force: true });
+    rmSync(`${fixturePath}.checkpoint`, { force: true });
   });
 
   test.afterEach(async ({ fixturePath, commentsPath }) => {
     writeFileSync(fixturePath, ORIGINAL, 'utf-8');
-    try {
-      rmSync(commentsPath);
-    } catch {
-      /* ignore */
-    }
+    rmSync(commentsPath, { force: true });
+    rmSync(`${fixturePath}.checkpoint`, { force: true });
   });
 
-  test('1 行の変更: 右マージンに 削除(−)→追加(+) が積み重なり、変更箇所だけハイライト', async ({
+  test('1 行の変更: 全画面 split で同じ行に左=削除・右=追加、変更箇所だけハイライト', async ({
     page,
     fixturePath,
   }) => {
-    // 右マージンの aside（幅 260px）が収まる幅
     await page.setViewportSize({ width: 1400, height: 360 });
     await produceDiff(
       page,
@@ -105,12 +98,12 @@ test.describe('diff 右マージン表示 VRT', () => {
       '# Diff VRT\n\nThe quick red fox leaps over the dog.\n',
       'leaps over',
     );
-    await expect(page).toHaveScreenshot('diff-aside-single.png', {
+    await expect(page).toHaveScreenshot('diff-split-single.png', {
       maxDiffPixels: 800,
     });
   });
 
-  test('複数行の変更: 箇条書きの追加でも 1 行ずつ積み重なって表示される', async ({
+  test('複数行の変更: 箇条書きの追加が右ペインに 1 行ずつ積み重なる', async ({
     page,
     fixturePath,
   }) => {
@@ -124,11 +117,11 @@ test.describe('diff 右マージン表示 VRT', () => {
     );
     // 追加 4 行がすべて描画されるまで待つ
     await expect(
-      page.locator('[data-testid="diff-side-ins"] [data-testid="diff-ins"]'),
+      page.locator('[data-testid="diff-cell-new"][data-line-type="insert"]'),
     ).toHaveCount(4, {
       timeout: 5000,
     });
-    await expect(page).toHaveScreenshot('diff-aside-multiline.png', {
+    await expect(page).toHaveScreenshot('diff-split-multiline.png', {
       maxDiffPixels: 800,
     });
   });

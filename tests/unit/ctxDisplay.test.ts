@@ -43,4 +43,36 @@ describe('ctxDisplay', () => {
     const c = makeComment({ context: 'single line' });
     expect(ctxDisplay(c)).toBe('single line');
   });
+
+  test('diff context: 対象行のテキストを返す', () => {
+    const c = makeComment({
+      block_type: 'diff',
+      context: {
+        side: 'new',
+        oldLine: null,
+        newLine: 5,
+        line: '追加された行のテキスト',
+        hunk: ['前の行', '追加された行のテキスト', '次の行'],
+      },
+    });
+    expect(ctxDisplay(c)).toBe('追加された行のテキスト');
+  });
+});
+
+describe('isDiffContext', () => {
+  test('DiffContext を判別できる', async () => {
+    const { isDiffContext } = await import('../../src/client/lib/comments.ts');
+    expect(
+      isDiffContext({
+        side: 'old',
+        oldLine: 1,
+        newLine: null,
+        line: 'x',
+        hunk: ['x'],
+      }),
+    ).toBe(true);
+    expect(isDiffContext('text')).toBe(false);
+    expect(isDiffContext({ headers: [], rows: [] })).toBe(false);
+    expect(isDiffContext({ code: 'x' })).toBe(false);
+  });
 });

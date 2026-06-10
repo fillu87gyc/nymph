@@ -1,7 +1,18 @@
 import { useCallback, useRef, useState } from 'react';
-import { ctxDisplay } from '../lib/comments.ts';
+import { ctxDisplay, isDiffContext } from '../lib/comments.ts';
 import type { Comment } from '../types.ts';
 import styles from './CommentsPanel.module.css';
+
+// 差分への指摘は新旧どちら側の行かが分かる行表示にする（例: 新L7 / 旧L5）
+function lineRef(c: Comment): string {
+  if (c.block_type === 'diff' && isDiffContext(c.context)) {
+    const ctx = c.context;
+    return ctx.side === 'old' ? `旧L${ctx.oldLine}` : `新L${ctx.newLine}`;
+  }
+  return c.lineStart === c.lineEnd
+    ? `L${c.lineStart}`
+    : `L${c.lineStart}–${c.lineEnd}`;
+}
 
 const PANEL_DEFAULT_H = 210;
 const PANEL_MIN_H = 80;
@@ -94,10 +105,7 @@ export function CommentsPanel({
           </li>
         ) : (
           comments.map((c) => {
-            const range =
-              c.lineStart === c.lineEnd
-                ? `L${c.lineStart}`
-                : `L${c.lineStart}–${c.lineEnd}`;
+            const range = lineRef(c);
             const isOrphaned = orphanedIds?.has(c.id) ?? false;
             return (
               <li
@@ -119,6 +127,14 @@ export function CommentsPanel({
                         data-testid="c-deleted"
                       >
                         削除済み
+                      </span>
+                    )}
+                    {c.block_type === 'diff' && (
+                      <span
+                        className={styles.diffBadge}
+                        data-testid="c-diff-badge"
+                      >
+                        差分への指摘
                       </span>
                     )}
                     {ctxDisplay(c)}

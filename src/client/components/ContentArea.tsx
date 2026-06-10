@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { findTextRange } from '../lib/markdown.ts';
 import { parseBlocks } from '../lib/parseBlocks.ts';
-import type { Comment, DiffLine, DiffResponse } from '../types.ts';
+import type { Comment } from '../types.ts';
 import styles from './ContentArea.module.css';
-import { type DiffGroup, MarkdownBlock } from './MarkdownBlock.tsx';
+import { MarkdownBlock } from './MarkdownBlock.tsx';
 
 interface ContentAreaProps {
   source: string;
   comments: Comment[];
-  diffMode: boolean;
-  diffData: DiffResponse | null;
   isDarkTheme: boolean;
   highlightedBlockLs: number | null;
   welcomeMsg?: string;
@@ -31,8 +29,6 @@ interface ContentAreaProps {
 export function ContentArea({
   source,
   comments,
-  diffMode,
-  diffData,
   isDarkTheme,
   highlightedBlockLs,
   welcomeMsg = 'ファイルを読み込んでいます…',
@@ -64,7 +60,11 @@ export function ContentArea({
     for (const block of blocks) {
       if (
         comments.some(
-          (c) => c.lineStart <= block.lineEnd && c.lineEnd >= block.lineStart,
+          (c) =>
+            // 差分への指摘は本文ブロックに紐づかない（行番号は diff 基準）
+            c.block_type !== 'diff' &&
+            c.lineStart <= block.lineEnd &&
+            c.lineEnd >= block.lineStart,
         )
       ) {
         set.add(block.key);
@@ -72,46 +72,6 @@ export function ContentArea({
     }
     return set;
   }, [blocks, comments]);
-
-  const diffGroupsMap = useMemo<Map<string, DiffGroup[]>>(() => {
-    const map = new Map<string, DiffGroup[]>();
-    if (!diffMode || !diffData) return map;
-
-    const groups = new Map<
-      number,
-      { inserts: DiffLine[]; deletes: DiffLine[] }
-    >();
-    for (const l of diffData.lines) {
-      if (l.g == null) continue;
-      let g = groups.get(l.g);
-      if (!g) {
-        g = { inserts: [], deletes: [] };
-        groups.set(l.g, g);
-      }
-      if (l.type === 'insert') g.inserts.push(l);
-      else if (l.type === 'delete') g.deletes.push(l);
-    }
-
-    for (const block of blocks) {
-      const matched: DiffGroup[] = [];
-      for (const [, g] of groups) {
-        if (
-          g.inserts.some(
-            (l) =>
-              l.n != null &&
-              l.n >= block.lineStart &&
-              l.n <= block.lineEnd &&
-              l.content.trim() !== '',
-          )
-        ) {
-          matched.push(g);
-        }
-      }
-      if (matched.length) map.set(block.key, matched);
-    }
-
-    return map;
-  }, [blocks, diffMode, diffData]);
 
   // Persistent comment-anchor highlight for selection comments
   useEffect(() => {
@@ -125,8 +85,9 @@ export function ContentArea({
     const orphaned = new Set<number>();
 
     // Block-level comments: orphaned if no block starts at c.lineStart
+    // （selection は後段で判定、diff は App 側で diff データと突き合わせて判定）
     for (const c of comments) {
-      if (c.block_type === 'selection') continue;
+      if (c.block_type === 'selection' || c.block_type === 'diff') continue;
       const found = blocks.some((b) => b.lineStart === c.lineStart);
       if (!found) orphaned.add(c.id);
     }
@@ -291,8 +252,6 @@ export function ContentArea({
             block={block}
             hasComment={hasCommentSet.has(block.key)}
             highlighted={highlightedBlockLs === block.lineStart}
-            diffGroups={diffGroupsMap.get(block.key) ?? []}
-            diffMode={diffMode}
             onAddComment={onAddComment}
             onOpenDrawio={onOpenDrawio}
             onRef={handleRef}

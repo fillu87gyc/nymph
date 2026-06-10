@@ -1,4 +1,4 @@
-import { use, useCallback, useEffect, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSWRConfig } from 'swr';
 import styles from './App.module.css';
@@ -7,6 +7,7 @@ import { CommentsPanel } from './components/CommentsPanel.tsx';
 import { ConfirmModal, type DeleteMode } from './components/ConfirmModal.tsx';
 import { ContentArea } from './components/ContentArea.tsx';
 import { DictTooltip } from './components/DictTooltip.tsx';
+import { type DiffHighlightTarget, DiffView } from './components/DiffView.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
@@ -18,7 +19,7 @@ import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useSSE } from './hooks/useSSE.ts';
-import { ctxDisplay } from './lib/comments.ts';
+import { ctxDisplay, isDiffContext } from './lib/comments.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import type { Comment, DictEntry, PendingComment } from './types.ts';
@@ -48,9 +49,9 @@ export function App() {
   const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
     null,
   );
-  const [orphanedCommentIds, setOrphanedCommentIds] = useState<Set<number>>(
-    new Set(),
-  );
+  const [blockOrphanIds, setBlockOrphanIds] = useState<Set<number>>(new Set());
+  const [diffHighlight, setDiffHighlight] =
+    useState<DiffHighlightTarget | null>(null);
   const [anchorPopup, setAnchorPopup] = useState<{
     comment: Comment;
     x: number;
@@ -94,8 +95,46 @@ export function App() {
     checkpointSet,
     setCheckpoint,
     toggleDiff,
+    showDiff,
     loadDiff,
   } = useDiff();
+
+  // checkpoint はファイルに永続化されているため、リロード後・ファイル切替後に
+  // /diff を引いてボタン状態（と差分コメントの orphan 判定材料）を復元する
+  useEffect(() => {
+    if (activeFile) void loadDiff();
+  }, [activeFile, loadDiff]);
+
+  // 差分コメント（block_type: 'diff'）の orphan 判定。
+  // 現在の diff に side + 行番号 + 行内容が一致する行がなければ「削除済み」扱い。
+  // diff 未取得（null）の間は判定しない。
+  const diffOrphanIds = useMemo(() => {
+    const ids = new Set<number>();
+    if (!diffData) return ids;
+    for (const c of comments) {
+      if (c.block_type !== 'diff') continue;
+      if (!isDiffContext(c.context)) {
+        ids.add(c.id);
+        continue;
+      }
+      const ctx = c.context;
+      const line = ctx.side === 'old' ? ctx.oldLine : ctx.newLine;
+      const matched =
+        line != null &&
+        diffData.lines.some((l) =>
+          ctx.side === 'old'
+            ? l.o === line && l.content === ctx.line
+            : l.n === line && l.content === ctx.line,
+        );
+      if (!matched) ids.add(c.id);
+    }
+    return ids;
+  }, [comments, diffData]);
+
+  const orphanedCommentIds = useMemo(
+    () => new Set([...blockOrphanIds, ...diffOrphanIds]),
+    [blockOrphanIds, diffOrphanIds],
+  );
 
   function toast(msg: string) {
     setToastState((s) => ({ msg, v: s.v + 1 }));
@@ -111,14 +150,16 @@ export function App() {
     if (changedFile === activeFile) {
       void mutate(contentKey);
       void mutate('/comments');
-      if (diffMode) void loadDiff();
+      // 通常モードでも diff を取り直す（差分コメントの orphan 判定が古くならないように）
+      void loadDiff();
       toast('ファイルが更新されました');
     }
   });
 
   // content が更新されたら term ハイライトを再適用
+  // （diffMode から通常モードへ戻ると ContentArea が再マウントされるため依存に含める）
   useEffect(() => {
-    if (!contentRef.current || dictEntries.length === 0) return;
+    if (diffMode || !contentRef.current || dictEntries.length === 0) return;
     // DOM 更新後に実行
     const id = requestAnimationFrame(() => {
       if (contentRef.current) {
@@ -126,7 +167,7 @@ export function App() {
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [source, dictEntries]);
+  }, [source, dictEntries, diffMode]);
 
   // mark ホバーでツールチップを表示
   useEffect(() => {
@@ -201,6 +242,21 @@ export function App() {
 
   const scrollToComment = useCallback(
     (c: Comment) => {
+      // 差分への指摘: 差分チェックモードへ切り替えて該当行をハイライト
+      if (c.block_type === 'diff') {
+        if (!isDiffContext(c.context)) return;
+        const ctx = c.context;
+        const line = ctx.side === 'old' ? ctx.oldLine : ctx.newLine;
+        if (line == null) return;
+        void showDiff();
+        setDiffHighlight((prev) => ({
+          side: ctx.side,
+          line,
+          v: (prev?.v ?? 0) + 1,
+        }));
+        return;
+      }
+
       const map = blockRefsMapRef.current;
       let targetEl: HTMLElement | null = null;
       const blocksInRange: HTMLElement[] = [];
@@ -229,7 +285,7 @@ export function App() {
         flashBlockHighlight(c.lineStart);
       }
     },
-    [flashBlockHighlight],
+    [flashBlockHighlight, showDiff],
   );
 
   // Comment modal
@@ -447,24 +503,32 @@ export function App() {
         isDictSyncing={isDictSyncing}
       />
       <div id="main" className={styles.main}>
-        <ContentArea
-          source={source}
-          comments={comments}
-          diffMode={diffMode}
-          diffData={diffData}
-          isDarkTheme={hljsTheme === 'dark'}
-          highlightedBlockLs={highlightedBlockLs}
-          onAddComment={openCommentModal}
-          onOpenDrawio={(code) => {
-            setDrawioCode(code);
-            setDrawioOpen(true);
-          }}
-          onClickCommentAnchor={handleClickCommentAnchor}
-          onOrphanedIds={setOrphanedCommentIds}
-          contentRef={contentRef}
-          blockRefsMapRef={blockRefsMapRef}
-          welcomeMsg={welcomeMsg}
-        />
+        {diffMode ? (
+          <DiffView
+            diffData={diffData}
+            comments={comments}
+            highlightTarget={diffHighlight}
+            onAddComment={openCommentModal}
+            onClickCommentAnchor={handleClickCommentAnchor}
+          />
+        ) : (
+          <ContentArea
+            source={source}
+            comments={comments}
+            isDarkTheme={hljsTheme === 'dark'}
+            highlightedBlockLs={highlightedBlockLs}
+            onAddComment={openCommentModal}
+            onOpenDrawio={(code) => {
+              setDrawioCode(code);
+              setDrawioOpen(true);
+            }}
+            onClickCommentAnchor={handleClickCommentAnchor}
+            onOrphanedIds={setBlockOrphanIds}
+            contentRef={contentRef}
+            blockRefsMapRef={blockRefsMapRef}
+            welcomeMsg={welcomeMsg}
+          />
+        )}
       </div>
       <CommentsPanel
         open={panelOpen}
@@ -503,10 +567,12 @@ export function App() {
         }}
         onToast={toast}
       />
-      <SelectionPopup
-        contentRef={contentRef}
-        onComment={handleSelectionComment}
-      />
+      {!diffMode && (
+        <SelectionPopup
+          contentRef={contentRef}
+          onComment={handleSelectionComment}
+        />
+      )}
       <DictTooltip entry={dictTooltipEntry} anchorRect={dictTooltipRect} />
       {anchorPopup &&
         createPortal(

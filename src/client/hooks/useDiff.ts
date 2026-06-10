@@ -10,6 +10,9 @@ export function useDiff() {
     const res = await fetch('/diff');
     const data: DiffResponse = await res.json();
     setDiffData(data);
+    // checkpoint はサーバー側でファイルに永続化されるため、
+    // リロード後・ファイル切替後もここでボタン状態を復元できる
+    setCheckpointSet(Boolean(data.hasCheckpoint));
     return data;
   }, []);
 
@@ -19,17 +22,24 @@ export function useDiff() {
       headers: { 'Content-Length': '0' },
     });
     const data = (await res.json()) as { ok: boolean; lines: number };
+    // loadDiff は /diff の hasCheckpoint で checkpointSet を上書きするので、
+    // 先に diff を取り直してから「設定済み」を確定させる
+    await loadDiff();
     setCheckpointSet(true);
-    if (diffMode) await loadDiff();
     return data.lines;
-  }, [diffMode, loadDiff]);
+  }, [loadDiff]);
 
   const toggleDiff = useCallback(async () => {
     const next = !diffMode;
     setDiffMode(next);
     if (next) await loadDiff();
-    else setDiffData(null);
   }, [diffMode, loadDiff]);
+
+  // 差分コメントへのジャンプ用: モードを問わず差分チェックモードへ入る
+  const showDiff = useCallback(async () => {
+    setDiffMode(true);
+    await loadDiff();
+  }, [loadDiff]);
 
   return {
     diffMode,
@@ -38,5 +48,6 @@ export function useDiff() {
     loadDiff,
     setCheckpoint,
     toggleDiff,
+    showDiff,
   };
 }

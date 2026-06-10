@@ -137,10 +137,10 @@ export function Toolbar({
         id="btn-diff"
         className="btn"
         data-active={String(diffMode)}
-        title="diff表示切替"
+        title="差分チェックモード切替"
         onClick={onToggleDiff}
       >
-        ± diff
+        ± 差分チェック
       </button>
       <button
         className="btn icon"

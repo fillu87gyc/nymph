@@ -30,7 +30,6 @@ interface State {
   activeFile: string | null;
   commentsPath: string | null;
   cachedContent: string | null;
-  checkpointContent: string | null;
   droppedContent: string | null;
   droppedName: string | null;
 }
@@ -40,10 +39,15 @@ const state: State = {
   activeFile: null,
   commentsPath: null,
   cachedContent: null,
-  checkpointContent: null,
   droppedContent: null,
   droppedName: null,
 };
+
+// checkpoint はサーバーを再起動しても diff（と差分コメント）が意味を保つよう、
+// レビュー対象ファイルの隣にスナップショットとして永続化する（.comments.json と同じ扱い）。
+function checkpointPath(file: string): string {
+  return `${file}.checkpoint`;
+}
 
 export function initState(paths: string[]) {
   state.filePaths = paths;
@@ -324,10 +328,11 @@ async function handleSwitchFile(req: Request): Promise<Response> {
 function handleSetCheckpoint(): Response {
   try {
     if (!state.activeFile) return json({ ok: true, lines: 0 });
-    state.checkpointContent = readFileSync(state.activeFile, 'utf-8');
+    const content = readFileSync(state.activeFile, 'utf-8');
+    writeFileSync(checkpointPath(state.activeFile), content, 'utf-8');
     return json({
       ok: true,
-      lines: state.checkpointContent.split('\n').length,
+      lines: content.split('\n').length,
     });
   } catch (e) {
     return err(String(e));
@@ -336,26 +341,38 @@ function handleSetCheckpoint(): Response {
 
 function handleDiff(): Response {
   try {
-    if (!state.checkpointContent || !state.activeFile)
-      return json({ lines: [] });
+    if (!state.activeFile) return json({ lines: [], hasCheckpoint: false });
+    const cpPath = checkpointPath(state.activeFile);
+    if (!existsSync(cpPath)) return json({ lines: [], hasCheckpoint: false });
+    const checkpoint = readFileSync(cpPath, 'utf-8');
     const current = readFileSync(state.activeFile, 'utf-8');
-    return json({ lines: computeDiff(state.checkpointContent, current) });
+    return json({
+      lines: computeDiff(checkpoint, current),
+      hasCheckpoint: true,
+    });
   } catch (e) {
     return err(String(e));
   }
 }
 
-function computeDiff(checkpoint: string, current: string) {
+export interface ServerDiffLine {
+  n: number | null;
+  o: number | null;
+  type: 'equal' | 'insert' | 'delete';
+  content: string;
+  g: number | null;
+}
+
+export function computeDiff(
+  checkpoint: string,
+  current: string,
+): ServerDiffLine[] {
   const aLines = checkpoint.split('\n');
   const bLines = current.split('\n');
   const changes = diffArrays(aLines, bLines);
-  const result: Array<{
-    n: number | null;
-    type: string;
-    content: string;
-    g: number | null;
-  }> = [];
+  const result: ServerDiffLine[] = [];
   let currentN = 0;
+  let currentO = 0;
   let groupId = 0;
   let i = 0;
 
@@ -364,18 +381,34 @@ function computeDiff(checkpoint: string, current: string) {
     if (!change.added && !change.removed) {
       for (const line of change.value) {
         currentN++;
-        result.push({ n: currentN, type: 'equal', content: line, g: null });
+        currentO++;
+        result.push({
+          n: currentN,
+          o: currentO,
+          type: 'equal',
+          content: line,
+          g: null,
+        });
       }
       i++;
     } else if (change.removed) {
       const next = changes[i + 1];
       if (next?.added) {
-        for (const line of change.value)
-          result.push({ n: null, type: 'delete', content: line, g: groupId });
+        for (const line of change.value) {
+          currentO++;
+          result.push({
+            n: null,
+            o: currentO,
+            type: 'delete',
+            content: line,
+            g: groupId,
+          });
+        }
         for (const line of next.value) {
           currentN++;
           result.push({
             n: currentN,
+            o: null,
             type: 'insert',
             content: line,
             g: groupId,
@@ -384,15 +417,29 @@ function computeDiff(checkpoint: string, current: string) {
         groupId++;
         i += 2;
       } else {
-        for (const line of change.value)
-          result.push({ n: null, type: 'delete', content: line, g: groupId });
+        for (const line of change.value) {
+          currentO++;
+          result.push({
+            n: null,
+            o: currentO,
+            type: 'delete',
+            content: line,
+            g: groupId,
+          });
+        }
         groupId++;
         i++;
       }
     } else {
       for (const line of change.value) {
         currentN++;
-        result.push({ n: currentN, type: 'insert', content: line, g: groupId });
+        result.push({
+          n: currentN,
+          o: null,
+          type: 'insert',
+          content: line,
+          g: groupId,
+        });
       }
       groupId++;
       i++;

@@ -1,0 +1,166 @@
+/* 差分チェックモード: GitHub の "Files changed" 風の全画面 split ビュー。
+   #content と違い中央寄せ・左右余白なしで画面幅いっぱいに使う。 */
+.view {
+  width: 100%;
+  min-height: 100%;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+.headerCol {
+  padding: 6px 12px 6px 58px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.headerCol + .headerCol {
+  border-left: 1px solid var(--border);
+}
+
+.table {
+  width: 100%;
+}
+
+.row {
+  display: grid;
+  /* [旧行番号][旧本文][新行番号][新本文]。本文は折り返して全幅を使う */
+  grid-template-columns: 46px minmax(0, 1fr) 46px minmax(0, 1fr);
+}
+
+.lineNum {
+  position: relative;
+  padding: 1px 6px 1px 2px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+  border-right: 1px solid var(--border);
+}
+.sign {
+  position: absolute;
+  left: 4px;
+  top: 1px;
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 1px 8px;
+  min-height: 1.6em;
+}
+/* 新側ペインの行番号との境界 */
+.row > .lineNum:nth-child(3) {
+  border-left: 1px solid var(--border);
+}
+
+.cellText {
+  flex: 1;
+  min-width: 0;
+  /* Markdown ソースは 1 段落 1 行が多いので横スクロールではなく折り返す */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cellEmpty {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 6px,
+    rgba(128, 128, 128, 0.04) 6px 12px
+  );
+}
+.cellDel {
+  background: rgba(239, 154, 154, 0.08);
+  color: #ef9a9a;
+}
+.cellIns {
+  background: rgba(165, 214, 167, 0.08);
+  color: #a5d6a7;
+}
+.charDel {
+  background: rgba(239, 154, 154, 0.45);
+  border-radius: 2px;
+  color: inherit;
+  font-style: normal;
+}
+.charIns {
+  background: rgba(165, 214, 167, 0.45);
+  border-radius: 2px;
+  color: inherit;
+  font-style: normal;
+}
+
+/* コメントジャンプ時の flash（global.css の共有 keyframes を使用） */
+.cell[data-highlighted="true"] {
+  animation: comment-block-flash 1.4s ease forwards;
+}
+
+.cellTools {
+  display: inline-flex;
+  gap: 2px;
+  align-self: flex-start;
+}
+.addBtn {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.cell:hover .addBtn {
+  opacity: 1;
+  pointer-events: auto;
+}
+.addBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.anchorBtn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  padding: 24px;
+  color: var(--text-muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.8;
+}

@@ -3,20 +3,23 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { useDiff } from '../../src/client/hooks/useDiff.ts';
 import type { DiffResponse } from '../../src/client/types.ts';
 
-const emptyDiff: DiffResponse = { lines: [] };
+const emptyDiff: DiffResponse = { lines: [], hasCheckpoint: false };
 const sampleDiff: DiffResponse = {
+  hasCheckpoint: true,
   lines: [
-    { n: 1, type: 'equal', content: 'unchanged', g: null },
-    { n: null, type: 'delete', content: 'old', g: 0 },
-    { n: 2, type: 'insert', content: 'new', g: 0 },
+    { n: 1, o: 1, type: 'equal', content: 'unchanged', g: null },
+    { n: null, o: 2, type: 'delete', content: 'old', g: 0 },
+    { n: 2, o: null, type: 'insert', content: 'new', g: 0 },
   ],
 };
 
 function mockFetch(data: unknown) {
-  return vi.spyOn(global, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' },
-    }),
+  // Response の body は一度しか読めないため、呼び出しごとに新しいインスタンスを返す
+  return vi.spyOn(global, 'fetch').mockImplementation(
+    async () =>
+      new Response(JSON.stringify(data), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
   );
 }
 
@@ -62,6 +65,24 @@ describe('useDiff', () => {
     expect(returned).toEqual(sampleDiff);
   });
 
+  test('loadDiff が hasCheckpoint から checkpointSet を復元する（永続化対応）', async () => {
+    mockFetch(sampleDiff);
+    const { result } = renderHook(() => useDiff());
+    await act(async () => {
+      await result.current.loadDiff();
+    });
+    expect(result.current.checkpointSet).toBe(true);
+  });
+
+  test('loadDiff: hasCheckpoint=false なら checkpointSet も false', async () => {
+    mockFetch(emptyDiff);
+    const { result } = renderHook(() => useDiff());
+    await act(async () => {
+      await result.current.loadDiff();
+    });
+    expect(result.current.checkpointSet).toBe(false);
+  });
+
   test('toggleDiff: false→true で diff データを取得する', async () => {
     mockFetch(sampleDiff);
     const { result } = renderHook(() => useDiff());
@@ -72,38 +93,30 @@ describe('useDiff', () => {
     expect(result.current.diffData).toEqual(sampleDiff);
   });
 
-  test('toggleDiff: true→false で diffData が null になる', async () => {
+  test('toggleDiff: true→false で通常モードに戻る', async () => {
     mockFetch(sampleDiff);
     const { result } = renderHook(() => useDiff());
     await act(async () => {
       await result.current.toggleDiff();
     });
-    mockFetch({});
     await act(async () => {
       await result.current.toggleDiff();
     });
     expect(result.current.diffMode).toBe(false);
-    expect(result.current.diffData).toBeNull();
   });
 
-  test('diffMode=true のときに setCheckpoint を呼ぶと diff が再取得される', async () => {
+  test('showDiff: 通常モードからでも差分チェックモードに入り diff を取得する', async () => {
+    mockFetch(sampleDiff);
     const { result } = renderHook(() => useDiff());
-
-    vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
-      if (String(url) === '/diff') {
-        return new Response(JSON.stringify(emptyDiff), {
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify({ ok: true, lines: 5 }), {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    });
-
     await act(async () => {
-      await result.current.toggleDiff();
+      await result.current.showDiff();
     });
     expect(result.current.diffMode).toBe(true);
+    expect(result.current.diffData).toEqual(sampleDiff);
+  });
+
+  test('setCheckpoint を呼ぶと diff が再取得される', async () => {
+    const { result } = renderHook(() => useDiff());
 
     const fetchSpy = vi
       .spyOn(global, 'fetch')

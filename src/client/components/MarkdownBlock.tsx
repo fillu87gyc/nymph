@@ -1,50 +1,8 @@
-import { diffChars } from 'diff';
-import { memo, type ReactNode, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
-import type { Comment, DiffLine } from '../types.ts';
+import type { Comment } from '../types.ts';
 import styles from './MarkdownBlock.module.css';
-
-export interface DiffGroup {
-  inserts: DiffLine[];
-  deletes: DiffLine[];
-}
-
-function renderCharDiff(
-  oldText: string,
-  newText: string,
-  side: 'del' | 'ins',
-): ReactNode {
-  const parts = diffChars(oldText, newText);
-  let offset = 0;
-  return parts.map((part) => {
-    const key = offset;
-    offset += part.value.length;
-    if (part.removed) {
-      return side === 'del' ? (
-        <mark
-          key={key}
-          className={styles.diffCharDel}
-          data-testid="diff-char-del"
-        >
-          {part.value}
-        </mark>
-      ) : null;
-    }
-    if (part.added) {
-      return side === 'ins' ? (
-        <mark
-          key={key}
-          className={styles.diffCharIns}
-          data-testid="diff-char-ins"
-        >
-          {part.value}
-        </mark>
-      ) : null;
-    }
-    return <span key={key}>{part.value}</span>;
-  });
-}
 
 type AddCommentCb = (
   lineStart: number,
@@ -59,8 +17,6 @@ interface MarkdownBlockProps {
   block: BlockData;
   hasComment: boolean;
   highlighted: boolean;
-  diffGroups: DiffGroup[];
-  diffMode: boolean;
   onAddComment: AddCommentCb;
   onOpenDrawio: (code: string) => void;
   onRef: (key: string, el: HTMLElement | null) => void;
@@ -109,8 +65,6 @@ export function MarkdownBlock({
   block,
   hasComment,
   highlighted,
-  diffGroups,
-  diffMode,
   onAddComment,
   onOpenDrawio,
   onRef,
@@ -120,7 +74,6 @@ export function MarkdownBlock({
     [block.key, onRef],
   );
 
-  const isDiffChanged = diffMode && diffGroups.length > 0;
   const showPlusButton = block.type === 'table' || block.type === 'mermaid';
 
   return (
@@ -133,7 +86,6 @@ export function MarkdownBlock({
       data-line-end={block.lineEnd}
       data-block-type={block.type}
       data-has-comment={String(hasComment)}
-      data-diff-changed={String(isDiffChanged)}
       data-highlighted={String(highlighted)}
     >
       {showPlusButton && (
@@ -183,85 +135,6 @@ export function MarkdownBlock({
         </div>
       ) : (
         <StableContent html={block.html} type={block.type} />
-      )}
-
-      {isDiffChanged && (
-        <div className={styles.diffAside} data-testid="diff-aside">
-          {diffGroups.map((group, gi) => {
-            const oneToOne =
-              group.deletes.length === group.inserts.length &&
-              group.deletes.length > 0;
-            const validIns = group.inserts.filter((l) => l.content.trim());
-            return (
-              // diffGroups は diff 計算のたびに丸ごと再生成され、要素固有の安定 id を
-              // 持たない。並び順は内容で一意に決まるため index キーで問題ない（参照:
-              // React docs "Rendering Lists" — 安定 id が無い場合の index 容認）。
-              // biome-ignore lint/suspicious/noArrayIndexKey: diffGroups は毎回再生成され安定 id を持たない
-              <div key={gi}>
-                {group.deletes.length > 0 && (
-                  <div
-                    className={`${styles.diffSide} ${styles.diffSideDel}`}
-                    data-testid="diff-side-del"
-                  >
-                    {group.deletes.map((d, i) => {
-                      const paired = oneToOne ? group.inserts[i] : undefined;
-                      const delKey = `g${gi}d${i}`;
-                      return (
-                        <span
-                          key={delKey}
-                          className={styles.diffDel}
-                          data-testid="diff-del"
-                        >
-                          −{' '}
-                          {paired ? (
-                            renderCharDiff(d.content, paired.content, 'del')
-                          ) : (
-                            <mark
-                              className={styles.diffCharDel}
-                              data-testid="diff-char-del"
-                            >
-                              {d.content || ' '}
-                            </mark>
-                          )}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                {validIns.length > 0 && (
-                  <div
-                    className={`${styles.diffSide} ${styles.diffSideIns}`}
-                    data-testid="diff-side-ins"
-                  >
-                    {validIns.map((ins, i) => {
-                      const paired = oneToOne ? group.deletes[i] : undefined;
-                      const insKey = `g${gi}i${i}`;
-                      return (
-                        <span
-                          key={insKey}
-                          className={styles.diffIns}
-                          data-testid="diff-ins"
-                        >
-                          +{' '}
-                          {paired ? (
-                            renderCharDiff(paired.content, ins.content, 'ins')
-                          ) : (
-                            <mark
-                              className={styles.diffCharIns}
-                              data-testid="diff-char-ins"
-                            >
-                              {ins.content}
-                            </mark>
-                          )}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
       )}
     </div>
   );

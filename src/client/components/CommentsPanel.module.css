@@ -105,6 +105,19 @@
   white-space: nowrap;
   vertical-align: middle;
 }
+.diffBadge {
+  display: inline-block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 5px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
 .actions {
   flex-shrink: 0;
   display: flex;

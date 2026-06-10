@@ -66,10 +66,6 @@
   color: var(--accent);
 }
 
-/* diff */
-.block[data-diff-changed="true"]::before {
-  background: rgba(76, 175, 80, 0.55);
-}
 /* ブロックハイライト（scroll-to-comment）*/
 .block[data-highlighted="true"][data-block-type="table"] > div,
 .block[data-highlighted="true"][data-block-type="mermaid"] > div {
@@ -128,65 +124,4 @@
   background: var(--bg-hover);
   color: var(--text);
   border-color: var(--accent);
-}
-
-/* Diff aside */
-.diffAside {
-  position: absolute;
-  top: 0;
-  left: calc(100% + 16px);
-  width: 260px;
-  z-index: 10;
-}
-.diffSide {
-  padding: 4px 10px;
-  background: var(--bg-surface);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.diffSideDel,
-.diffSideIns {
-  margin-top: 6px;
-  border-radius: 4px;
-}
-.diffSideDel {
-  border-left: 2px solid rgba(239, 154, 154, 0.5);
-}
-.diffSideIns {
-  border-left: 2px solid rgba(165, 214, 167, 0.5);
-}
-.diffSideDel:has(+ .diffSideIns) {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-.diffSideDel + .diffSideIns {
-  margin-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-.diffSide > span {
-  display: block;
-  white-space: pre-wrap;
-  word-break: break-word;
-  padding: 1px 2px;
-  border-radius: 2px;
-}
-.diffDel {
-  color: #ef9a9a;
-  background: rgba(239, 154, 154, 0.08);
-}
-.diffIns {
-  color: #a5d6a7;
-  background: rgba(165, 214, 167, 0.08);
-}
-.diffCharDel {
-  background: rgba(239, 154, 154, 0.45);
-  border-radius: 2px;
-  font-style: normal;
-}
-.diffCharIns {
-  background: rgba(165, 214, 167, 0.45);
-  border-radius: 2px;
-  font-style: normal;
 }

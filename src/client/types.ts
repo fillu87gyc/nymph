@@ -3,7 +3,7 @@ export interface Comment {
   lineStart: number;
   lineEnd: number;
   block_type: string;
-  context: string | TableContext | CodeContext;
+  context: string | TableContext | CodeContext | DiffContext;
   selection_offset?: number;
   text: string;
 }
@@ -25,6 +25,7 @@ export interface FileEntry {
 
 export interface DiffLine {
   n: number | null;
+  o: number | null;
   type: 'equal' | 'insert' | 'delete';
   content: string;
   g: number | null;
@@ -32,6 +33,18 @@ export interface DiffLine {
 
 export interface DiffResponse {
   lines: DiffLine[];
+  hasCheckpoint: boolean;
+}
+
+// 「差分への指摘」コメント（block_type: 'diff'）のアンカー情報。
+// checkpoint が変わったり消えたりしてもコメント単体で文脈を再現できるよう、
+// 対象行とその前後のスナップショット（hunk）を自己完結で保持する。
+export interface DiffContext {
+  side: 'old' | 'new';
+  oldLine: number | null;
+  newLine: number | null;
+  line: string;
+  hunk: string[];
 }
 
 export interface ContentResponse {

@@ -101,6 +101,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       for (const p of [
         fixturePath,
         `${fixturePath}.comments.json`,
+        `${fixturePath}.checkpoint`,
         `${fixturePath}.nymph-lock`,
       ]) {
         try {

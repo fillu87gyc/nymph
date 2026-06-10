@@ -3,6 +3,7 @@ import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Glob } from 'bun';
 import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
+import { resolvePortOverride } from './portUtils.ts';
 
 const VERSION = '1.0.0';
 
@@ -219,7 +220,7 @@ async function main() {
 
   initState(paths);
 
-  const port = portOverride ?? (await findPort());
+  const port = resolvePortOverride(portOverride, process.env.NYMPH_PORT) ?? (await findPort());
   const server = createServer(port);
 
   const lockPath = paths.length > 0 ? `${paths[0]}.nymph-lock` : null;

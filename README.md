@@ -152,7 +152,9 @@ nymphx() {
       *)  a+=("$origdir/$f") ;;
     esac
   done
-  (cd "$nymph_dir" && NYMPH_FILES="${a[*]}" bun run dev)
+  local port=6276
+  while (: < /dev/tcp/127.0.0.1/$port) 2>/dev/null; do ((port++)); done
+  (cd "$nymph_dir" && NYMPH_PORT="$port" NYMPH_FILES="${a[*]}" bun run dev)
 }
 ```
 

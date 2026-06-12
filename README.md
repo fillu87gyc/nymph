@@ -103,9 +103,17 @@ nymph --version                # バージョン確認
 
 `nymph ./docs` のようにディレクトリを渡すと、サイドバーに階層ツリーが表示されます（`.md` のみ、隠しディレクトリと `node_modules` は除外）。クリックしたファイルはタブに追加されます。ツールバーの **フォルダを開く** からパスを入力して、起動後にツリーのルートを切り替えることもできます。
 
+![ディレクトリツリー](docs/screenshots/directory-tree.png)
+
 ### 最近開いたファイル
 
 開いたファイルの履歴を `~/.local/share/nymph/recent.json` に保存します（最大 20 件）。ツールバーの **最近** メニュー（`Ctrl+R` / `Cmd+R`）と、引数なし起動時の画面から再オープンできます。
+
+![最近開いたファイルメニュー](docs/screenshots/recent-menu.png)
+
+引数なしで起動すると、履歴とブックマークが起動画面に表示されます。
+
+![起動画面](docs/screenshots/welcome.png)
 
 ### ブックマーク
 
@@ -114,6 +122,8 @@ nymph --version                # バージョン確認
 ### Quick Open（Ctrl+P）
 
 `Ctrl+P` / `Cmd+P` で検索パレットを開き、タブ・履歴・ブックマーク・ツリー内の全ファイルを横断して絞り込み、`Enter` で開けます。
+
+![Quick Open](docs/screenshots/quick-open.png)
 
 ### Mermaid レンダリング + draw.io エクスポート
 

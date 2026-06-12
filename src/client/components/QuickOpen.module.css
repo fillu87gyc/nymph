@@ -1,0 +1,70 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+.palette {
+  width: min(560px, 90vw);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.input {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  border: none;
+  border-bottom: 1px solid var(--border);
+}
+.input:focus {
+  outline: none;
+}
+.list {
+  overflow-y: auto;
+  padding: 6px;
+}
+.empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+.item[data-selected="true"] {
+  background: var(--accent);
+}
+.item[data-selected="true"] .itemName,
+.item[data-selected="true"] .itemDetail {
+  color: var(--bg);
+}
+.itemName {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.itemDetail {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

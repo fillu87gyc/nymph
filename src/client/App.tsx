@@ -10,6 +10,7 @@ import { DictTooltip } from './components/DictTooltip.tsx';
 import { type DiffHighlightTarget, DiffView } from './components/DiffView.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
 import { FileTree } from './components/FileTree.tsx';
+import { QuickOpen } from './components/QuickOpen.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
@@ -94,6 +95,7 @@ export function App() {
   const { files, activeFile, switchFile, closeFile, openFile } = useFiles();
   const { recentFiles } = useRecent();
   const [recentOpen, setRecentOpen] = useState(false);
+  const [quickOpenOpen, setQuickOpenOpen] = useState(false);
   const { root, rootName, tree, openDir } = useTree();
   const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
@@ -476,13 +478,21 @@ export function App() {
     }
   }, [bookmarkTarget, toggleBookmark]);
 
-  // ショートカット: Ctrl/Cmd+R で履歴メニューを開く（ブラウザのリロードを抑止）
+  // ショートカット: Ctrl/Cmd+R で履歴メニュー、Ctrl/Cmd+P で Quick Open
+  // （ブラウザのリロード・印刷ダイアログは preventDefault で抑止）
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.isComposing) return;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'r') {
         e.preventDefault();
+        setQuickOpenOpen(false);
         setRecentOpen((o) => !o);
+      } else if (key === 'p') {
+        e.preventDefault();
+        setRecentOpen(false);
+        setQuickOpenOpen((o) => !o);
       }
     }
     document.addEventListener('keydown', onKeyDown);
@@ -671,6 +681,16 @@ export function App() {
           onComment={handleSelectionComment}
         />
       )}
+      <QuickOpen
+        open={quickOpenOpen}
+        tabs={files}
+        recentFiles={recentFiles}
+        bookmarks={bookmarks}
+        tree={tree}
+        onClose={() => setQuickOpenOpen(false)}
+        onOpenFile={(path) => void handleOpenFile(path)}
+        onOpenDir={(path) => void handleOpenDir(path)}
+      />
       <DictTooltip entry={dictTooltipEntry} anchorRect={dictTooltipRect} />
       {anchorPopup &&
         createPortal(

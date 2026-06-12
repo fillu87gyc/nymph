@@ -3,6 +3,7 @@ import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Glob } from 'bun';
 import { resolvePortOverride } from './portUtils.ts';
+import { recordRecent } from './recent.ts';
 import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 
 const VERSION = '1.0.0';
@@ -218,6 +219,7 @@ async function main() {
     }
   }
 
+  recordRecent(paths);
   initState(paths);
 
   const port =

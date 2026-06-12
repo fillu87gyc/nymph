@@ -23,6 +23,13 @@ export interface FileEntry {
   name: string;
 }
 
+export interface RecentEntry {
+  path: string;
+  name: string;
+  dir: string;
+  openedAt: string;
+}
+
 export interface DiffLine {
   n: number | null;
   o: number | null;

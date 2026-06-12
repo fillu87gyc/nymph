@@ -18,6 +18,7 @@ import { useContent } from './hooks/useContent.ts';
 import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
+import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
 import { ctxDisplay, isDiffContext } from './lib/comments.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
@@ -87,7 +88,9 @@ export function App() {
     clearAll,
     clearOrphaned,
   } = useComments();
-  const { files, activeFile, switchFile, closeFile } = useFiles();
+  const { files, activeFile, switchFile, closeFile, openFile } = useFiles();
+  const { recentFiles } = useRecent();
+  const [recentOpen, setRecentOpen] = useState(false);
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {
     diffMode,
@@ -418,6 +421,32 @@ export function App() {
     await mutate('/comments');
   }
 
+  // 履歴などタブ外からファイルを開く
+  const handleOpenFile = useCallback(
+    async (path: string) => {
+      try {
+        await openFile(path);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        toast(message || 'ファイルを開けませんでした');
+      }
+    },
+    [openFile],
+  );
+
+  // ショートカット: Ctrl/Cmd+R で履歴メニューを開く（ブラウザのリロードを抑止）
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.isComposing) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        setRecentOpen((o) => !o);
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Close file
   async function handleCloseFile(path: string) {
     await closeFile(path);
@@ -491,6 +520,10 @@ export function App() {
         isConnected={isConnected}
         files={files}
         activeFile={activeFile}
+        recentFiles={recentFiles}
+        recentOpen={recentOpen}
+        onToggleRecent={setRecentOpen}
+        onOpenFile={(path) => void handleOpenFile(path)}
         onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
         onClearAll={handleClearAll}
@@ -527,6 +560,8 @@ export function App() {
             contentRef={contentRef}
             blockRefsMapRef={blockRefsMapRef}
             welcomeMsg={welcomeMsg}
+            recentFiles={recentFiles}
+            onOpenFile={(path) => void handleOpenFile(path)}
           />
         )}
       </div>

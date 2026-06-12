@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { findTextRange } from '../lib/markdown.ts';
 import { parseBlocks } from '../lib/parseBlocks.ts';
-import type { Comment } from '../types.ts';
+import type { Comment, RecentEntry } from '../types.ts';
 import styles from './ContentArea.module.css';
 import { MarkdownBlock } from './MarkdownBlock.tsx';
 
@@ -11,6 +11,8 @@ interface ContentAreaProps {
   isDarkTheme: boolean;
   highlightedBlockLs: number | null;
   welcomeMsg?: string;
+  recentFiles?: RecentEntry[];
+  onOpenFile?: (path: string) => void;
   onAddComment: (
     lineStart: number,
     lineEnd: number,
@@ -32,6 +34,8 @@ export function ContentArea({
   isDarkTheme,
   highlightedBlockLs,
   welcomeMsg = 'ファイルを読み込んでいます…',
+  recentFiles = [],
+  onOpenFile,
   onAddComment,
   onOpenDrawio,
   onClickCommentAnchor,
@@ -243,6 +247,25 @@ export function ContentArea({
             />
           </svg>
           <p id="welcome-msg">{welcomeMsg}</p>
+          {onOpenFile && recentFiles.length > 0 && (
+            <div className={styles.welcomeRecent}>
+              <div className={styles.welcomeRecentTitle}>
+                最近開いたファイル
+              </div>
+              {recentFiles.map((f) => (
+                <button
+                  type="button"
+                  key={f.path}
+                  className={styles.welcomeRecentItem}
+                  data-testid="welcome-recent-item"
+                  onClick={() => onOpenFile(f.path)}
+                >
+                  <span className={styles.welcomeRecentName}>{f.name}</span>
+                  <span className={styles.welcomeRecentDir}>{f.dir}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {!isEmpty &&

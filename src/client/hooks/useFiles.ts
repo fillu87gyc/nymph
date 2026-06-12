@@ -41,5 +41,23 @@ export function useFiles() {
     [mutate],
   );
 
-  return { files, activeFile, switchFile, closeFile };
+  // 履歴・ツリーなどタブ外からファイルを開く（タブに追加してアクティブ化）
+  const openFile = useCallback(
+    async (path: string) => {
+      const res = await fetch('/open-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+      if (!res.ok)
+        throw new Error(`ファイルを開けませんでした (${res.status})`);
+      const updated = await res.json();
+      await mutate('/files', updated, { revalidate: false });
+      await mutate('/recent');
+      await mutate('/comments');
+    },
+    [mutate],
+  );
+
+  return { files, activeFile, switchFile, closeFile, openFile };
 }

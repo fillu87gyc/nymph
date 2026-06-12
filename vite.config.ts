@@ -21,6 +21,8 @@ export default defineConfig({
       '/active-file': backendOrigin,
       '/switch-file': backendOrigin,
       '/close-file': backendOrigin,
+      '/open-file': backendOrigin,
+      '/recent': backendOrigin,
       '/edit-op': backendOrigin,
       '/version': backendOrigin,
     },

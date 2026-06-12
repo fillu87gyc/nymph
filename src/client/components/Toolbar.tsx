@@ -1,5 +1,6 @@
-import type { FileEntry } from '../types.ts';
+import type { FileEntry, RecentEntry } from '../types.ts';
 import { FileTabs } from './FileTabs.tsx';
+import { RecentMenu } from './RecentMenu.tsx';
 import styles from './Toolbar.module.css';
 
 interface ToolbarProps {
@@ -11,6 +12,10 @@ interface ToolbarProps {
   isConnected: boolean;
   files: FileEntry[];
   activeFile: string | null;
+  recentFiles: RecentEntry[];
+  recentOpen: boolean;
+  onToggleRecent: (open: boolean) => void;
+  onOpenFile: (path: string) => void;
   onTogglePanel: () => void;
   onCopyReview: () => void;
   onClearAll: () => void;
@@ -32,6 +37,10 @@ export function Toolbar({
   isConnected,
   files,
   activeFile,
+  recentFiles,
+  recentOpen,
+  onToggleRecent,
+  onOpenFile,
   onTogglePanel,
   onCopyReview,
   onClearAll,
@@ -59,6 +68,12 @@ export function Toolbar({
         </span>
       )}
       <span className="sep" />
+      <RecentMenu
+        open={recentOpen}
+        recentFiles={recentFiles}
+        onToggle={onToggleRecent}
+        onOpen={onOpenFile}
+      />
       <FileTabs
         files={files}
         activeFile={activeFile}

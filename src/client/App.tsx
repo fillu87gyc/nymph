@@ -9,6 +9,7 @@ import { ContentArea } from './components/ContentArea.tsx';
 import { DictTooltip } from './components/DictTooltip.tsx';
 import { type DiffHighlightTarget, DiffView } from './components/DiffView.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
+import { FileTree } from './components/FileTree.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
@@ -20,6 +21,7 @@ import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
+import { useTree } from './hooks/useTree.ts';
 import { ctxDisplay, isDiffContext } from './lib/comments.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
@@ -91,6 +93,7 @@ export function App() {
   const { files, activeFile, switchFile, closeFile, openFile } = useFiles();
   const { recentFiles } = useRecent();
   const [recentOpen, setRecentOpen] = useState(false);
+  const { root, rootName, tree, openDir } = useTree();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {
     diffMode,
@@ -434,6 +437,19 @@ export function App() {
     [openFile],
   );
 
+  // ディレクトリを開く（ツリーのルート切替。タブは維持）
+  const handleOpenDir = useCallback(
+    async (path: string) => {
+      try {
+        await openDir(path);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        toast(message || 'ディレクトリを開けませんでした');
+      }
+    },
+    [openDir],
+  );
+
   // ショートカット: Ctrl/Cmd+R で履歴メニューを開く（ブラウザのリロードを抑止）
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -524,6 +540,7 @@ export function App() {
         recentOpen={recentOpen}
         onToggleRecent={setRecentOpen}
         onOpenFile={(path) => void handleOpenFile(path)}
+        onOpenDir={(path) => void handleOpenDir(path)}
         onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
         onClearAll={handleClearAll}
@@ -535,35 +552,49 @@ export function App() {
         onDictSync={handleDictSync}
         isDictSyncing={isDictSyncing}
       />
-      <div id="main" className={styles.main}>
-        {diffMode ? (
-          <DiffView
-            diffData={diffData}
-            comments={comments}
-            highlightTarget={diffHighlight}
-            onAddComment={openCommentModal}
-            onClickCommentAnchor={handleClickCommentAnchor}
-          />
-        ) : (
-          <ContentArea
-            source={source}
-            comments={comments}
-            isDarkTheme={hljsTheme === 'dark'}
-            highlightedBlockLs={highlightedBlockLs}
-            onAddComment={openCommentModal}
-            onOpenDrawio={(code) => {
-              setDrawioCode(code);
-              setDrawioOpen(true);
-            }}
-            onClickCommentAnchor={handleClickCommentAnchor}
-            onOrphanedIds={setBlockOrphanIds}
-            contentRef={contentRef}
-            blockRefsMapRef={blockRefsMapRef}
-            welcomeMsg={welcomeMsg}
-            recentFiles={recentFiles}
+      <div id="main" className={root ? styles.mainRow : styles.main}>
+        {root && (
+          <FileTree
+            rootName={rootName}
+            tree={tree}
+            activeFile={activeFile}
             onOpenFile={(path) => void handleOpenFile(path)}
           />
         )}
+        <div className={root ? styles.contentCol : undefined}>
+          {diffMode ? (
+            <DiffView
+              diffData={diffData}
+              comments={comments}
+              highlightTarget={diffHighlight}
+              onAddComment={openCommentModal}
+              onClickCommentAnchor={handleClickCommentAnchor}
+            />
+          ) : (
+            <ContentArea
+              source={source}
+              comments={comments}
+              isDarkTheme={hljsTheme === 'dark'}
+              highlightedBlockLs={highlightedBlockLs}
+              onAddComment={openCommentModal}
+              onOpenDrawio={(code) => {
+                setDrawioCode(code);
+                setDrawioOpen(true);
+              }}
+              onClickCommentAnchor={handleClickCommentAnchor}
+              onOrphanedIds={setBlockOrphanIds}
+              contentRef={contentRef}
+              blockRefsMapRef={blockRefsMapRef}
+              welcomeMsg={
+                root && !activeFile
+                  ? 'ツリーからファイルを選択してください'
+                  : welcomeMsg
+              }
+              recentFiles={recentFiles}
+              onOpenFile={(path) => void handleOpenFile(path)}
+            />
+          )}
+        </div>
       </div>
       <CommentsPanel
         open={panelOpen}

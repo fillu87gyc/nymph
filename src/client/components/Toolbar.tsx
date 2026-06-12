@@ -1,5 +1,6 @@
 import type { FileEntry, RecentEntry } from '../types.ts';
 import { FileTabs } from './FileTabs.tsx';
+import { OpenDirButton } from './OpenDirButton.tsx';
 import { RecentMenu } from './RecentMenu.tsx';
 import styles from './Toolbar.module.css';
 
@@ -16,6 +17,7 @@ interface ToolbarProps {
   recentOpen: boolean;
   onToggleRecent: (open: boolean) => void;
   onOpenFile: (path: string) => void;
+  onOpenDir: (path: string) => void;
   onTogglePanel: () => void;
   onCopyReview: () => void;
   onClearAll: () => void;
@@ -41,6 +43,7 @@ export function Toolbar({
   recentOpen,
   onToggleRecent,
   onOpenFile,
+  onOpenDir,
   onTogglePanel,
   onCopyReview,
   onClearAll,
@@ -74,6 +77,7 @@ export function Toolbar({
         onToggle={onToggleRecent}
         onOpen={onOpenFile}
       />
+      <OpenDirButton onOpenDir={onOpenDir} />
       <FileTabs
         files={files}
         activeFile={activeFile}

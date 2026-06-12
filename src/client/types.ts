@@ -30,6 +30,19 @@ export interface RecentEntry {
   openedAt: string;
 }
 
+export interface TreeNode {
+  type: 'dir' | 'file';
+  name: string;
+  path: string;
+  children?: TreeNode[];
+}
+
+export interface TreeResponse {
+  root: string | null;
+  rootName?: string;
+  tree: TreeNode[];
+}
+
 export interface DiffLine {
   n: number | null;
   o: number | null;

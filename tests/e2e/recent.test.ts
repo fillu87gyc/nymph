@@ -17,7 +17,9 @@ test.describe('最近開いたファイル（ツールバー）', () => {
     await page.getByTestId('recent-menu-btn').click();
     await expect(page.getByTestId('recent-menu')).toBeVisible();
     await expect(
-      page.getByTestId('recent-item').filter({ hasText: basename(fixturePath) }),
+      page
+        .getByTestId('recent-item')
+        .filter({ hasText: basename(fixturePath) }),
     ).toBeVisible();
   });
 
@@ -70,7 +72,7 @@ test.describe('最近開いたファイル（welcome 画面）', () => {
   let tmpDir: string;
   let mdPath: string;
 
-  test.beforeAll(async ({}, workerInfo) => {
+  test.beforeAll(async ({ browserName: _browserName }, workerInfo) => {
     port = RECENT_BASE_PORT + workerInfo.workerIndex;
     tmpDir = join(
       process.cwd(),
@@ -123,17 +125,14 @@ test.describe('最近開いたファイル（welcome 画面）', () => {
 
     // SSE: 接続確立後に /open-file で開いたファイルもホットリロードされる
     writeFileSync(mdPath, '# Updated Heading\n');
-    await expect(page.locator('#content h1')).toContainText(
-      'Updated Heading',
-      { timeout: 5000 },
-    );
+    await expect(page.locator('#content h1')).toContainText('Updated Heading', {
+      timeout: 5000,
+    });
     // afterEach 相当の復元（このファイルはこのテスト専用）
     writeFileSync(mdPath, '# History File\n\nfrom recent\n');
   });
 
-  test('履歴にもルートにも無いパスへの /open-file は 403', async ({
-    page,
-  }) => {
+  test('履歴にもルートにも無いパスへの /open-file は 403', async ({ page }) => {
     const res = await page.request.post(`http://localhost:${port}/open-file`, {
       data: { path: join(process.cwd(), 'README.md') },
     });

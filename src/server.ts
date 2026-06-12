@@ -9,6 +9,7 @@ import {
   resolve,
 } from 'node:path';
 import { diffArrays } from 'diff';
+import { scanMdTree } from './fsTree.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 
 // NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
@@ -339,6 +340,41 @@ export function isUnderRoot(path: string, rootDir: string | null): boolean {
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
 }
 
+// リクエスト毎に再スキャンして起動後に増えたファイルも拾う
+// （docs ツリーの走査は ms オーダーなのでキャッシュ不要）。
+function handleTree(): Response {
+  if (!state.rootDir) return json({ root: null, tree: [] });
+  return json({
+    root: state.rootDir,
+    rootName: basename(state.rootDir),
+    tree: scanMdTree(state.rootDir),
+  });
+}
+
+// ブラウザからツリーのルートを切り替える。loopback バインドのローカル専用
+// ツールとして任意パスを許可する設計（開いているタブは維持される）。
+async function handleOpenDir(req: Request): Promise<Response> {
+  try {
+    const { path } = (await req.json()) as { path: string };
+    if (!path || typeof path !== 'string')
+      return json({ error: 'invalid path' }, 400);
+    const abs = resolve(path);
+    try {
+      if (!statSync(abs).isDirectory()) return err('Not a directory', 404);
+    } catch {
+      return err('Not found', 404);
+    }
+    state.rootDir = abs;
+    return json({
+      root: abs,
+      rootName: basename(abs),
+      tree: scanMdTree(abs),
+    });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
 function handleRecent(): Response {
   const files = listRecent().map((e) => ({
     path: e.path,
@@ -608,6 +644,7 @@ export function createServer(port: number) {
         if (path === '/diff') return handleDiff();
         if (path === '/files') return handleFiles();
         if (path === '/recent') return handleRecent();
+        if (path === '/tree') return handleTree();
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/dict') return handleGetDict();
         const staticResp = serveStatic(url);
@@ -622,6 +659,7 @@ export function createServer(port: number) {
         if (path === '/switch-file') return handleSwitchFile(req);
         if (path === '/active-file') return handleSetActiveFile(req);
         if (path === '/open-file') return handleOpenFile(req);
+        if (path === '/open-dir') return handleOpenDir(req);
         if (path === '/close-file') return handleCloseFile(req);
         if (path === '/dict/sync') return handleDictSync();
       }

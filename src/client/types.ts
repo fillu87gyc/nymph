@@ -30,6 +30,14 @@ export interface RecentEntry {
   openedAt: string;
 }
 
+export interface BookmarkEntry {
+  path: string;
+  name: string;
+  dir: string;
+  type: 'file' | 'dir';
+  addedAt: string;
+}
+
 export interface TreeNode {
   type: 'dir' | 'file';
   name: string;

@@ -13,6 +13,7 @@ import { FileTree } from './components/FileTree.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
+import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
 import { useContent } from './hooks/useContent.ts';
@@ -94,6 +95,7 @@ export function App() {
   const { recentFiles } = useRecent();
   const [recentOpen, setRecentOpen] = useState(false);
   const { root, rootName, tree, openDir } = useTree();
+  const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {
     diffMode,
@@ -450,6 +452,30 @@ export function App() {
     [openDir],
   );
 
+  // ブックマーク対象: アクティブファイル優先、なければツリーのルート dir
+  const bookmarkTarget =
+    activeFile && activeFile !== '__dropped__'
+      ? { path: activeFile, type: 'file' as const }
+      : root
+        ? { path: root, type: 'dir' as const }
+        : null;
+
+  const handleToggleBookmark = useCallback(async () => {
+    if (!bookmarkTarget) return;
+    try {
+      const added = await toggleBookmark(
+        bookmarkTarget.path,
+        bookmarkTarget.type,
+      );
+      toast(
+        added ? 'ブックマークに追加しました' : 'ブックマークを解除しました',
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      toast(message || 'ブックマークを更新できませんでした');
+    }
+  }, [bookmarkTarget, toggleBookmark]);
+
   // ショートカット: Ctrl/Cmd+R で履歴メニューを開く（ブラウザのリロードを抑止）
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -538,6 +564,10 @@ export function App() {
         activeFile={activeFile}
         recentFiles={recentFiles}
         recentOpen={recentOpen}
+        bookmarks={bookmarks}
+        bookmarkActive={isBookmarked(bookmarkTarget?.path ?? null)}
+        canBookmark={bookmarkTarget !== null}
+        onToggleBookmark={() => void handleToggleBookmark()}
         onToggleRecent={setRecentOpen}
         onOpenFile={(path) => void handleOpenFile(path)}
         onOpenDir={(path) => void handleOpenDir(path)}
@@ -591,7 +621,9 @@ export function App() {
                   : welcomeMsg
               }
               recentFiles={recentFiles}
+              bookmarks={bookmarks}
               onOpenFile={(path) => void handleOpenFile(path)}
+              onOpenDir={(path) => void handleOpenDir(path)}
             />
           )}
         </div>

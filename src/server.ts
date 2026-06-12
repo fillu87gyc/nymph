@@ -9,6 +9,11 @@ import {
   resolve,
 } from 'node:path';
 import { diffArrays } from 'diff';
+import {
+  isBookmarkedPath,
+  listBookmarks,
+  toggleBookmark,
+} from './bookmarks.ts';
 import { scanMdTree } from './fsTree.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 
@@ -385,8 +390,53 @@ function handleRecent(): Response {
   return json({ files });
 }
 
-// ブラウザから履歴・ツリー経由でファイルを開く。
-// 任意パスを開放しないよう、履歴に記録済みか rootDir 配下のみ許可する。
+function bookmarksPayload() {
+  return {
+    bookmarks: listBookmarks().map((e) => ({
+      path: e.path,
+      name: basename(e.path),
+      dir: dirname(e.path),
+      type: e.type,
+      addedAt: e.addedAt,
+    })),
+  };
+}
+
+function handleBookmarks(): Response {
+  return json(bookmarksPayload());
+}
+
+async function handleToggleBookmark(req: Request): Promise<Response> {
+  try {
+    const { path, type } = (await req.json()) as {
+      path: string;
+      type: 'file' | 'dir';
+    };
+    if (
+      !path ||
+      typeof path !== 'string' ||
+      (type !== 'file' && type !== 'dir')
+    )
+      return json({ error: 'invalid request' }, 400);
+    const abs = resolve(path);
+    try {
+      const st = statSync(abs);
+      if (type === 'file' && (!st.isFile() || !abs.endsWith('.md')))
+        return json({ error: 'invalid file' }, 400);
+      if (type === 'dir' && !st.isDirectory())
+        return json({ error: 'invalid dir' }, 400);
+    } catch {
+      return err('Not found', 404);
+    }
+    const bookmarked = toggleBookmark(abs, type);
+    return json({ bookmarked, ...bookmarksPayload() });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
+// ブラウザから履歴・ツリー・ブックマーク経由でファイルを開く。
+// 任意パスを開放しないよう、既知のパスか rootDir 配下のみ許可する。
 async function handleOpenFile(req: Request): Promise<Response> {
   try {
     const { path } = (await req.json()) as { path: string };
@@ -394,7 +444,11 @@ async function handleOpenFile(req: Request): Promise<Response> {
       return json({ error: 'invalid path' }, 400);
     const abs = resolve(path);
     if (!abs.endsWith('.md')) return err('Forbidden', 403);
-    if (!isRecentPath(abs) && !isUnderRoot(abs, state.rootDir))
+    if (
+      !isRecentPath(abs) &&
+      !isBookmarkedPath(abs) &&
+      !isUnderRoot(abs, state.rootDir)
+    )
       return err('Forbidden', 403);
     if (!existsSync(abs)) return err('Not found', 404);
 
@@ -645,6 +699,7 @@ export function createServer(port: number) {
         if (path === '/files') return handleFiles();
         if (path === '/recent') return handleRecent();
         if (path === '/tree') return handleTree();
+        if (path === '/bookmarks') return handleBookmarks();
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/dict') return handleGetDict();
         const staticResp = serveStatic(url);
@@ -660,6 +715,7 @@ export function createServer(port: number) {
         if (path === '/active-file') return handleSetActiveFile(req);
         if (path === '/open-file') return handleOpenFile(req);
         if (path === '/open-dir') return handleOpenDir(req);
+        if (path === '/bookmarks/toggle') return handleToggleBookmark(req);
         if (path === '/close-file') return handleCloseFile(req);
         if (path === '/dict/sync') return handleDictSync();
       }

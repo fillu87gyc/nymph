@@ -1,19 +1,23 @@
 import { useEffect, useRef } from 'react';
-import type { RecentEntry } from '../types.ts';
+import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import styles from './RecentMenu.module.css';
 
 interface RecentMenuProps {
   open: boolean;
   recentFiles: RecentEntry[];
+  bookmarks: BookmarkEntry[];
   onToggle: (open: boolean) => void;
   onOpen: (path: string) => void;
+  onOpenDir: (path: string) => void;
 }
 
 export function RecentMenu({
   open,
   recentFiles,
+  bookmarks,
   onToggle,
   onOpen,
+  onOpenDir,
 }: RecentMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +38,7 @@ export function RecentMenu({
         className="btn"
         data-testid="recent-menu-btn"
         data-active={String(open)}
-        title="最近開いたファイル (Ctrl+R)"
+        title="最近開いたファイルとブックマーク (Ctrl+R)"
         onClick={() => onToggle(!open)}
       >
         最近
@@ -58,6 +62,30 @@ export function RecentMenu({
             >
               <span className={styles.itemName}>{f.name}</span>
               <span className={styles.itemDir}>{f.dir}</span>
+            </button>
+          ))}
+          <div className={styles.sectionTitle}>ブックマーク</div>
+          {bookmarks.length === 0 && (
+            <div className={styles.empty}>ブックマークはありません</div>
+          )}
+          {bookmarks.map((b) => (
+            <button
+              type="button"
+              key={b.path}
+              className={styles.item}
+              data-testid="bookmark-item"
+              data-type={b.type}
+              onClick={() => {
+                onToggle(false);
+                if (b.type === 'dir') onOpenDir(b.path);
+                else onOpen(b.path);
+              }}
+            >
+              <span className={styles.itemName}>
+                {b.type === 'dir' ? '📁 ' : ''}
+                {b.name}
+              </span>
+              <span className={styles.itemDir}>{b.dir}</span>
             </button>
           ))}
         </div>

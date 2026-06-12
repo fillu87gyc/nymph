@@ -1,4 +1,4 @@
-import type { FileEntry, RecentEntry } from '../types.ts';
+import type { BookmarkEntry, FileEntry, RecentEntry } from '../types.ts';
 import { FileTabs } from './FileTabs.tsx';
 import { OpenDirButton } from './OpenDirButton.tsx';
 import { RecentMenu } from './RecentMenu.tsx';
@@ -15,6 +15,10 @@ interface ToolbarProps {
   activeFile: string | null;
   recentFiles: RecentEntry[];
   recentOpen: boolean;
+  bookmarks: BookmarkEntry[];
+  bookmarkActive: boolean;
+  canBookmark: boolean;
+  onToggleBookmark: () => void;
   onToggleRecent: (open: boolean) => void;
   onOpenFile: (path: string) => void;
   onOpenDir: (path: string) => void;
@@ -41,6 +45,10 @@ export function Toolbar({
   activeFile,
   recentFiles,
   recentOpen,
+  bookmarks,
+  bookmarkActive,
+  canBookmark,
+  onToggleBookmark,
   onToggleRecent,
   onOpenFile,
   onOpenDir,
@@ -74,10 +82,24 @@ export function Toolbar({
       <RecentMenu
         open={recentOpen}
         recentFiles={recentFiles}
+        bookmarks={bookmarks}
         onToggle={onToggleRecent}
         onOpen={onOpenFile}
+        onOpenDir={onOpenDir}
       />
       <OpenDirButton onOpenDir={onOpenDir} />
+      {canBookmark && (
+        <button
+          type="button"
+          className="btn icon"
+          data-testid="bookmark-toggle"
+          data-active={String(bookmarkActive)}
+          title={bookmarkActive ? 'ブックマークを解除' : 'ブックマークに追加'}
+          onClick={onToggleBookmark}
+        >
+          {bookmarkActive ? '★' : '☆'}
+        </button>
+      )}
       <FileTabs
         files={files}
         activeFile={activeFile}

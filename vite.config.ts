@@ -25,6 +25,7 @@ export default defineConfig({
       '/open-dir': backendOrigin,
       '/recent': backendOrigin,
       '/tree': backendOrigin,
+      '/bookmarks': backendOrigin,
       '/edit-op': backendOrigin,
       '/version': backendOrigin,
     },

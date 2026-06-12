@@ -9,11 +9,11 @@
   justify-content: center;
   gap: 10px;
   height: 60vh;
-  opacity: 0.4;
-  pointer-events: none;
 }
+/* 装飾（アイコンと文言）だけ淡くし、履歴リストは操作可能なまま残す */
 .welcome svg {
-  opacity: 0.5;
+  opacity: 0.2;
+  pointer-events: none;
 }
 .welcome p {
   font-family: "Lora", serif;
@@ -21,4 +21,45 @@
   color: var(--text-muted);
   text-align: center;
   line-height: 1.8;
+  opacity: 0.4;
+  pointer-events: none;
+}
+.welcomeRecent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(420px, 80vw);
+  margin-top: 14px;
+}
+.welcomeRecentTitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 0 8px 4px;
+}
+.welcomeRecentItem {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.welcomeRecentItem:hover {
+  background: var(--bg-hover);
+}
+.welcomeRecentName {
+  font-size: 13px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.welcomeRecentDir {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

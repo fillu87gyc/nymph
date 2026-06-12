@@ -1,19 +1,21 @@
 #!/usr/bin/env bun
-import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { Glob } from 'bun';
 import { resolvePortOverride } from './portUtils.ts';
+import { recordRecent } from './recent.ts';
 import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 
 const VERSION = '1.0.0';
 
 const HELP = `\
-使い方: nymph [オプション] [ファイル ...]
+使い方: nymph [オプション] [ファイル|ディレクトリ ...]
 
   Markdown レビューツール — ホットリロードとインラインコメント付き
 
 引数:
   ファイル ...          監視する .md ファイル（glob 対応）
+  ディレクトリ          サイドバーにツリー表示して .md を開けるようにする
 
 オプション:
   -p, --port <番号>    使用するポート番号 (デフォルト: 6276)
@@ -24,6 +26,7 @@ const HELP = `\
 例:
   nymph README.md
   nymph docs/*.md
+  nymph ./docs
   nymph -p 8080 --no-open README.md
 `;
 
@@ -192,13 +195,26 @@ async function main() {
     }
   }
 
+  let rootDir: string | null = null;
+  let hasFileArgs = false;
+
   if (fileArgs.length > 0) {
     for (const filePath of fileArgs) {
       const abs = resolve(filePath);
+      // ディレクトリ指定はツリーのルートにする（glob フォールバックより先に判定）
+      if (existsSync(abs) && statSync(abs).isDirectory()) {
+        if (rootDir) {
+          console.error('エラー: ディレクトリは1つだけ指定できます');
+          process.exit(1);
+        }
+        rootDir = abs;
+        continue;
+      }
+      hasFileArgs = true;
       if (existsSync(abs) && abs.endsWith('.md')) {
         paths.push(abs);
       } else {
-        // already-expanded glob from shell or directory
+        // already-expanded glob from shell
         const glob = new Glob(filePath);
         const expanded: string[] = [];
         for await (const f of glob.scan('.')) {
@@ -212,26 +228,33 @@ async function main() {
       }
     }
     paths = [...new Set(paths)].filter((p) => existsSync(p));
-    if (paths.length === 0) {
+    if (paths.length === 0 && hasFileArgs && !rootDir) {
       console.error('エラー: Markdownファイルが見つかりません');
       process.exit(1);
     }
   }
 
-  initState(paths);
+  recordRecent(paths);
+  initState(paths, rootDir);
 
   const port =
     resolvePortOverride(portOverride, process.env.NYMPH_PORT) ??
     (await findPort());
   const server = createServer(port);
 
-  const lockPath = paths.length > 0 ? `${paths[0]}.nymph-lock` : null;
+  const lockPath =
+    paths.length > 0
+      ? `${paths[0]}.nymph-lock`
+      : rootDir
+        ? join(rootDir, '.nymph-lock')
+        : null;
   if (lockPath) writeFileSync(lockPath, String(port));
 
   const url = `http://localhost:${port}`;
   console.log(`nymph   ${url}`);
+  if (rootDir) console.log(`ルート  ${rootDir}`);
   if (paths.length > 0) console.log(`監視中  ${paths.join(', ')}`);
-  else console.log('ファイルをブラウザにドロップして開始');
+  else if (!rootDir) console.log('ファイルをブラウザにドロップして開始');
   console.log('Ctrl+C で停止');
 
   if (!noOpen) {

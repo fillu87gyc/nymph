@@ -23,6 +23,34 @@ export interface FileEntry {
   name: string;
 }
 
+export interface RecentEntry {
+  path: string;
+  name: string;
+  dir: string;
+  openedAt: string;
+}
+
+export interface BookmarkEntry {
+  path: string;
+  name: string;
+  dir: string;
+  type: 'file' | 'dir';
+  addedAt: string;
+}
+
+export interface TreeNode {
+  type: 'dir' | 'file';
+  name: string;
+  path: string;
+  children?: TreeNode[];
+}
+
+export interface TreeResponse {
+  root: string | null;
+  rootName?: string;
+  tree: TreeNode[];
+}
+
 export interface DiffLine {
   n: number | null;
   o: number | null;

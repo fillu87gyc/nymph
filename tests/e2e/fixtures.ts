@@ -42,7 +42,10 @@ type TestFixtures = {
   nymphConfigDir: string;
 };
 
-async function pollUntilReady(url: string, timeoutMs = 20000): Promise<void> {
+export async function pollUntilReady(
+  url: string,
+  timeoutMs = 20000,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {

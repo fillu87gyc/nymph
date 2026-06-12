@@ -9,16 +9,21 @@ import { ContentArea } from './components/ContentArea.tsx';
 import { DictTooltip } from './components/DictTooltip.tsx';
 import { type DiffHighlightTarget, DiffView } from './components/DiffView.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
+import { FileTree } from './components/FileTree.tsx';
+import { QuickOpen } from './components/QuickOpen.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
+import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
 import { useContent } from './hooks/useContent.ts';
 import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useFiles } from './hooks/useFiles.ts';
+import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
+import { useTree } from './hooks/useTree.ts';
 import { ctxDisplay, isDiffContext } from './lib/comments.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
@@ -87,7 +92,12 @@ export function App() {
     clearAll,
     clearOrphaned,
   } = useComments();
-  const { files, activeFile, switchFile, closeFile } = useFiles();
+  const { files, activeFile, switchFile, closeFile, openFile } = useFiles();
+  const { recentFiles } = useRecent();
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [quickOpenOpen, setQuickOpenOpen] = useState(false);
+  const { root, rootName, tree, openDir } = useTree();
+  const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {
     diffMode,
@@ -418,6 +428,77 @@ export function App() {
     await mutate('/comments');
   }
 
+  // 履歴などタブ外からファイルを開く
+  const handleOpenFile = useCallback(
+    async (path: string) => {
+      try {
+        await openFile(path);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        toast(message || 'ファイルを開けませんでした');
+      }
+    },
+    [openFile],
+  );
+
+  // ディレクトリを開く（ツリーのルート切替。タブは維持）
+  const handleOpenDir = useCallback(
+    async (path: string) => {
+      try {
+        await openDir(path);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        toast(message || 'ディレクトリを開けませんでした');
+      }
+    },
+    [openDir],
+  );
+
+  // ブックマーク対象: アクティブファイル優先、なければツリーのルート dir
+  const bookmarkTarget =
+    activeFile && activeFile !== '__dropped__'
+      ? { path: activeFile, type: 'file' as const }
+      : root
+        ? { path: root, type: 'dir' as const }
+        : null;
+
+  const handleToggleBookmark = useCallback(async () => {
+    if (!bookmarkTarget) return;
+    try {
+      const added = await toggleBookmark(
+        bookmarkTarget.path,
+        bookmarkTarget.type,
+      );
+      toast(
+        added ? 'ブックマークに追加しました' : 'ブックマークを解除しました',
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      toast(message || 'ブックマークを更新できませんでした');
+    }
+  }, [bookmarkTarget, toggleBookmark]);
+
+  // ショートカット: Ctrl/Cmd+R で履歴メニュー、Ctrl/Cmd+P で Quick Open
+  // （ブラウザのリロード・印刷ダイアログは preventDefault で抑止）
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.isComposing) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'r') {
+        e.preventDefault();
+        setQuickOpenOpen(false);
+        setRecentOpen((o) => !o);
+      } else if (key === 'p') {
+        e.preventDefault();
+        setRecentOpen(false);
+        setQuickOpenOpen((o) => !o);
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Close file
   async function handleCloseFile(path: string) {
     await closeFile(path);
@@ -491,6 +572,15 @@ export function App() {
         isConnected={isConnected}
         files={files}
         activeFile={activeFile}
+        recentFiles={recentFiles}
+        recentOpen={recentOpen}
+        bookmarks={bookmarks}
+        bookmarkActive={isBookmarked(bookmarkTarget?.path ?? null)}
+        canBookmark={bookmarkTarget !== null}
+        onToggleBookmark={() => void handleToggleBookmark()}
+        onToggleRecent={setRecentOpen}
+        onOpenFile={(path) => void handleOpenFile(path)}
+        onOpenDir={(path) => void handleOpenDir(path)}
         onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
         onClearAll={handleClearAll}
@@ -502,33 +592,51 @@ export function App() {
         onDictSync={handleDictSync}
         isDictSyncing={isDictSyncing}
       />
-      <div id="main" className={styles.main}>
-        {diffMode ? (
-          <DiffView
-            diffData={diffData}
-            comments={comments}
-            highlightTarget={diffHighlight}
-            onAddComment={openCommentModal}
-            onClickCommentAnchor={handleClickCommentAnchor}
-          />
-        ) : (
-          <ContentArea
-            source={source}
-            comments={comments}
-            isDarkTheme={hljsTheme === 'dark'}
-            highlightedBlockLs={highlightedBlockLs}
-            onAddComment={openCommentModal}
-            onOpenDrawio={(code) => {
-              setDrawioCode(code);
-              setDrawioOpen(true);
-            }}
-            onClickCommentAnchor={handleClickCommentAnchor}
-            onOrphanedIds={setBlockOrphanIds}
-            contentRef={contentRef}
-            blockRefsMapRef={blockRefsMapRef}
-            welcomeMsg={welcomeMsg}
+      <div id="main" className={root ? styles.mainRow : styles.main}>
+        {root && (
+          <FileTree
+            rootName={rootName}
+            tree={tree}
+            activeFile={activeFile}
+            onOpenFile={(path) => void handleOpenFile(path)}
           />
         )}
+        <div className={root ? styles.contentCol : undefined}>
+          {diffMode ? (
+            <DiffView
+              diffData={diffData}
+              comments={comments}
+              highlightTarget={diffHighlight}
+              onAddComment={openCommentModal}
+              onClickCommentAnchor={handleClickCommentAnchor}
+            />
+          ) : (
+            <ContentArea
+              source={source}
+              comments={comments}
+              isDarkTheme={hljsTheme === 'dark'}
+              highlightedBlockLs={highlightedBlockLs}
+              onAddComment={openCommentModal}
+              onOpenDrawio={(code) => {
+                setDrawioCode(code);
+                setDrawioOpen(true);
+              }}
+              onClickCommentAnchor={handleClickCommentAnchor}
+              onOrphanedIds={setBlockOrphanIds}
+              contentRef={contentRef}
+              blockRefsMapRef={blockRefsMapRef}
+              welcomeMsg={
+                root && !activeFile
+                  ? 'ツリーからファイルを選択してください'
+                  : welcomeMsg
+              }
+              recentFiles={recentFiles}
+              bookmarks={bookmarks}
+              onOpenFile={(path) => void handleOpenFile(path)}
+              onOpenDir={(path) => void handleOpenDir(path)}
+            />
+          )}
+        </div>
       </div>
       <CommentsPanel
         open={panelOpen}
@@ -573,6 +681,16 @@ export function App() {
           onComment={handleSelectionComment}
         />
       )}
+      <QuickOpen
+        open={quickOpenOpen}
+        tabs={files}
+        recentFiles={recentFiles}
+        bookmarks={bookmarks}
+        tree={tree}
+        onClose={() => setQuickOpenOpen(false)}
+        onOpenFile={(path) => void handleOpenFile(path)}
+        onOpenDir={(path) => void handleOpenDir(path)}
+      />
       <DictTooltip entry={dictTooltipEntry} anchorRect={dictTooltipRect} />
       {anchorPopup &&
         createPortal(

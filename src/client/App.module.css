@@ -7,6 +7,17 @@
   flex: 1;
   overflow-y: auto;
 }
+/* ディレクトリモード: サイドバー + コンテンツ列の 2 カラム */
+.mainRow {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.contentCol {
+  flex: 1;
+  overflow-y: auto;
+}
 .dropOverlay {
   display: flex;
   position: fixed;

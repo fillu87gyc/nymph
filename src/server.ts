@@ -1,7 +1,21 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from 'node:path';
 import { diffArrays } from 'diff';
+import {
+  isBookmarkedPath,
+  listBookmarks,
+  toggleBookmark,
+} from './bookmarks.ts';
+import { scanMdTree } from './fsTree.ts';
+import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 
 // NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
 // 省略時は process.cwd()/.nymph を使う（E2E ワーカー分離に対応）。
@@ -32,6 +46,7 @@ interface State {
   cachedContent: string | null;
   droppedContent: string | null;
   droppedName: string | null;
+  rootDir: string | null;
 }
 
 const state: State = {
@@ -41,6 +56,7 @@ const state: State = {
   cachedContent: null,
   droppedContent: null,
   droppedName: null,
+  rootDir: null,
 };
 
 // checkpoint はサーバーを再起動しても diff（と差分コメント）が意味を保つよう、
@@ -49,12 +65,14 @@ function checkpointPath(file: string): string {
   return `${file}.checkpoint`;
 }
 
-export function initState(paths: string[]) {
+export function initState(paths: string[], rootDir: string | null = null) {
   state.filePaths = paths;
-  if (paths.length > 0) {
-    state.activeFile = paths[0];
-    state.commentsPath = `${paths[0]}.comments.json`;
-  }
+  state.activeFile = paths[0] ?? null;
+  state.commentsPath = paths.length > 0 ? `${paths[0]}.comments.json` : null;
+  state.cachedContent = null;
+  state.droppedContent = null;
+  state.droppedName = null;
+  state.rootDir = rootDir;
 }
 
 function activePaths(): string[] {
@@ -76,6 +94,10 @@ function err(msg: string, status = 500): Response {
   return new Response(msg, { status });
 }
 
+// クライアントに最後に配信した mtime。SSE 接続後に /open-file で増えた
+// ファイルの監視ベースラインに使う（接続時スナップショットに無いため）。
+const servedMtimes = new Map<string, number>();
+
 function handleContent(url: URL): Response {
   const fileParam = url.searchParams.get('file');
   const allowed = new Set(activePaths());
@@ -87,10 +109,12 @@ function handleContent(url: URL): Response {
     if (target) {
       const text = readFileSync(target, 'utf-8');
       state.cachedContent = text;
+      const mtime = statSync(target).mtimeMs;
+      servedMtimes.set(target, mtime);
       return json({
         content: text,
         filename: basename(target),
-        mtime: statSync(target).mtimeMs,
+        mtime,
       });
     }
     if (state.droppedContent !== null) {
@@ -107,11 +131,10 @@ function handleContent(url: URL): Response {
 }
 
 function handleWatch(): Response {
-  const paths = activePaths();
   const dictPath = DICT_JSON_PATH;
   const encoder = new TextEncoder();
   const mtimes = new Map<string, number>();
-  for (const p of paths) {
+  for (const p of activePaths()) {
     try {
       mtimes.set(p, statSync(p).mtimeMs);
     } catch {
@@ -131,10 +154,13 @@ function handleWatch(): Response {
   const stream = new ReadableStream({
     start(ctrl) {
       timer = setInterval(() => {
-        for (const p of paths) {
+        // 接続後に /open-file で増えたファイルも監視できるよう毎回取得する。
+        // 初見のパスは配信済み mtime をベースラインにし、配信後〜初回 tick の間の
+        // 書き込みを取りこぼさない（未配信なら記録のみで発火しない）。
+        for (const p of activePaths()) {
           try {
             const mtime = statSync(p).mtimeMs;
-            const prev = mtimes.get(p);
+            const prev = mtimes.get(p) ?? servedMtimes.get(p);
             if (prev !== undefined && mtime !== prev) {
               ctrl.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ file: p })}\n\n`),
@@ -305,6 +331,134 @@ async function handleCloseFile(req: Request): Promise<Response> {
     return json({
       activeFile: state.activeFile,
       files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
+    });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
+// path が rootDir の内側（rootDir 自身は除く）かどうか。
+// relative() が正規化するので `..` を含む traversal も弾ける。
+export function isUnderRoot(path: string, rootDir: string | null): boolean {
+  if (!rootDir) return false;
+  const rel = relative(rootDir, path);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+// リクエスト毎に再スキャンして起動後に増えたファイルも拾う
+// （docs ツリーの走査は ms オーダーなのでキャッシュ不要）。
+function handleTree(): Response {
+  if (!state.rootDir) return json({ root: null, tree: [] });
+  return json({
+    root: state.rootDir,
+    rootName: basename(state.rootDir),
+    tree: scanMdTree(state.rootDir),
+  });
+}
+
+// ブラウザからツリーのルートを切り替える。loopback バインドのローカル専用
+// ツールとして任意パスを許可する設計（開いているタブは維持される）。
+async function handleOpenDir(req: Request): Promise<Response> {
+  try {
+    const { path } = (await req.json()) as { path: string };
+    if (!path || typeof path !== 'string')
+      return json({ error: 'invalid path' }, 400);
+    const abs = resolve(path);
+    try {
+      if (!statSync(abs).isDirectory()) return err('Not a directory', 404);
+    } catch {
+      return err('Not found', 404);
+    }
+    state.rootDir = abs;
+    return json({
+      root: abs,
+      rootName: basename(abs),
+      tree: scanMdTree(abs),
+    });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
+function handleRecent(): Response {
+  const files = listRecent().map((e) => ({
+    path: e.path,
+    name: basename(e.path),
+    dir: dirname(e.path),
+    openedAt: e.openedAt,
+  }));
+  return json({ files });
+}
+
+function bookmarksPayload() {
+  return {
+    bookmarks: listBookmarks().map((e) => ({
+      path: e.path,
+      name: basename(e.path),
+      dir: dirname(e.path),
+      type: e.type,
+      addedAt: e.addedAt,
+    })),
+  };
+}
+
+function handleBookmarks(): Response {
+  return json(bookmarksPayload());
+}
+
+async function handleToggleBookmark(req: Request): Promise<Response> {
+  try {
+    const { path, type } = (await req.json()) as {
+      path: string;
+      type: 'file' | 'dir';
+    };
+    if (
+      !path ||
+      typeof path !== 'string' ||
+      (type !== 'file' && type !== 'dir')
+    )
+      return json({ error: 'invalid request' }, 400);
+    const abs = resolve(path);
+    try {
+      const st = statSync(abs);
+      if (type === 'file' && (!st.isFile() || !abs.endsWith('.md')))
+        return json({ error: 'invalid file' }, 400);
+      if (type === 'dir' && !st.isDirectory())
+        return json({ error: 'invalid dir' }, 400);
+    } catch {
+      return err('Not found', 404);
+    }
+    const bookmarked = toggleBookmark(abs, type);
+    return json({ bookmarked, ...bookmarksPayload() });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
+// ブラウザから履歴・ツリー・ブックマーク経由でファイルを開く。
+// 任意パスを開放しないよう、既知のパスか rootDir 配下のみ許可する。
+async function handleOpenFile(req: Request): Promise<Response> {
+  try {
+    const { path } = (await req.json()) as { path: string };
+    if (!path || typeof path !== 'string')
+      return json({ error: 'invalid path' }, 400);
+    const abs = resolve(path);
+    if (!abs.endsWith('.md')) return err('Forbidden', 403);
+    if (
+      !isRecentPath(abs) &&
+      !isBookmarkedPath(abs) &&
+      !isUnderRoot(abs, state.rootDir)
+    )
+      return err('Forbidden', 403);
+    if (!existsSync(abs)) return err('Not found', 404);
+
+    if (!state.filePaths.includes(abs)) state.filePaths.push(abs);
+    state.activeFile = abs;
+    state.commentsPath = `${abs}.comments.json`;
+    recordRecent([abs]);
+    return json({
+      files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
+      activeFile: state.activeFile,
     });
   } catch (e) {
     return err(String(e));
@@ -543,6 +697,9 @@ export function createServer(port: number) {
         if (path === '/comments') return handleGetComments(url);
         if (path === '/diff') return handleDiff();
         if (path === '/files') return handleFiles();
+        if (path === '/recent') return handleRecent();
+        if (path === '/tree') return handleTree();
+        if (path === '/bookmarks') return handleBookmarks();
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/dict') return handleGetDict();
         const staticResp = serveStatic(url);
@@ -556,6 +713,9 @@ export function createServer(port: number) {
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/switch-file') return handleSwitchFile(req);
         if (path === '/active-file') return handleSetActiveFile(req);
+        if (path === '/open-file') return handleOpenFile(req);
+        if (path === '/open-dir') return handleOpenDir(req);
+        if (path === '/bookmarks/toggle') return handleToggleBookmark(req);
         if (path === '/close-file') return handleCloseFile(req);
         if (path === '/dict/sync') return handleDictSync();
       }

@@ -45,7 +45,10 @@
   gap: 10px;
   width: 100%;
   padding: 6px 10px;
+  border: none;
   border-radius: 6px;
+  background: none;
+  font-family: inherit;
   text-align: left;
   cursor: pointer;
 }

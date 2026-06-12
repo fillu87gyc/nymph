@@ -88,6 +88,16 @@ test.describe('最近開いたファイル（welcome 画面）', () => {
         entries: [{ path: mdPath, openedAt: new Date().toISOString() }],
       }),
     );
+    // welcome 画面のブックマークセクション検証用
+    writeFileSync(
+      join(tmpDir, 'xdg', 'nymph', 'bookmarks.json'),
+      JSON.stringify({
+        version: 1,
+        entries: [
+          { path: mdPath, type: 'file', addedAt: new Date().toISOString() },
+        ],
+      }),
+    );
 
     proc = spawn('bun', ['src/cli.ts', '-p', String(port)], {
       env: {
@@ -108,6 +118,17 @@ test.describe('最近開いたファイル（welcome 画面）', () => {
       new Promise<void>((r) => setTimeout(r, 5000)),
     ]);
     rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  // 注意: 後続のテストがファイルを開くと welcome 画面は出なくなるため、
+  // welcome 表示の検証を最初に行う。
+  test('welcome 画面にブックマークも表示される', async ({ page }) => {
+    await page.goto(`http://localhost:${port}/`);
+    await expect(
+      page
+        .getByTestId('welcome-bookmark-item')
+        .filter({ hasText: 'history.md' }),
+    ).toBeVisible();
   });
 
   test('welcome 画面に履歴が表示され、クリックで開ける（開いた後のホットリロード含む）', async ({

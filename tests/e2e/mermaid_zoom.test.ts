@@ -83,6 +83,30 @@ test.describe('mermaid 拡大モーダルのサイズ', () => {
     expect(scaleUnchanged).toBe(scaleAfterZoomIn);
   });
 
+  test('大きい viewBox の図は縮小コンテナに収まらず実寸で表示される', async ({
+    page,
+  }) => {
+    // mermaid は SVG に width="100%" を付与するため、モーダルの shrink-to-fit
+    // コンテナ（display: inline-block）内では幅が解決できず、ブラウザの
+    // 既定サイズ（300x150 相当）に縮小されてしまう回帰がかつてあった。
+    // viewBox を大きい値に差し替えて、モーダル内 SVG が viewBox 由来の
+    // 実寸（縦横比含む）で表示されることを確認する。
+    await page
+      .locator('[data-testid="mermaid-area"] svg')
+      .first()
+      .evaluate((svg) => svg.setAttribute('viewBox', '0 0 4000 800'));
+
+    await page.locator('[data-testid="mermaid-area"]').first().click();
+    await expect(page.locator('#mermaid-zoom-modal')).toBeVisible();
+
+    const rect = await page
+      .locator('#mermaid-zoom-area svg')
+      .first()
+      .evaluate((el) => el.getBoundingClientRect());
+    expect(rect.width).toBeGreaterThan(1000);
+    expect(rect.height / rect.width).toBeCloseTo(800 / 4000, 1);
+  });
+
   test('モーダルを再度開くとサイズがリセットされる', async ({ page }) => {
     await page.locator('[data-testid="mermaid-area"]').first().click();
     const area = page.locator('#mermaid-zoom-area');

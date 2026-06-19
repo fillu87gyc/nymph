@@ -10,6 +10,7 @@ import { DictTooltip } from './components/DictTooltip.tsx';
 import { type DiffHighlightTarget, DiffView } from './components/DiffView.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
 import { FileTree } from './components/FileTree.tsx';
+import { MermaidZoomModal } from './components/MermaidZoomModal.tsx';
 import { QuickOpen } from './components/QuickOpen.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
@@ -81,6 +82,8 @@ export function App() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [drawioOpen, setDrawioOpen] = useState(false);
   const [drawioCode, setDrawioCode] = useState<string | null>(null);
+  const [mermaidZoomOpen, setMermaidZoomOpen] = useState(false);
+  const [mermaidZoomHtml, setMermaidZoomHtml] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
@@ -621,6 +624,10 @@ export function App() {
                 setDrawioCode(code);
                 setDrawioOpen(true);
               }}
+              onOpenMermaidZoom={(html) => {
+                setMermaidZoomHtml(html);
+                setMermaidZoomOpen(true);
+              }}
               onClickCommentAnchor={handleClickCommentAnchor}
               onOrphanedIds={setBlockOrphanIds}
               contentRef={contentRef}
@@ -674,6 +681,14 @@ export function App() {
           setDrawioCode(null);
         }}
         onToast={toast}
+      />
+      <MermaidZoomModal
+        open={mermaidZoomOpen}
+        html={mermaidZoomHtml}
+        onClose={() => {
+          setMermaidZoomOpen(false);
+          setMermaidZoomHtml(null);
+        }}
       />
       {!diffMode && (
         <SelectionPopup

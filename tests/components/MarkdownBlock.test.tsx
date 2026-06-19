@@ -25,6 +25,7 @@ function makeProps(
     highlighted: false,
     onAddComment: vi.fn(),
     onOpenDrawio: vi.fn(),
+    onOpenMermaidZoom: vi.fn(),
     onRef: vi.fn(),
     ...overrides,
   };
@@ -242,5 +243,19 @@ describe('mermaid ブロック', () => {
       <MarkdownBlock {...makeProps({ block: makeMermaidBlock() })} />,
     );
     expect(container.querySelector('#mermaid-1')).toBeInTheDocument();
+  });
+
+  test('mermaid-area クリックで onOpenMermaidZoom が描画済み内容を引数に呼ばれる', async () => {
+    const onOpenMermaidZoom = vi.fn();
+    const { container } = render(
+      <MarkdownBlock
+        {...makeProps({ block: makeMermaidBlock(), onOpenMermaidZoom })}
+      />,
+    );
+    await userEvent.click(
+      container.querySelector('[data-testid="mermaid-area"]') as HTMLElement,
+    );
+    expect(onOpenMermaidZoom).toHaveBeenCalledOnce();
+    expect(onOpenMermaidZoom.mock.calls[0][0]).toContain('graph TD');
   });
 });

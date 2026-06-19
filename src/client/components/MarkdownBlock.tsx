@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { Comment } from '../types.ts';
@@ -19,6 +19,7 @@ interface MarkdownBlockProps {
   highlighted: boolean;
   onAddComment: AddCommentCb;
   onOpenDrawio: (code: string) => void;
+  onOpenMermaidZoom: (html: string) => void;
   onRef: (key: string, el: HTMLElement | null) => void;
 }
 
@@ -67,12 +68,19 @@ export function MarkdownBlock({
   highlighted,
   onAddComment,
   onOpenDrawio,
+  onOpenMermaidZoom,
   onRef,
 }: MarkdownBlockProps) {
   const refCallback = useCallback(
     (el: HTMLElement | null) => onRef(block.key, el),
     [block.key, onRef],
   );
+  const mermaidAreaRef = useRef<HTMLDivElement | null>(null);
+
+  const handleMermaidZoom = useCallback(() => {
+    const html = mermaidAreaRef.current?.querySelector('.mermaid')?.innerHTML;
+    if (html) onOpenMermaidZoom(html);
+  }, [onOpenMermaidZoom]);
 
   const showPlusButton = block.type === 'table' || block.type === 'mermaid';
 
@@ -124,7 +132,13 @@ export function MarkdownBlock({
               → draw.io
             </button>
           </div>
-          <div className={styles.mermaidArea}>
+          <div
+            ref={mermaidAreaRef}
+            className={styles.mermaidArea}
+            data-testid="mermaid-area"
+            title="クリックで拡大表示"
+            onClick={handleMermaidZoom}
+          >
             <StableContent
               html={block.html}
               type={block.type}

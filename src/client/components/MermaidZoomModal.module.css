@@ -34,18 +34,17 @@
   color: var(--text);
   flex: 1;
 }
+.hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 .area {
   flex: 1;
   overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 24px;
+  text-align: center;
 }
-/* mermaid が付与する inline style="max-width:...px" を上書きし、box 内に収める */
-.area svg {
-  max-width: 100% !important;
-  max-height: calc(70vh - 80px) !important;
-  width: auto;
-  height: auto;
+.scaleWrap {
+  display: inline-block;
+  transform-origin: center center;
 }

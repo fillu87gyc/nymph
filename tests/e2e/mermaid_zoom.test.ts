@@ -40,3 +40,68 @@ test.describe('mermaid 拡大モーダルの開閉', () => {
     await expect(page.locator('#mermaid-zoom-modal')).not.toBeVisible();
   });
 });
+
+test.describe('mermaid 拡大モーダルのサイズ', () => {
+  test('デフォルトは拡大・縮小なし（scale(1)）で表示される', async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="mermaid-area"]').first().click();
+    await expect(page.locator('#mermaid-zoom-modal')).toBeVisible();
+
+    const transform = await page
+      .locator('#mermaid-zoom-scale')
+      .evaluate((el) => getComputedStyle(el).transform);
+    expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(transform);
+  });
+
+  test('Ctrl+スクロールで拡大・縮小できる', async ({ page }) => {
+    await page.locator('[data-testid="mermaid-area"]').first().click();
+    await expect(page.locator('#mermaid-zoom-modal')).toBeVisible();
+
+    const area = page.locator('#mermaid-zoom-area');
+    const box = await area.boundingBox();
+    if (!box) throw new Error('area bounding box not found');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+    await page.keyboard.down('Control');
+    for (let i = 0; i < 5; i++) {
+      await page.mouse.wheel(0, -100);
+    }
+    await page.keyboard.up('Control');
+
+    const scaleAfterZoomIn = await page
+      .locator('#mermaid-zoom-scale')
+      .evaluate((el) => getComputedStyle(el).transform);
+    expect(scaleAfterZoomIn).not.toBe('matrix(1, 0, 0, 1, 0, 0)');
+    expect(scaleAfterZoomIn).not.toBe('none');
+
+    // ctrl なしのスクロールは拡大に影響しない
+    await page.mouse.wheel(0, -100);
+    const scaleUnchanged = await page
+      .locator('#mermaid-zoom-scale')
+      .evaluate((el) => getComputedStyle(el).transform);
+    expect(scaleUnchanged).toBe(scaleAfterZoomIn);
+  });
+
+  test('モーダルを再度開くとサイズがリセットされる', async ({ page }) => {
+    await page.locator('[data-testid="mermaid-area"]').first().click();
+    const area = page.locator('#mermaid-zoom-area');
+    const box = await area.boundingBox();
+    if (!box) throw new Error('area bounding box not found');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
+
+    await page.locator('#btn-close-mermaid-zoom').click();
+    await expect(page.locator('#mermaid-zoom-modal')).not.toBeVisible();
+
+    await page.locator('[data-testid="mermaid-area"]').first().click();
+    await expect(page.locator('#mermaid-zoom-modal')).toBeVisible();
+    const transform = await page
+      .locator('#mermaid-zoom-scale')
+      .evaluate((el) => getComputedStyle(el).transform);
+    expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(transform);
+  });
+});

@@ -39,6 +39,14 @@ test.describe('mermaid 拡大モーダルの開閉', () => {
       .click({ position: { x: 5, y: 5 } });
     await expect(page.locator('#mermaid-zoom-modal')).not.toBeVisible();
   });
+
+  test('Escape キーでモーダルが閉じる', async ({ page }) => {
+    await page.locator('[data-testid="mermaid-area"]').first().click();
+    await expect(page.locator('#mermaid-zoom-modal')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#mermaid-zoom-modal')).not.toBeVisible();
+  });
 });
 
 test.describe('mermaid 拡大モーダルのサイズ', () => {

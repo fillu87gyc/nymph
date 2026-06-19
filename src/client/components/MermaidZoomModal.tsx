@@ -25,6 +25,15 @@ export function MermaidZoomModal({
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
+  useEffect(() => {
     const area = areaRef.current;
     if (!area || !open) return;
     // ブラウザのページズームと競合させないため、React の onWheel（passive）

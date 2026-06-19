@@ -9,10 +9,8 @@
   backdrop-filter: blur(2px);
 }
 .box {
-  width: auto;
-  height: auto;
-  max-width: 70vw;
-  max-height: 70vh;
+  width: 96vw;
+  height: 96vh;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: 10px;

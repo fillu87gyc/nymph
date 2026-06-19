@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { esc } from '../lib/markdown.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { Comment } from '../types.ts';
@@ -19,6 +19,7 @@ interface MarkdownBlockProps {
   highlighted: boolean;
   onAddComment: AddCommentCb;
   onOpenDrawio: (code: string) => void;
+  onOpenMermaidZoom: (html: string) => void;
   onRef: (key: string, el: HTMLElement | null) => void;
 }
 
@@ -67,12 +68,31 @@ export function MarkdownBlock({
   highlighted,
   onAddComment,
   onOpenDrawio,
+  onOpenMermaidZoom,
   onRef,
 }: MarkdownBlockProps) {
   const refCallback = useCallback(
     (el: HTMLElement | null) => onRef(block.key, el),
     [block.key, onRef],
   );
+  const mermaidAreaRef = useRef<HTMLDivElement | null>(null);
+
+  const handleMermaidZoom = useCallback(() => {
+    const svg = mermaidAreaRef.current?.querySelector('.mermaid svg');
+    if (!svg) return;
+    // mermaid は width="100%" を付与し、表示中の（狭い）コンテナ幅に合わせて縮小
+    // 表示している。モーダルではコンテナ幅に関わらず viewBox 由来の実寸で
+    // 表示したいので、クローンに明示的な width/height（px）を入れ直す。
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    const viewBox = clone.getAttribute('viewBox');
+    const dims = viewBox?.split(/\s+/).map(Number);
+    if (dims && dims.length === 4 && dims[2] > 0 && dims[3] > 0) {
+      clone.setAttribute('width', String(dims[2]));
+      clone.setAttribute('height', String(dims[3]));
+      clone.style.maxWidth = 'none';
+    }
+    onOpenMermaidZoom(clone.outerHTML);
+  }, [onOpenMermaidZoom]);
 
   const showPlusButton = block.type === 'table' || block.type === 'mermaid';
 
@@ -124,7 +144,13 @@ export function MarkdownBlock({
               → draw.io
             </button>
           </div>
-          <div className={styles.mermaidArea}>
+          <div
+            ref={mermaidAreaRef}
+            className={styles.mermaidArea}
+            data-testid="mermaid-area"
+            title="クリックで拡大表示"
+            onClick={handleMermaidZoom}
+          >
             <StableContent
               html={block.html}
               type={block.type}

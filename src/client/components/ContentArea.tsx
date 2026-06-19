@@ -24,6 +24,7 @@ interface ContentAreaProps {
     selectionOffset: number | null,
   ) => void;
   onOpenDrawio: (code: string) => void;
+  onOpenMermaidZoom: (html: string) => void;
   onClickCommentAnchor: (c: Comment, x: number, y: number) => void;
   onOrphanedIds?: (ids: Set<number>) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
@@ -42,6 +43,7 @@ export function ContentArea({
   onOpenDir,
   onAddComment,
   onOpenDrawio,
+  onOpenMermaidZoom,
   onClickCommentAnchor,
   onOrphanedIds,
   contentRef,
@@ -304,6 +306,7 @@ export function ContentArea({
             highlighted={highlightedBlockLs === block.lineStart}
             onAddComment={onAddComment}
             onOpenDrawio={onOpenDrawio}
+            onOpenMermaidZoom={onOpenMermaidZoom}
             onRef={handleRef}
           />
         ))}

@@ -25,6 +25,7 @@ function makeProps(
     highlighted: false,
     onAddComment: vi.fn(),
     onOpenDrawio: vi.fn(),
+    onOpenMermaidZoom: vi.fn(),
     onRef: vi.fn(),
     ...overrides,
   };
@@ -242,5 +243,40 @@ describe('mermaid ブロック', () => {
       <MarkdownBlock {...makeProps({ block: makeMermaidBlock() })} />,
     );
     expect(container.querySelector('#mermaid-1')).toBeInTheDocument();
+  });
+
+  test('mermaid-area クリックで onOpenMermaidZoom が viewBox 由来の width/height 付き SVG を引数に呼ばれる', async () => {
+    const onOpenMermaidZoom = vi.fn();
+    const { container } = render(
+      <MarkdownBlock
+        {...makeProps({ block: makeMermaidBlock(), onOpenMermaidZoom })}
+      />,
+    );
+    // 実際は mermaid.run() が #mermaid-1 の innerHTML を SVG に置き換える。
+    // jsdom では mermaid を実行しないため、その結果を模したダミー SVG を注入する。
+    const mermaidDiv = container.querySelector('#mermaid-1') as HTMLElement;
+    mermaidDiv.innerHTML =
+      '<svg viewBox="0 0 800 200" width="100%" style="max-width: 800px;"></svg>';
+
+    await userEvent.click(
+      container.querySelector('[data-testid="mermaid-area"]') as HTMLElement,
+    );
+    expect(onOpenMermaidZoom).toHaveBeenCalledOnce();
+    const html = onOpenMermaidZoom.mock.calls[0][0] as string;
+    expect(html).toContain('width="800"');
+    expect(html).toContain('height="200"');
+  });
+
+  test('mermaid-area クリック時に SVG が無ければ onOpenMermaidZoom は呼ばれない', async () => {
+    const onOpenMermaidZoom = vi.fn();
+    const { container } = render(
+      <MarkdownBlock
+        {...makeProps({ block: makeMermaidBlock(), onOpenMermaidZoom })}
+      />,
+    );
+    await userEvent.click(
+      container.querySelector('[data-testid="mermaid-area"]') as HTMLElement,
+    );
+    expect(onOpenMermaidZoom).not.toHaveBeenCalled();
   });
 });

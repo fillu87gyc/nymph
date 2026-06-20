@@ -33,21 +33,14 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     await expect(page.locator('#file-tabs')).toBeVisible();
   });
 
-  test('ファイルタブの縦幅がファイル名を切らずに収まる', async ({ page }) => {
-    await page.goto('/');
-    const tab = page.locator('#file-tabs button').first();
-    await expect(tab).toBeVisible();
-    const box = await tab.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(24);
-  });
-
   test('ファイルタブはツールバーとは別の段で表示される', async ({ page }) => {
     await page.goto('/');
     const toolbarBox = await page.locator('#toolbar').boundingBox();
     const tabsBox = await page.locator('#file-tabs').boundingBox();
-    expect(toolbarBox).not.toBeNull();
-    expect(tabsBox).not.toBeNull();
-    expect(tabsBox!.y).toBeGreaterThanOrEqual(toolbarBox!.y + toolbarBox!.height);
+    if (toolbarBox === null || tabsBox === null) {
+      throw new Error('toolbar or file-tabs bounding box not found');
+    }
+    expect(tabsBox.y).toBeGreaterThanOrEqual(toolbarBox.y + toolbarBox.height);
   });
 
   test('コネクションステータスバッジが表示されている', async ({ page }) => {

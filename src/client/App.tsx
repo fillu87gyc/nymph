@@ -9,6 +9,7 @@ import { ContentArea } from './components/ContentArea.tsx';
 import { DictTooltip } from './components/DictTooltip.tsx';
 import { type DiffHighlightTarget, DiffView } from './components/DiffView.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
+import { FileTabs } from './components/FileTabs.tsx';
 import { FileTree } from './components/FileTree.tsx';
 import { MermaidZoomModal } from './components/MermaidZoomModal.tsx';
 import { QuickOpen } from './components/QuickOpen.tsx';
@@ -584,8 +585,6 @@ export function App() {
         diffMode={diffMode}
         checkpointSet={checkpointSet}
         isConnected={isConnected}
-        files={files}
-        activeFile={activeFile}
         recentFiles={recentFiles}
         recentOpen={recentOpen}
         bookmarks={bookmarks}
@@ -601,10 +600,14 @@ export function App() {
         onCheckpoint={handleCheckpoint}
         onToggleDiff={toggleDiff}
         onToggleTheme={handleToggleTheme}
-        onSwitchFile={handleSwitchFile}
-        onCloseFile={handleCloseFile}
         onDictSync={handleDictSync}
         isDictSyncing={isDictSyncing}
+      />
+      <FileTabs
+        files={files}
+        activeFile={activeFile}
+        onSwitch={handleSwitchFile}
+        onClose={handleCloseFile}
       />
       <div id="main" className={root ? styles.mainRow : styles.main}>
         {root && (

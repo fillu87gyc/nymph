@@ -41,6 +41,15 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(24);
   });
 
+  test('ファイルタブはツールバーとは別の段で表示される', async ({ page }) => {
+    await page.goto('/');
+    const toolbarBox = await page.locator('#toolbar').boundingBox();
+    const tabsBox = await page.locator('#file-tabs').boundingBox();
+    expect(toolbarBox).not.toBeNull();
+    expect(tabsBox).not.toBeNull();
+    expect(tabsBox!.y).toBeGreaterThanOrEqual(toolbarBox!.y + toolbarBox!.height);
+  });
+
   test('コネクションステータスバッジが表示されている', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#connection-status')).toBeVisible();

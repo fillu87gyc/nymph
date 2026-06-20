@@ -101,6 +101,81 @@ test.describe('コメントの編集', () => {
   });
 });
 
+test.describe('コメント窓の位置・操作性', () => {
+  test('コメント窓は固定位置ではなく＋ボタンの直下に表示される', async ({
+    page,
+  }) => {
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    const btn = tableBlock.locator('[data-testid="comment-btn"]');
+    const btnBox = await btn.boundingBox();
+    if (!btnBox) throw new Error('comment-btn not found');
+    await btn.click();
+
+    const modalBox = await page.locator('#comment-modal').boundingBox();
+    if (!modalBox) throw new Error('comment-modal not found');
+
+    // 右上固定（top: 54px 付近）ではなく、クリックした＋ボタンの近く（下方）に出る
+    expect(modalBox.y).toBeGreaterThan(btnBox.y);
+    expect(Math.abs(modalBox.y - 54)).toBeGreaterThan(20);
+  });
+
+  test('コメント窓を表示していても背後のコンテンツをスクロールできる', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 800, height: 400 });
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await expect(page.locator('#comment-modal')).toBeVisible();
+
+    const main = page.locator('#main');
+    const modalBox = await page.locator('#comment-modal').boundingBox();
+    if (!modalBox) throw new Error('comment-modal not found');
+
+    // モーダルに重ならない位置にマウスを置いてホイールスクロール
+    const wheelX = modalBox.x > 100 ? 20 : 780;
+    const before = await main.evaluate((el) => el.scrollTop);
+    await page.mouse.move(wheelX, 380);
+    await page.mouse.wheel(0, 400);
+    await expect
+      .poll(() => main.evaluate((el) => el.scrollTop))
+      .toBeGreaterThan(before);
+  });
+
+  test('ヘッダーをドラッグするとコメント窓を移動できる', async ({ page }) => {
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+
+    const modal = page.locator('#comment-modal');
+    const before = await modal.boundingBox();
+    if (!before) throw new Error('comment-modal not found');
+
+    const head = page.locator('#modal-line');
+    const headBox = await head.boundingBox();
+    if (!headBox) throw new Error('modal-line not found');
+
+    const startX = headBox.x + headBox.width / 2;
+    const startY = headBox.y + headBox.height / 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 80, startY + 60, { steps: 10 });
+    await page.mouse.up();
+
+    const after = await modal.boundingBox();
+    if (!after) throw new Error('comment-modal not found');
+    expect(after.x).toBeCloseTo(before.x + 80, 0);
+    expect(after.y).toBeCloseTo(before.y + 60, 0);
+  });
+});
+
 test.describe('コメント削除モーダル', () => {
   test('ゴミ箱アイコン → モーダルが開く', async ({ page }) => {
     await addComment(page, 'comment 1');

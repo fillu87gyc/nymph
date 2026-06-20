@@ -24,7 +24,7 @@ function Wrapper({
 }: {
   comments: Comment[];
   orphanedIds?: Set<number>;
-  onEdit?: (c: Comment) => void;
+  onEdit?: (c: Comment, x: number, y: number) => void;
   onDelete?: (id: number) => void;
 }) {
   return (
@@ -71,7 +71,11 @@ describe('CommentsPanel', () => {
     const c = makeComment();
     render(<Wrapper comments={[c]} onEdit={onEdit} />);
     await userEvent.click(screen.getByTitle('編集'));
-    expect(onEdit).toHaveBeenCalledWith(c);
+    expect(onEdit).toHaveBeenCalledWith(
+      c,
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 
   test('複数コメントがすべて表示される', () => {

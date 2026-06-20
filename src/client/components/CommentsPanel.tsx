@@ -22,7 +22,7 @@ interface CommentsPanelProps {
   comments: Comment[];
   orphanedIds?: Set<number>;
   onScrollToComment: (c: Comment) => void;
-  onEdit: (c: Comment) => void;
+  onEdit: (c: Comment, x: number, y: number) => void;
   onDelete: (id: number) => void;
   onClose: () => void;
 }
@@ -148,7 +148,7 @@ export function CommentsPanel({
                     title="編集"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit(c);
+                      onEdit(c, e.clientX, e.clientY);
                     }}
                   >
                     ✎

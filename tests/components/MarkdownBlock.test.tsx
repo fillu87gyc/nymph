@@ -182,6 +182,8 @@ describe('onAddComment コールバック', () => {
       'table',
       'Name | Value',
       null,
+      expect.any(Number),
+      expect.any(Number),
     );
   });
 });

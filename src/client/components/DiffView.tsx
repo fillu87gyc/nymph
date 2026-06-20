@@ -22,6 +22,8 @@ type AddCommentCb = (
   blockType: string,
   context: Comment['context'],
   selectionOffset: number | null,
+  x: number,
+  y: number,
 ) => void;
 
 interface DiffViewProps {
@@ -91,7 +93,12 @@ export function DiffView({
     return () => clearTimeout(timer);
   }, [highlightTarget]);
 
-  function handleAddComment(side: 'old' | 'new', line: DiffLine) {
+  function handleAddComment(
+    side: 'old' | 'new',
+    line: DiffLine,
+    x: number,
+    y: number,
+  ) {
     const lineNo = side === 'old' ? line.o : line.n;
     if (lineNo == null) return;
     const seq = side === 'old' ? oldSeq : newSeq;
@@ -107,7 +114,7 @@ export function DiffView({
       hunk,
     };
     const anchor = line.n ?? line.o ?? 1;
-    onAddComment(anchor, anchor, line.content, 'diff', ctx, null);
+    onAddComment(anchor, anchor, line.content, 'diff', ctx, null, x, y);
   }
 
   function renderCell(row: SplitRow, side: 'old' | 'new') {
@@ -194,7 +201,9 @@ export function DiffView({
               data-testid="diff-comment-btn"
               title="差分への指摘を追加"
               aria-label="差分への指摘を追加"
-              onClick={() => handleAddComment(side, line)}
+              onClick={(e) =>
+                handleAddComment(side, line, e.clientX, e.clientY)
+              }
             >
               ＋
             </button>

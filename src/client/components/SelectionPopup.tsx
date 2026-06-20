@@ -8,6 +8,8 @@ interface SelectionPopupProps {
     lineEnd: number,
     ctx: string,
     selectionOffset: number | null,
+    x: number,
+    y: number,
   ) => void;
 }
 
@@ -121,9 +123,10 @@ export function SelectionPopup({ contentRef, onComment }: SelectionPopupProps) {
   function handleClick() {
     const s = selectionRef.current;
     if (!s) return;
+    const { left, top } = pos;
     hide();
     window.getSelection()?.removeAllRanges();
-    onComment(s.lineStart, s.lineEnd, s.ctx, s.offset);
+    onComment(s.lineStart, s.lineEnd, s.ctx, s.offset, left, top);
   }
 
   if (!visible) return null;

@@ -11,6 +11,8 @@ type AddCommentCb = (
   blockType: string,
   context: Comment['context'],
   selectionOffset: number | null,
+  x: number,
+  y: number,
 ) => void;
 
 interface MarkdownBlockProps {
@@ -113,7 +115,7 @@ export function MarkdownBlock({
           className={styles.commentBtn}
           data-testid="comment-btn"
           aria-label="コメント"
-          onClick={() =>
+          onClick={(e) =>
             onAddComment(
               block.lineStart,
               block.lineEnd,
@@ -121,6 +123,8 @@ export function MarkdownBlock({
               block.type,
               block.commentContext.context,
               null,
+              e.clientX,
+              e.clientY,
             )
           }
         >

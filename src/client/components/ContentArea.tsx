@@ -22,6 +22,8 @@ interface ContentAreaProps {
     blockType: string,
     context: Comment['context'],
     selectionOffset: number | null,
+    x: number,
+    y: number,
   ) => void;
   onOpenDrawio: (code: string) => void;
   onOpenMermaidZoom: (html: string) => void;

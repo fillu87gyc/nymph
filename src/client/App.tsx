@@ -76,6 +76,10 @@ export function App() {
   // Modal state
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [pending, setPending] = useState<PendingComment | null>(null);
+  const [modalAnchor, setModalAnchor] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingDisplayCtx, setEditingDisplayCtx] = useState('');
   const [editingInitialText, setEditingInitialText] = useState('');
@@ -309,6 +313,8 @@ export function App() {
     blockType: string,
     context: Comment['context'],
     selectionOffset: number | null,
+    x: number,
+    y: number,
   ) {
     setPending({
       lineStart,
@@ -317,13 +323,14 @@ export function App() {
       context,
       selection_offset: selectionOffset,
     });
+    setModalAnchor({ x, y });
     setEditingId(null);
     setEditingDisplayCtx(displayCtx);
     setEditingInitialText('');
     setCommentModalOpen(true);
   }
 
-  function openEditModal(c: Comment) {
+  function openEditModal(c: Comment, x?: number, y?: number) {
     setPending({
       lineStart: c.lineStart,
       lineEnd: c.lineEnd,
@@ -331,6 +338,7 @@ export function App() {
       context: c.context,
       selection_offset: c.selection_offset ?? null,
     });
+    setModalAnchor(x != null && y != null ? { x, y } : null);
     setEditingId(c.id);
     setEditingDisplayCtx(ctxDisplay(c));
     setEditingInitialText(c.text);
@@ -357,6 +365,8 @@ export function App() {
     lineEnd: number,
     ctx: string,
     selectionOffset: number | null,
+    x: number,
+    y: number,
   ) {
     setPending({
       lineStart,
@@ -365,6 +375,7 @@ export function App() {
       context: ctx,
       selection_offset: selectionOffset,
     });
+    setModalAnchor({ x, y });
     setEditingId(null);
     setEditingDisplayCtx(ctx);
     setEditingInitialText('');
@@ -660,11 +671,13 @@ export function App() {
         editingId={editingId}
         displayCtx={editingDisplayCtx}
         initialText={editingInitialText}
+        anchor={modalAnchor}
         onSubmit={handleCommentSubmit}
         onClose={() => {
           setCommentModalOpen(false);
           setPending(null);
           setEditingId(null);
+          setModalAnchor(null);
         }}
       />
       <ConfirmModal
@@ -725,7 +738,11 @@ export function App() {
                 type="button"
                 className="btn"
                 onClick={() => {
-                  openEditModal(anchorPopup.comment);
+                  openEditModal(
+                    anchorPopup.comment,
+                    anchorPopup.x,
+                    anchorPopup.y,
+                  );
                   setAnchorPopup(null);
                 }}
               >

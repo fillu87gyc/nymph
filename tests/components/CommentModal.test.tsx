@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
 import { CommentModal } from '../../src/client/components/CommentModal.tsx';
@@ -21,6 +21,7 @@ describe('CommentModal', () => {
         editingId={null}
         displayCtx="ctx"
         initialText=""
+        anchor={null}
         onSubmit={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -36,6 +37,7 @@ describe('CommentModal', () => {
         editingId={null}
         displayCtx="ctx"
         initialText=""
+        anchor={null}
         onSubmit={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -52,6 +54,7 @@ describe('CommentModal', () => {
         editingId={3}
         displayCtx="ctx"
         initialText="existing"
+        anchor={null}
         onSubmit={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -69,6 +72,7 @@ describe('CommentModal', () => {
         editingId={null}
         displayCtx="ctx"
         initialText=""
+        anchor={null}
         onSubmit={onSubmit}
         onClose={vi.fn()}
       />,
@@ -87,6 +91,7 @@ describe('CommentModal', () => {
         editingId={null}
         displayCtx="ctx"
         initialText=""
+        anchor={null}
         onSubmit={vi.fn()}
         onClose={onClose}
       />,
@@ -104,6 +109,7 @@ describe('CommentModal', () => {
         editingId={null}
         displayCtx="ctx"
         initialText=""
+        anchor={null}
         onSubmit={onSubmit}
         onClose={vi.fn()}
       />,
@@ -120,10 +126,71 @@ describe('CommentModal', () => {
         editingId={null}
         displayCtx="this context is longer than twenty chars"
         initialText=""
+        anchor={null}
         onSubmit={vi.fn()}
         onClose={vi.fn()}
       />,
     );
     expect(screen.getByText(/L3–8/)).toBeInTheDocument();
+  });
+
+  test('anchor 指定時はその直下に表示される', () => {
+    render(
+      <CommentModal
+        open={true}
+        pending={pending}
+        editingId={null}
+        displayCtx="ctx"
+        initialText=""
+        anchor={{ x: 200, y: 300 }}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const box = document.getElementById('comment-modal') as HTMLElement;
+    expect(box.style.left).toBe('200px');
+    expect(box.style.top).toBe('310px'); // anchor.y + ANCHOR_OFFSET_Y
+  });
+
+  test('モーダル外をクリックすると onClose が呼ばれる', () => {
+    const onClose = vi.fn();
+    render(
+      <CommentModal
+        open={true}
+        pending={pending}
+        editingId={null}
+        displayCtx="ctx"
+        initialText=""
+        anchor={{ x: 200, y: 300 }}
+        onSubmit={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.mouseDown(document.body);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('ヘッダーをドラッグすると位置が移動する', () => {
+    render(
+      <CommentModal
+        open={true}
+        pending={pending}
+        editingId={null}
+        displayCtx="ctx"
+        initialText=""
+        anchor={{ x: 200, y: 300 }}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const box = document.getElementById('comment-modal') as HTMLElement;
+    fireEvent.mouseDown(screen.getByText(/にコメント追加/), {
+      clientX: 250,
+      clientY: 320,
+    });
+    fireEvent.mouseMove(document, { clientX: 290, clientY: 350 });
+    fireEvent.mouseUp(document);
+    expect(box.style.left).toBe('240px'); // 200 + (290-250)
+    expect(box.style.top).toBe('340px'); // 310 + (350-320)
   });
 });

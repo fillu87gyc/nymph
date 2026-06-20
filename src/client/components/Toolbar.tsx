@@ -1,5 +1,4 @@
-import type { BookmarkEntry, FileEntry, RecentEntry } from '../types.ts';
-import { FileTabs } from './FileTabs.tsx';
+import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import { OpenDirButton } from './OpenDirButton.tsx';
 import { RecentMenu } from './RecentMenu.tsx';
 import styles from './Toolbar.module.css';
@@ -11,8 +10,6 @@ interface ToolbarProps {
   diffMode: boolean;
   checkpointSet: boolean;
   isConnected: boolean;
-  files: FileEntry[];
-  activeFile: string | null;
   recentFiles: RecentEntry[];
   recentOpen: boolean;
   bookmarks: BookmarkEntry[];
@@ -28,8 +25,6 @@ interface ToolbarProps {
   onCheckpoint: () => void;
   onToggleDiff: () => void;
   onToggleTheme: () => void;
-  onSwitchFile: (path: string) => void;
-  onCloseFile: (path: string) => void;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
 }
@@ -41,8 +36,6 @@ export function Toolbar({
   diffMode,
   checkpointSet,
   isConnected,
-  files,
-  activeFile,
   recentFiles,
   recentOpen,
   bookmarks,
@@ -58,8 +51,6 @@ export function Toolbar({
   onCheckpoint,
   onToggleDiff,
   onToggleTheme,
-  onSwitchFile,
-  onCloseFile,
   onDictSync,
   isDictSyncing,
 }: ToolbarProps) {
@@ -100,12 +91,6 @@ export function Toolbar({
           {bookmarkActive ? '★' : '☆'}
         </button>
       )}
-      <FileTabs
-        files={files}
-        activeFile={activeFile}
-        onSwitch={onSwitchFile}
-        onClose={onCloseFile}
-      />
       <span
         id="connection-status"
         className={styles.connectionStatus}

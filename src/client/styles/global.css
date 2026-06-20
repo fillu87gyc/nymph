@@ -135,8 +135,9 @@ body {
 .btn {
   display: inline-flex;
   align-items: center;
+  height: 30px;
   gap: 5px;
-  padding: 5px 12px;
+  padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
@@ -163,7 +164,7 @@ body {
   filter: brightness(1.1);
 }
 .btn.icon {
-  padding: 5px 8px;
+  padding: 0 8px;
 }
 .btn.danger {
   background: #c94444;

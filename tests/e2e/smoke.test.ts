@@ -33,6 +33,14 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     await expect(page.locator('#file-tabs')).toBeVisible();
   });
 
+  test('ファイルタブの縦幅がファイル名を切らずに収まる', async ({ page }) => {
+    await page.goto('/');
+    const tab = page.locator('#file-tabs button').first();
+    await expect(tab).toBeVisible();
+    const box = await tab.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(24);
+  });
+
   test('コネクションステータスバッジが表示されている', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#connection-status')).toBeVisible();

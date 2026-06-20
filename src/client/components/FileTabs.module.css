@@ -6,10 +6,13 @@
   max-width: 40%;
 }
 .tab {
-  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.85rem;
+  line-height: 1.4;
   white-space: nowrap;
   background: var(--bg-surface);
   color: var(--text-muted);

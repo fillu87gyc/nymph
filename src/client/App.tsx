@@ -493,18 +493,14 @@ export function App() {
     }
   }, [bookmarkTarget, toggleBookmark]);
 
-  // ショートカット: Ctrl/Cmd+R で履歴メニュー、Ctrl/Cmd+P で Quick Open
-  // （ブラウザのリロード・印刷ダイアログは preventDefault で抑止）
+  // ショートカット: Ctrl/Cmd+P で Quick Open
+  // （ブラウザの印刷ダイアログは preventDefault で抑止。Ctrl/Cmd+R はブラウザのリロードに譲る）
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.isComposing) return;
       if (!(e.ctrlKey || e.metaKey)) return;
       const key = e.key.toLowerCase();
-      if (key === 'r') {
-        e.preventDefault();
-        setQuickOpenOpen(false);
-        setRecentOpen((o) => !o);
-      } else if (key === 'p') {
+      if (key === 'p') {
         e.preventDefault();
         setRecentOpen(false);
         setQuickOpenOpen((o) => !o);

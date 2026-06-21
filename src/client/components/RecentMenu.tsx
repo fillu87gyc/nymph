@@ -38,7 +38,7 @@ export function RecentMenu({
         className="btn"
         data-testid="recent-menu-btn"
         data-active={String(open)}
-        title="最近開いたファイルとブックマーク (Ctrl+R)"
+        title="最近開いたファイルとブックマーク"
         onClick={() => onToggle(!open)}
       >
         最近

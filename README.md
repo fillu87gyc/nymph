@@ -107,7 +107,7 @@ nymph --version                # バージョン確認
 
 ### 最近開いたファイル
 
-開いたファイルの履歴を `~/.local/share/nymph/recent.json` に保存します（最大 20 件）。ツールバーの **最近** メニュー（`Ctrl+R` / `Cmd+R`）と、引数なし起動時の画面から再オープンできます。
+開いたファイルの履歴を `~/.local/share/nymph/recent.json` に保存します（最大 20 件）。ツールバーの **最近** メニューと、引数なし起動時の画面から再オープンできます。
 
 ![最近開いたファイルメニュー](docs/screenshots/recent-menu.png)
 

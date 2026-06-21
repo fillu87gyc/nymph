@@ -23,27 +23,6 @@ test.describe('最近開いたファイル（ツールバー）', () => {
     ).toBeVisible();
   });
 
-  test('Ctrl+R でメニューが開く（ページはリロードされない）', async ({
-    page,
-  }) => {
-    await page.goto('/');
-    // キーハンドラ登録（App マウント）を待ってから押す
-    await expect(page.getByTestId('recent-menu-btn')).toBeVisible();
-    // リロードされていないことを後で確認するためのマーカー
-    await page.evaluate(() => {
-      (window as unknown as { __nymphMarker: number }).__nymphMarker = 1;
-    });
-    await page.keyboard.press('Control+r');
-    await expect(page.getByTestId('recent-menu')).toBeVisible();
-    const marker = await page.evaluate(
-      () => (window as unknown as { __nymphMarker?: number }).__nymphMarker,
-    );
-    expect(marker).toBe(1);
-    // もう一度押すと閉じる
-    await page.keyboard.press('Control+r');
-    await expect(page.getByTestId('recent-menu')).not.toBeVisible();
-  });
-
   test('履歴のファイルをクリックして開ける', async ({ page, fixturePath }) => {
     await page.goto('/');
     await page.getByTestId('recent-menu-btn').click();

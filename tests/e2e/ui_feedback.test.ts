@@ -22,13 +22,16 @@ test.beforeEach(async ({ page, fixturePath, commentsPath }) => {
   });
 });
 
-test.afterEach(async ({ fixturePath, commentsPath }) => {
+test.afterEach(async ({ page, fixturePath, commentsPath }) => {
   writeFileSync(fixturePath, ORIGINAL);
   try {
     rmSync(commentsPath);
   } catch {
     /* ignore */
   }
+  // ドロップファイルのタブ系テストは元ファイルをサーバーから close するため、
+  // 同一 worker の後続テストに影響しないよう active file を復元する。
+  await page.request.post('/open-file', { data: { path: fixturePath } });
 });
 
 test.describe('ドラッグ＆ドロップのオーバーレイ', () => {

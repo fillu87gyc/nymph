@@ -8,8 +8,30 @@
  */
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, unlinkSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+// Discover the newest preset Chromium under PLAYWRIGHT_BROWSERS_PATH, mirroring
+// playwright.config.ts. The image's preset revision can lag behind the
+// @playwright/test version in package.json, so the default resolution
+// (by exact revision) fails with "Executable doesn't exist" and prompts
+// `playwright install`, which is blocked by this sandbox's network policy.
+function findAvailableChromium() {
+  const browsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (!browsersPath) return undefined;
+  try {
+    return readdirSync(browsersPath)
+      .filter((d) => /^chromium-\d+$/.test(d))
+      .sort()
+      .reverse()
+      .map((d) => join(browsersPath, d, 'chrome-linux', 'chrome'))
+      .find((p) => existsSync(p));
+  } catch {
+    return undefined;
+  }
+}
+
+const executablePath = findAvailableChromium();
 
 const args = process.argv.slice(2);
 const mdFile = args.find(a => a.endsWith('.md')) ?? 'tests/fixtures/sample.md';
@@ -40,7 +62,10 @@ const port = await new Promise((res, rej) => {
 
 console.log(`nymph on http://localhost:${port}`);
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  ...(executablePath ? { executablePath } : {}),
+});
 const page = await browser.newPage();
 await page.setViewportSize({ width: 1280, height: 800 });
 await page.goto(`http://localhost:${port}`);

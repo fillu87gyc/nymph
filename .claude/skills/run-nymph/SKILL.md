@@ -15,8 +15,10 @@ nymph は Bun サーバー（ポート 6276）+ React フロントエンドの W
 ```bash
 bun install
 bun run build        # dist/ が必要（未ビルドなら起動しても空白ページになる）
-bunx playwright install chromium
 ```
+
+Chromium は `playwright.config.ts` / `playwright.vrt.config.ts` が `PLAYWRIGHT_BROWSERS_PATH` 配下のプリセット済みバイナリを自動検出して使う（`driver.mjs` は Playwright のデフォルト解決ロジック経由で同じ場所を見つける）。
+**`bunx playwright install chromium` は実行しない**: ブラウザダウンロード先への通信がこのサンドボックスでブロックされており、毎回失敗してアラートになる。`ls $PLAYWRIGHT_BROWSERS_PATH` でプリセットの有無を確認し、無い場合のみユーザーに相談する。
 
 ## Run（エージェント用）
 

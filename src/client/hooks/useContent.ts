@@ -13,9 +13,10 @@ export function useContent(activeFile: string | null) {
   const [updateTime, setUpdateTime] = useState('');
   const [welcomeMsg, setWelcomeMsg] = useState('ファイルを読み込んでいます…');
 
-  const key = activeFile
-    ? `/content?file=${encodeURIComponent(activeFile)}`
-    : '/content';
+  const key =
+    activeFile && activeFile !== '__dropped__'
+      ? `/content?file=${encodeURIComponent(activeFile)}`
+      : '/content';
 
   const { data } = useSWR<ContentData>(key, fetcher, {
     fallbackData: FALLBACK,

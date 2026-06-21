@@ -320,6 +320,15 @@ async function handleSetActiveFile(req: Request): Promise<Response> {
 async function handleCloseFile(req: Request): Promise<Response> {
   try {
     const { path } = (await req.json()) as { path: string };
+    if (path === '__dropped__') {
+      state.droppedContent = null;
+      state.droppedName = null;
+      const activeFile = state.activeFile ?? null;
+      return json({
+        activeFile,
+        files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
+      });
+    }
     const idx = state.filePaths.indexOf(path);
     if (idx === -1) return json({ error: 'not found' }, 404);
     state.filePaths.splice(idx, 1);

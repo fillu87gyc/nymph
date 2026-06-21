@@ -65,3 +65,14 @@ test('初期状態で source は空文字', () => {
   const { result } = renderHook(() => useContent(null), { wrapper });
   expect(result.current.source).toBe('');
 });
+
+test('activeFile が __dropped__ のとき /content（パラメータなし）をフェッチ', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce({
+    json: async () => ({ content: '# dropped', filename: 'dropped.md' }),
+    ok: true,
+  } as Response);
+
+  const { result } = renderHook(() => useContent('__dropped__'), { wrapper });
+  await waitFor(() => expect(result.current.source).toBe('# dropped'));
+  expect(result.current.contentKey).toBe('/content');
+});

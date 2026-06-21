@@ -28,7 +28,7 @@ export function FileTabs({
             onClick={() => !isActive && onSwitch(f.path)}
           >
             {f.name}
-            {f.path !== '__dropped__' && (
+            {
               <span
                 className={styles.tabClose}
                 aria-hidden="true"
@@ -52,7 +52,7 @@ export function FileTabs({
                   />
                 </svg>
               </span>
-            )}
+            }
           </button>
         );
       })}

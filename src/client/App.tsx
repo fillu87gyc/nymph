@@ -36,6 +36,7 @@ const HLJS_DARK =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css';
 const HLJS_LIGHT =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
+const GOOGLE_FONTS_BASE = 'https://fonts.googleapis.com/css2?display=swap&';
 
 function applyContentFont(id: string) {
   const font = getContentFontOption(id);
@@ -591,6 +592,16 @@ export function App() {
         />,
         document.head,
       )}
+      {(() => {
+        const param = getContentFontOption(contentFontId).googleFontsParam;
+        return (
+          param &&
+          createPortal(
+            <link rel="stylesheet" href={`${GOOGLE_FONTS_BASE}${param}`} />,
+            document.head,
+          )
+        );
+      })()}
       {isDragging && (
         <div id="drop-overlay" className={styles.dropOverlay}>
           📂 .md ファイルをドロップ

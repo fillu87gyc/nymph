@@ -70,6 +70,23 @@
   font-weight: 700;
   animation: label-blink 0.6s ease-in-out infinite;
 }
+.fontSelect {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fontSelect:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border-light);
+}
 .commentCount {
   display: inline-flex;
   align-items: center;

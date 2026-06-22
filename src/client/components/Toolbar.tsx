@@ -1,3 +1,4 @@
+import { CONTENT_FONT_OPTIONS } from '../lib/fonts.ts';
 import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import { OpenDirButton } from './OpenDirButton.tsx';
 import { RecentMenu } from './RecentMenu.tsx';
@@ -25,6 +26,8 @@ interface ToolbarProps {
   onCheckpoint: () => void;
   onToggleDiff: () => void;
   onToggleTheme: () => void;
+  contentFontId: string;
+  onChangeContentFont: (id: string) => void;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
 }
@@ -51,6 +54,8 @@ export function Toolbar({
   onCheckpoint,
   onToggleDiff,
   onToggleTheme,
+  contentFontId,
+  onChangeContentFont,
   onDictSync,
   isDictSyncing,
 }: ToolbarProps) {
@@ -149,6 +154,20 @@ export function Toolbar({
           />
         </svg>
       </button>
+      <select
+        id="content-font-select"
+        data-testid="content-font-select"
+        className={styles.fontSelect}
+        title="本文フォント"
+        value={contentFontId}
+        onChange={(e) => onChangeContentFont(e.target.value)}
+      >
+        {CONTENT_FONT_OPTIONS.map((opt) => (
+          <option key={opt.id} value={opt.id}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
       <span className="sep" />
       <button
         id="btn-checkpoint"

@@ -27,6 +27,7 @@ import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
 import { useTree } from './hooks/useTree.ts';
 import { ctxDisplay, isDiffContext } from './lib/comments.ts';
+import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import type { Comment, DictEntry, PendingComment } from './types.ts';
@@ -35,6 +36,15 @@ const HLJS_DARK =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-dark-medium.min.css';
 const HLJS_LIGHT =
   'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/base16/gruvbox-light-medium.min.css';
+
+function applyContentFont(id: string) {
+  const font = getContentFontOption(id);
+  document.documentElement.style.setProperty('--content-font', font.bodyFont);
+  document.documentElement.style.setProperty(
+    '--content-heading-font',
+    font.headingFont,
+  );
+}
 
 const versionPromise = fetch('/version')
   .then((r) => r.json())
@@ -52,6 +62,12 @@ export function App() {
     const theme = saved === 'light' ? 'light' : 'dark';
     document.documentElement.dataset.theme = theme;
     return theme;
+  });
+  const [contentFontId, setContentFontId] = useState<string>(() => {
+    const saved =
+      localStorage.getItem('nymph-content-font') ?? DEFAULT_CONTENT_FONT_ID;
+    applyContentFont(saved);
+    return saved;
   });
   const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
     null,
@@ -233,6 +249,12 @@ export function App() {
     setHljsTheme(next);
     document.documentElement.dataset.theme = next;
     localStorage.setItem('nymph-theme', next);
+  }
+
+  function handleChangeContentFont(id: string) {
+    setContentFontId(id);
+    applyContentFont(id);
+    localStorage.setItem('nymph-content-font', id);
   }
 
   useEffect(() => {
@@ -596,6 +618,8 @@ export function App() {
         onCheckpoint={handleCheckpoint}
         onToggleDiff={toggleDiff}
         onToggleTheme={handleToggleTheme}
+        contentFontId={contentFontId}
+        onChangeContentFont={handleChangeContentFont}
         onDictSync={handleDictSync}
         isDictSyncing={isDictSyncing}
       />

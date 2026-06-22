@@ -1,3 +1,4 @@
+import { CONTENT_FONT_OPTIONS } from '../../src/client/lib/fonts.ts';
 import { expect, test } from './fixtures.ts';
 
 test.beforeEach(async ({ page }) => {
@@ -55,5 +56,20 @@ test.describe('本文フォント選択', () => {
       ),
     );
     expect(fontFamily).toContain('Merriweather');
+  });
+
+  test('すべてのフォント選択肢が一覧に存在し、選択すると本文フォントに反映される', async ({
+    page,
+  }) => {
+    for (const opt of CONTENT_FONT_OPTIONS) {
+      await page.selectOption('#content-font-select', opt.id);
+
+      const fontFamily = await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue(
+          '--content-font',
+        ),
+      );
+      expect(fontFamily).toBe(opt.bodyFont);
+    }
   });
 });

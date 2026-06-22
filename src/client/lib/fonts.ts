@@ -50,6 +50,106 @@ export const CONTENT_FONT_OPTIONS: ContentFontOption[] = [
     googleFontsParam:
       'family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400',
   },
+  {
+    id: 'zen-kaku-gothic-new',
+    label: 'Zen Kaku Gothic New',
+    bodyFont: '"Zen Kaku Gothic New", sans-serif',
+    headingFont: '"Zen Kaku Gothic New", sans-serif',
+    googleFontsParam: 'family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900',
+  },
+  {
+    id: 'zen-old-mincho',
+    label: 'Zen Old Mincho',
+    bodyFont: '"Zen Old Mincho", serif',
+    headingFont: '"Zen Old Mincho", serif',
+    googleFontsParam: 'family=Zen+Old+Mincho:wght@400;500;600;700;900',
+  },
+  {
+    id: 'zen-antique',
+    label: 'Zen Antique',
+    bodyFont: '"Zen Antique", serif',
+    headingFont: '"Zen Antique", serif',
+    googleFontsParam: 'family=Zen+Antique',
+  },
+  {
+    id: 'shippori-mincho',
+    label: 'Shippori Mincho',
+    bodyFont: '"Shippori Mincho", serif',
+    headingFont: '"Shippori Mincho", serif',
+    googleFontsParam: 'family=Shippori+Mincho:wght@400;500;600;700;800',
+  },
+  {
+    id: 'biz-udpgothic',
+    label: 'BIZ UDPGothic',
+    bodyFont: '"BIZ UDPGothic", sans-serif',
+    headingFont: '"BIZ UDPGothic", sans-serif',
+    googleFontsParam: 'family=BIZ+UDPGothic:ital,wght@0,400;0,700;1,400;1,700',
+  },
+  {
+    id: 'biz-udmincho',
+    label: 'BIZ UDMincho',
+    bodyFont: '"BIZ UDMincho", serif',
+    headingFont: '"BIZ UDMincho", serif',
+    googleFontsParam: 'family=BIZ+UDMincho:wght@400;700',
+  },
+  {
+    id: 'kaisei-decol',
+    label: 'Kaisei Decol',
+    bodyFont: '"Kaisei Decol", serif',
+    headingFont: '"Kaisei Decol", serif',
+    googleFontsParam: 'family=Kaisei+Decol:wght@400;500;700',
+  },
+  {
+    id: 'kaisei-opti',
+    label: 'Kaisei Opti',
+    bodyFont: '"Kaisei Opti", serif',
+    headingFont: '"Kaisei Opti", serif',
+    googleFontsParam: 'family=Kaisei+Opti:wght@400;500;700',
+  },
+  {
+    id: 'crimson-pro',
+    label: 'Crimson Pro',
+    bodyFont: '"Crimson Pro", serif',
+    headingFont: '"Crimson Pro", serif',
+    googleFontsParam:
+      'family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400',
+  },
+  {
+    id: 'spectral',
+    label: 'Spectral',
+    bodyFont: '"Spectral", serif',
+    headingFont: '"Spectral", serif',
+    googleFontsParam: 'family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400',
+  },
+  {
+    id: 'newsreader',
+    label: 'Newsreader',
+    bodyFont: '"Newsreader", serif',
+    headingFont: '"Newsreader", serif',
+    googleFontsParam:
+      'family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400',
+  },
+  {
+    id: 'work-sans',
+    label: 'Work Sans',
+    bodyFont: '"Work Sans", sans-serif',
+    headingFont: '"Work Sans", sans-serif',
+    googleFontsParam: 'family=Work+Sans:wght@400;500;600;700',
+  },
+  {
+    id: 'ibm-plex-sans',
+    label: 'IBM Plex Sans',
+    bodyFont: '"IBM Plex Sans", sans-serif',
+    headingFont: '"IBM Plex Sans", sans-serif',
+    googleFontsParam: 'family=IBM+Plex+Sans:wght@400;500;600;700',
+  },
+  {
+    id: 'literata',
+    label: 'Literata',
+    bodyFont: '"Literata", serif',
+    headingFont: '"Literata", serif',
+    googleFontsParam: 'family=Literata:ital,wght@0,400;0,500;0,600;0,700;1,400',
+  },
 ];
 
 export const DEFAULT_CONTENT_FONT_ID = CONTENT_FONT_OPTIONS[0].id;

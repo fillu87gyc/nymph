@@ -120,3 +120,33 @@ test.describe('トーストの表示と自動消滅', () => {
     await expect(toast).toHaveCount(0, { timeout: 4000 });
   });
 });
+
+test.describe('ファイルパスのコピー', () => {
+  test('ツールバーのボタンで開いているファイルの絶対パスをコピーする', async ({
+    page,
+    context,
+    fixturePath,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    await page.locator('#btn-copy-path').click();
+
+    const toast = page.locator('#toast');
+    await expect(toast).toContainText('ファイルパスをコピーしました', {
+      timeout: 3000,
+    });
+
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toBe(fixturePath);
+  });
+
+  test('開いているファイルがないときはボタンが無効化される', async ({
+    page,
+    fixturePath,
+  }) => {
+    await page.request.post('/close-file', { data: { path: fixturePath } });
+    await page.reload();
+
+    await expect(page.locator('#btn-copy-path')).toBeDisabled();
+  });
+});

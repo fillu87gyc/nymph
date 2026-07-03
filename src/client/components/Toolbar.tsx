@@ -22,6 +22,8 @@ interface ToolbarProps {
   onOpenDir: (path: string) => void;
   onTogglePanel: () => void;
   onCopyReview: () => void;
+  canCopyPath: boolean;
+  onCopyPath: () => void;
   onClearAll: () => void;
   onCheckpoint: () => void;
   onToggleDiff: () => void;
@@ -50,6 +52,8 @@ export function Toolbar({
   onOpenDir,
   onTogglePanel,
   onCopyReview,
+  canCopyPath,
+  onCopyPath,
   onClearAll,
   onCheckpoint,
   onToggleDiff,
@@ -84,6 +88,31 @@ export function Toolbar({
         onOpenDir={onOpenDir}
       />
       <OpenDirButton onOpenDir={onOpenDir} />
+      <button
+        type="button"
+        className="btn icon"
+        id="btn-copy-path"
+        data-testid="copy-path-btn"
+        title="開いているファイルのフルパスをコピー"
+        disabled={!canCopyPath}
+        onClick={onCopyPath}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M5 1.5h5.5A1.5 1.5 0 0 1 12 3v7M4.5 4.5H10A1.5 1.5 0 0 1 11.5 6v6a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 12V6a1.5 1.5 0 0 1 1.5-1.5Z"
+            stroke="currentColor"
+            strokeWidth="1.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
       {canBookmark && (
         <button
           type="button"

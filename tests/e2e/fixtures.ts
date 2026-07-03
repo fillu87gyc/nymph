@@ -40,6 +40,7 @@ type TestFixtures = {
   dictPath: string;
   /** サーバープロセスが使う XDG_CONFIG_HOME（承認済みハッシュの保存先） */
   nymphConfigDir: string;
+  settingsPath: string;
 };
 
 export async function pollUntilReady(
@@ -151,6 +152,10 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
   nymphConfigDir: async ({ _workerServer }, use) => {
     await use(_workerServer.nymphConfigDir);
+  },
+
+  settingsPath: async ({ _workerServer }, use) => {
+    await use(join(_workerServer.dictDir, 'settings.yml'));
   },
 });
 

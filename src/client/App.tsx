@@ -52,8 +52,36 @@ const versionPromise = fetch('/version')
   .then((d: { version: string }) => d.version)
   .catch(() => '');
 
+interface NymphSettings {
+  fontSize: number;
+  contentWidth: number;
+}
+
+const DEFAULT_SETTINGS: NymphSettings = { fontSize: 14, contentWidth: 820 };
+
+const settingsPromise = fetch('/settings')
+  .then((r) => r.json())
+  .then((d: NymphSettings) => d)
+  .catch(() => DEFAULT_SETTINGS);
+
+function applySettings(settings: NymphSettings) {
+  document.documentElement.style.setProperty(
+    '--content-font-size',
+    `${settings.fontSize}px`,
+  );
+  document.documentElement.style.setProperty(
+    '--content-width',
+    `${settings.contentWidth}px`,
+  );
+}
+
 export function App() {
   const appVersion = use(versionPromise);
+  const settings = use(settingsPromise);
+  useState(() => {
+    applySettings(settings);
+    return null;
+  });
   const { mutate } = useSWRConfig();
   const [panelOpen, setPanelOpen] = useState(false);
   const [toastState, setToastState] = useState({ msg: '', v: 0 });

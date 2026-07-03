@@ -16,11 +16,13 @@ import {
 } from './bookmarks.ts';
 import { scanMdTree } from './fsTree.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
+import { loadSettings } from './settings.ts';
 
 // NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
 // 省略時は process.cwd()/.nymph を使う（E2E ワーカー分離に対応）。
 const _dictDir = process.env.NYMPH_DICT_DIR ?? join(process.cwd(), '.nymph');
 const DICT_JSON_PATH = join(_dictDir, 'dict.json');
+const SETTINGS_PATH = join(_dictDir, 'settings.yml');
 
 // shell を介さずに git を実行する（shell 経由のインジェクション余地を残さない）。
 function git(args: string[]): string | null {
@@ -203,6 +205,10 @@ function handleWatch(): Response {
       Connection: 'keep-alive',
     },
   });
+}
+
+function handleGetSettings(): Response {
+  return json(loadSettings(SETTINGS_PATH));
 }
 
 function handleGetDict(): Response {
@@ -711,6 +717,7 @@ export function createServer(port: number) {
         if (path === '/bookmarks') return handleBookmarks();
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/dict') return handleGetDict();
+        if (path === '/settings') return handleGetSettings();
         const staticResp = serveStatic(url);
         if (staticResp) return staticResp;
         return new Response('Not found', { status: 404 });

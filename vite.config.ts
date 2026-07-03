@@ -28,6 +28,7 @@ export default defineConfig({
       '/bookmarks': backendOrigin,
       '/edit-op': backendOrigin,
       '/version': backendOrigin,
+      '/settings': backendOrigin,
     },
   },
 });

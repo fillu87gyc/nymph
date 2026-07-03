@@ -30,6 +30,8 @@
   --sb: #252218;
   --content-font: "Lora", serif;
   --content-heading-font: "Playfair Display", serif;
+  --content-font-size: 14px;
+  --content-width: 820px;
 }
 [data-theme="light"] {
   --bg: #f8f5ee;
@@ -200,7 +202,8 @@ body {
 
 /* ── Markdown body（#content 配下に marked が注入する HTML の体裁） ── */
 #content {
-  max-width: 820px;
+  max-width: var(--content-width);
+  font-size: var(--content-font-size);
   margin: 0 auto;
   padding: 48px 64px 80px;
 }

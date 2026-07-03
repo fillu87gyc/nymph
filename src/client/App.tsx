@@ -432,6 +432,18 @@ export function App() {
       .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
+  // Copy active file's full path
+  function copyFilePath() {
+    if (!activeFile || activeFile === '__dropped__') {
+      toast('コピーできるファイルがありません');
+      return;
+    }
+    navigator.clipboard
+      .writeText(activeFile)
+      .then(() => toast('ファイルパスをコピーしました'))
+      .catch(() => toast('クリップボードへのコピーに失敗しました'));
+  }
+
   // Clear comments
   function handleClearAll() {
     if (!comments.length) {
@@ -625,6 +637,8 @@ export function App() {
         onOpenDir={(path) => void handleOpenDir(path)}
         onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
+        canCopyPath={!!activeFile && activeFile !== '__dropped__'}
+        onCopyPath={copyFilePath}
         onClearAll={handleClearAll}
         onCheckpoint={handleCheckpoint}
         onToggleDiff={toggleDiff}

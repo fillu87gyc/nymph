@@ -71,9 +71,11 @@ test.describe('ブックマーク', () => {
     await expect(page.getByTestId('bookmark-toggle')).toContainText('★');
 
     // サブディレクトリへルートを切り替えてから、ブックマークで戻る
+    // OS ネイティブダイアログは Playwright で操作できないため /pick-dir をモックする
+    await page.route('**/pick-dir', (route) =>
+      route.fulfill({ json: { path: join(bmDir, 'docs') } }),
+    );
     await page.getByTestId('open-dir-btn').click();
-    await page.getByTestId('open-dir-input').fill(join(bmDir, 'docs'));
-    await page.getByTestId('open-dir-submit').click();
     await expect(page.getByTestId('tree-root-name')).toContainText('docs');
 
     await page.getByTestId('recent-menu-btn').click();

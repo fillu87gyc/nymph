@@ -365,6 +365,71 @@ function handleTree(): Response {
   });
 }
 
+// OS ネイティブのファイル/フォルダ選択ダイアログを起動して選択パスを返す。
+// キャンセル時は path: null（エラーではない）。未対応 OS ではエラーを返す。
+function runOsascript(
+  script: string,
+): { ok: true; value: string } | { ok: false } {
+  const res = spawnSync('osascript', ['-e', script], { encoding: 'utf-8' });
+  if (res.status === 0) return { ok: true, value: res.stdout.trim() };
+  return { ok: false };
+}
+
+const CANCELED = '__NYMPH_DIALOG_CANCELED__';
+
+function runPowerShellDialog(
+  kind: 'file' | 'dir',
+): { ok: true; value: string } | { ok: false } {
+  const script =
+    kind === 'dir'
+      ? `Add-Type -AssemblyName System.Windows.Forms
+$dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dlg.SelectedPath } else { Write-Output '${CANCELED}' }`
+      : `Add-Type -AssemblyName System.Windows.Forms
+$dlg = New-Object System.Windows.Forms.OpenFileDialog
+$dlg.Filter = 'Markdown files (*.md)|*.md'
+if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dlg.FileName } else { Write-Output '${CANCELED}' }`;
+  const res = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-STA', '-Command', script],
+    { encoding: 'utf-8' },
+  );
+  const out = (res.stdout ?? '').trim();
+  if (res.status === 0 && out && out !== CANCELED)
+    return { ok: true, value: out };
+  return { ok: false };
+}
+
+function pickNativePath(
+  kind: 'file' | 'dir',
+): { path: string | null } | { error: string } {
+  if (process.platform === 'darwin') {
+    const script =
+      kind === 'dir'
+        ? 'POSIX path of (choose folder)'
+        : 'POSIX path of (choose file)';
+    const res = runOsascript(script);
+    return { path: res.ok ? res.value : null };
+  }
+  if (process.platform === 'win32') {
+    const res = runPowerShellDialog(kind);
+    return { path: res.ok ? res.value : null };
+  }
+  return { error: 'このOSではネイティブダイアログに対応していません' };
+}
+
+function handlePickDir(): Response {
+  const result = pickNativePath('dir');
+  if ('error' in result) return json({ error: result.error }, 501);
+  return json({ path: result.path });
+}
+
+function handlePickFile(): Response {
+  const result = pickNativePath('file');
+  if ('error' in result) return json({ error: result.error }, 501);
+  return json({ path: result.path });
+}
+
 // ブラウザからツリーのルートを切り替える。loopback バインドのローカル専用
 // ツールとして任意パスを許可する設計（開いているタブは維持される）。
 async function handleOpenDir(req: Request): Promise<Response> {
@@ -724,6 +789,8 @@ export function createServer(port: number) {
         if (path === '/active-file') return handleSetActiveFile(req);
         if (path === '/open-file') return handleOpenFile(req);
         if (path === '/open-dir') return handleOpenDir(req);
+        if (path === '/pick-file') return handlePickFile();
+        if (path === '/pick-dir') return handlePickDir();
         if (path === '/bookmarks/toggle') return handleToggleBookmark(req);
         if (path === '/close-file') return handleCloseFile(req);
         if (path === '/dict/sync') return handleDictSync();

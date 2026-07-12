@@ -23,6 +23,8 @@ export default defineConfig({
       '/close-file': backendOrigin,
       '/open-file': backendOrigin,
       '/open-dir': backendOrigin,
+      '/pick-file': backendOrigin,
+      '/pick-dir': backendOrigin,
       '/recent': backendOrigin,
       '/tree': backendOrigin,
       '/bookmarks': backendOrigin,

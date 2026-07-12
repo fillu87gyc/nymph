@@ -1,6 +1,7 @@
 import { CONTENT_FONT_OPTIONS } from '../lib/fonts.ts';
 import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import { OpenDirButton } from './OpenDirButton.tsx';
+import { OpenFileButton } from './OpenFileButton.tsx';
 import { RecentMenu } from './RecentMenu.tsx';
 import styles from './Toolbar.module.css';
 
@@ -20,6 +21,8 @@ interface ToolbarProps {
   onToggleRecent: (open: boolean) => void;
   onOpenFile: (path: string) => void;
   onOpenDir: (path: string) => void;
+  onPickFile: () => void;
+  onPickDir: () => void;
   onTogglePanel: () => void;
   onCopyReview: () => void;
   canCopyPath: boolean;
@@ -50,6 +53,8 @@ export function Toolbar({
   onToggleRecent,
   onOpenFile,
   onOpenDir,
+  onPickFile,
+  onPickDir,
   onTogglePanel,
   onCopyReview,
   canCopyPath,
@@ -87,7 +92,8 @@ export function Toolbar({
         onOpen={onOpenFile}
         onOpenDir={onOpenDir}
       />
-      <OpenDirButton onOpenDir={onOpenDir} />
+      <OpenFileButton onPickFile={onPickFile} />
+      <OpenDirButton onPickDir={onPickDir} />
       <button
         type="button"
         className="btn icon"

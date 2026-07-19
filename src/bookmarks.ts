@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { normalizePath } from './pathUtils.ts';
 
 /**
  * ブックマーク（ファイル・ディレクトリ両対応）。
@@ -43,15 +44,16 @@ function saveEntries(entries: BookmarkEntry[]): void {
   writeFileSync(path, JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }
 
-/** 登録/解除をトグルする。戻り値はトグル後に登録されているかどうか */
+/** 登録/解除をトグルする。戻り値はトグル後に登録されているかどうか。symlink 経由も同一視する */
 export function toggleBookmark(path: string, type: 'file' | 'dir'): boolean {
+  const normalized = normalizePath(path);
   const entries = loadEntries();
-  const without = entries.filter((e) => e.path !== path);
+  const without = entries.filter((e) => e.path !== normalized);
   if (without.length < entries.length) {
     saveEntries(without);
     return false;
   }
-  entries.push({ path, type, addedAt: new Date().toISOString() });
+  entries.push({ path: normalized, type, addedAt: new Date().toISOString() });
   saveEntries(entries);
   return true;
 }
@@ -61,7 +63,8 @@ export function listBookmarks(): BookmarkEntry[] {
   return loadEntries().filter((e) => existsSync(e.path));
 }
 
-/** 認可用: file としてブックマーク済みのパスかどうか（dir は対象外） */
+/** 認可用: file としてブックマーク済みのパスかどうか（dir は対象外）。symlink 経由も同一視する */
 export function isBookmarkedPath(path: string): boolean {
-  return loadEntries().some((e) => e.type === 'file' && e.path === path);
+  const normalized = normalizePath(path);
+  return loadEntries().some((e) => e.type === 'file' && e.path === normalized);
 }

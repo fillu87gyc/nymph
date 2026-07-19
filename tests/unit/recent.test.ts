@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -111,5 +111,22 @@ describe('isRecentPath', () => {
     recordRecent([a]);
     rmSync(a);
     expect(isRecentPath(a)).toBe(true);
+  });
+
+  it('symlink 経由で記録しても実パスで照合できる', () => {
+    const real = makeMd('real.md');
+    const link = join(FILES_DIR, 'link.md');
+    symlinkSync(real, link);
+    recordRecent([link]);
+    expect(isRecentPath(real)).toBe(true);
+    expect(listRecent().map((e) => e.path)).toEqual([real]);
+  });
+
+  it('実パスで記録済みなら symlink 経由の照合でも true になる', () => {
+    const real = makeMd('real2.md');
+    const link = join(FILES_DIR, 'link2.md');
+    symlinkSync(real, link);
+    recordRecent([real]);
+    expect(isRecentPath(link)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -90,5 +90,22 @@ describe('isBookmarkedPath', () => {
   it('dir ブックマークには false（/open-file の認可は file のみ）', () => {
     toggleBookmark(FILES_DIR, 'dir');
     expect(isBookmarkedPath(FILES_DIR)).toBe(false);
+  });
+
+  it('symlink 経由で登録しても実パスで照合できる', () => {
+    const real = makeMd('real.md');
+    const link = join(FILES_DIR, 'link.md');
+    symlinkSync(real, link);
+    toggleBookmark(link, 'file');
+    expect(isBookmarkedPath(real)).toBe(true);
+    expect(listBookmarks().map((e) => e.path)).toEqual([real]);
+  });
+
+  it('実パスで登録済みなら symlink 経由の照合でも true になる', () => {
+    const real = makeMd('real2.md');
+    const link = join(FILES_DIR, 'link2.md');
+    symlinkSync(real, link);
+    toggleBookmark(real, 'file');
+    expect(isBookmarkedPath(link)).toBe(true);
   });
 });

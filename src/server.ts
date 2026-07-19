@@ -15,6 +15,7 @@ import {
   toggleBookmark,
 } from './bookmarks.ts';
 import { scanMdTree } from './fsTree.ts';
+import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 
 // NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
@@ -504,7 +505,7 @@ async function handleToggleBookmark(req: Request): Promise<Response> {
       (type !== 'file' && type !== 'dir')
     )
       return json({ error: 'invalid request' }, 400);
-    const abs = resolve(path);
+    const abs = normalizePath(path);
     try {
       const st = statSync(abs);
       if (type === 'file' && (!st.isFile() || !abs.endsWith('.md')))
@@ -528,7 +529,8 @@ async function handleOpenFile(req: Request): Promise<Response> {
     const { path } = (await req.json()) as { path: string };
     if (!path || typeof path !== 'string')
       return json({ error: 'invalid path' }, 400);
-    const abs = resolve(path);
+    // symlink 経由でも実体パスに正規化し、既に開いているファイルと同一視する
+    const abs = normalizePath(path);
     if (!abs.endsWith('.md')) return err('Forbidden', 403);
     if (
       !isRecentPath(abs) &&
@@ -777,7 +779,8 @@ export function createServer(port: number) {
       const path = url.pathname;
 
       if (req.method === 'GET') {
-        if (path === '/version') return json({ version: APP_VERSION });
+        if (path === '/version')
+          return json({ nymph: true, version: APP_VERSION });
         if (path === '/content') return handleContent(url);
         if (path === '/watch') return handleWatch();
         if (path === '/comments') return handleGetComments(url);

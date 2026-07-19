@@ -6,6 +6,11 @@ import {
   delegateOpenFiles,
   findExistingServer,
 } from './instanceLock.ts';
+import {
+  findAnyRunningInstance,
+  registerInstance,
+  unregisterInstance,
+} from './instanceRegistry.ts';
 import { normalizePath } from './pathUtils.ts';
 import { resolvePortOverride } from './portUtils.ts';
 import { recordRecent } from './recent.ts';
@@ -245,24 +250,42 @@ async function main() {
   // 新規プロセス・新規ポートを起動せずそちらへ委譲する
   // （nymph <file> / nymphx <file> を同じファイルに対して再実行したケース）。
   const lockPath = computeLockPath(paths, rootDir);
+  let existingPort: number | null = null;
+  let rewriteLock = false;
   if (lockPath) {
-    const existingPort = await findExistingServer(lockPath);
-    if (existingPort !== null) {
-      // /open-file の許可チェック（isRecentPath 等）を通すため委譲前に記録する
-      recordRecent(paths);
-      await delegateOpenFiles(existingPort, paths);
-
-      const existingUrl = `http://localhost:${existingPort}`;
-      console.log(`nymph   既存のインスタンスで開きます   ${existingUrl}`);
-      if (paths.length > 0) console.log(`開いた  ${paths.join(', ')}`);
-
-      if (!noOpen) {
-        const { default: open } = await import('open');
-        await open(existingUrl);
+    existingPort = await findExistingServer(lockPath);
+  }
+  if (existingPort === null && paths.length > 0) {
+    // ロックと一致しなくても、他に生きている nymph インスタンスがあれば
+    // 新規プロセスを増やさずそちらの開いているファイル一覧に追加する
+    // （nymph a.md を起動中に無関係な nymph b.md を実行したケース）。
+    existingPort = await findAnyRunningInstance();
+    rewriteLock = existingPort !== null;
+  }
+  if (existingPort !== null) {
+    // /open-file の許可チェック（isRecentPath 等）を通すため委譲前に記録する
+    recordRecent(paths);
+    await delegateOpenFiles(existingPort, paths);
+    // レジストリ経由で見つけた別インスタンスの場合、次回同じファイルを
+    // 指定したときにロック一致で直接見つけられるようロックを書いておく
+    // （lockPath 一致で委譲した場合は既に正しい値なので上書きしない）。
+    if (rewriteLock && lockPath) {
+      try {
+        writeFileSync(lockPath, String(existingPort));
+      } catch {
+        /* ignore */
       }
-      process.exit(0);
     }
-    // ロックが stale（サーバー死亡 or 別アプリ）なら従来通り新規起動して上書きする
+
+    const existingUrl = `http://localhost:${existingPort}`;
+    console.log(`nymph   既存のインスタンスで開きます   ${existingUrl}`);
+    if (paths.length > 0) console.log(`開いた  ${paths.join(', ')}`);
+
+    if (!noOpen) {
+      const { default: open } = await import('open');
+      await open(existingUrl);
+    }
+    process.exit(0);
   }
 
   recordRecent(paths);
@@ -274,6 +297,7 @@ async function main() {
   const server = createServer(port);
 
   if (lockPath) writeFileSync(lockPath, String(port));
+  registerInstance(port);
 
   const url = `http://localhost:${port}`;
   console.log(`nymph   ${url}`);
@@ -297,6 +321,7 @@ async function main() {
         /* ignore */
       }
     }
+    unregisterInstance(port);
     server.stop();
     console.log('\n停止しました。');
     process.exit(0);
@@ -309,6 +334,7 @@ async function main() {
         /* ignore */
       }
     }
+    unregisterInstance(port);
     server.stop();
     process.exit(0);
   });

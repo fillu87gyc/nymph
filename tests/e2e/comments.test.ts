@@ -133,17 +133,17 @@ test.describe('コメント窓の位置・操作性', () => {
     await tableBlock.locator('[data-testid="comment-btn"]').click();
     await expect(page.locator('#comment-modal')).toBeVisible();
 
-    const main = page.locator('#main');
+    const scrollArea = page.locator('[data-testid="content-scroll"]');
     const modalBox = await page.locator('#comment-modal').boundingBox();
     if (!modalBox) throw new Error('comment-modal not found');
 
     // モーダルに重ならない位置にマウスを置いてホイールスクロール
     const wheelX = modalBox.x > 100 ? 20 : 780;
-    const before = await main.evaluate((el) => el.scrollTop);
+    const before = await scrollArea.evaluate((el) => el.scrollTop);
     await page.mouse.move(wheelX, 380);
     await page.mouse.wheel(0, 400);
     await expect
-      .poll(() => main.evaluate((el) => el.scrollTop))
+      .poll(() => scrollArea.evaluate((el) => el.scrollTop))
       .toBeGreaterThan(before);
   });
 

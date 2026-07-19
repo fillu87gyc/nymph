@@ -27,6 +27,11 @@ import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
 import { useTree } from './hooks/useTree.ts';
 import { ctxDisplay, isDiffContext } from './lib/comments.ts';
+import {
+  contentMaxWidth,
+  loadMarginCollapse,
+  saveMarginCollapse,
+} from './lib/contentWidth.ts';
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
@@ -73,6 +78,7 @@ export function App() {
   const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
     null,
   );
+  const [marginCollapse, setMarginCollapse] = useState(loadMarginCollapse);
   const [blockOrphanIds, setBlockOrphanIds] = useState<Set<number>>(new Set());
   const [diffHighlight, setDiffHighlight] =
     useState<DiffHighlightTarget | null>(null);
@@ -108,7 +114,17 @@ export function App() {
   const [mermaidZoomHtml, setMermaidZoomHtml] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
   const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
+
+  // マージン折りたたみボタンやその周囲の余白はスクロール領域の外にあるため、
+  // その上でホイールしてもスクロールチェインが本文コンテナまで届かない。
+  // スクロール領域内で発生したイベントはネイティブ処理に任せ、それ以外は手動転送する。
+  function forwardWheelToContent(e: React.WheelEvent<HTMLDivElement>) {
+    const scrollEl = contentScrollRef.current;
+    if (!scrollEl || scrollEl.contains(e.target as Node)) return;
+    scrollEl.scrollBy(0, e.deltaY);
+  }
   const {
     comments,
     addComment,
@@ -257,6 +273,14 @@ export function App() {
     setContentFontId(id);
     applyContentFont(id);
     localStorage.setItem('nymph-content-font', id);
+  }
+
+  function toggleMargin(side: 'left' | 'right') {
+    setMarginCollapse((prev) => {
+      const next = { ...prev, [side]: !prev[side] };
+      saveMarginCollapse(next);
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -676,7 +700,7 @@ export function App() {
         onSwitch={handleSwitchFile}
         onClose={handleCloseFile}
       />
-      <div id="main" className={root ? styles.mainRow : styles.main}>
+      <div id="main" className={styles.mainRow}>
         {root && (
           <FileTree
             rootName={rootName}
@@ -685,44 +709,91 @@ export function App() {
             onOpenFile={(path) => void handleOpenFile(path)}
           />
         )}
-        <div className={root ? styles.contentCol : undefined}>
-          {diffMode ? (
-            <DiffView
-              diffData={diffData}
-              comments={comments}
-              highlightTarget={diffHighlight}
-              onAddComment={openCommentModal}
-              onClickCommentAnchor={handleClickCommentAnchor}
-            />
-          ) : (
-            <ContentArea
-              source={source}
-              comments={comments}
-              isDarkTheme={hljsTheme === 'dark'}
-              highlightedBlockLs={highlightedBlockLs}
-              onAddComment={openCommentModal}
-              onOpenDrawio={(code) => {
-                setDrawioCode(code);
-                setDrawioOpen(true);
-              }}
-              onOpenMermaidZoom={(html) => {
-                setMermaidZoomHtml(html);
-                setMermaidZoomOpen(true);
-              }}
-              onClickCommentAnchor={handleClickCommentAnchor}
-              onOrphanedIds={setBlockOrphanIds}
-              contentRef={contentRef}
-              blockRefsMapRef={blockRefsMapRef}
-              welcomeMsg={
-                root && !activeFile
-                  ? 'ツリーからファイルを選択してください'
-                  : welcomeMsg
+        <div className={styles.contentCol} onWheel={forwardWheelToContent}>
+          {!diffMode && (
+            <button
+              type="button"
+              className={styles.marginToggle}
+              data-testid="margin-toggle-left"
+              title={
+                marginCollapse.left
+                  ? '左マージンを表示'
+                  : '左マージンを折りたたんで本文を広げる'
               }
-              recentFiles={recentFiles}
-              bookmarks={bookmarks}
-              onOpenFile={(path) => void handleOpenFile(path)}
-              onOpenDir={(path) => void handleOpenDir(path)}
-            />
+              aria-pressed={marginCollapse.left}
+              onClick={() => toggleMargin('left')}
+            >
+              {marginCollapse.left ? '›' : '‹'}
+            </button>
+          )}
+          <div
+            ref={contentScrollRef}
+            className={diffMode ? styles.contentFull : styles.contentGrid}
+            data-testid="content-scroll"
+            style={
+              diffMode
+                ? undefined
+                : ({
+                    '--gutter-l': marginCollapse.left ? '0px' : '1fr',
+                    '--gutter-r': marginCollapse.right ? '0px' : '1fr',
+                    '--content-max': contentMaxWidth(marginCollapse),
+                  } as React.CSSProperties)
+            }
+          >
+            {diffMode ? (
+              <DiffView
+                diffData={diffData}
+                comments={comments}
+                highlightTarget={diffHighlight}
+                onAddComment={openCommentModal}
+                onClickCommentAnchor={handleClickCommentAnchor}
+              />
+            ) : (
+              <ContentArea
+                source={source}
+                comments={comments}
+                isDarkTheme={hljsTheme === 'dark'}
+                highlightedBlockLs={highlightedBlockLs}
+                onAddComment={openCommentModal}
+                onOpenDrawio={(code) => {
+                  setDrawioCode(code);
+                  setDrawioOpen(true);
+                }}
+                onOpenMermaidZoom={(html) => {
+                  setMermaidZoomHtml(html);
+                  setMermaidZoomOpen(true);
+                }}
+                onClickCommentAnchor={handleClickCommentAnchor}
+                onOrphanedIds={setBlockOrphanIds}
+                contentRef={contentRef}
+                blockRefsMapRef={blockRefsMapRef}
+                welcomeMsg={
+                  root && !activeFile
+                    ? 'ツリーからファイルを選択してください'
+                    : welcomeMsg
+                }
+                recentFiles={recentFiles}
+                bookmarks={bookmarks}
+                onOpenFile={(path) => void handleOpenFile(path)}
+                onOpenDir={(path) => void handleOpenDir(path)}
+              />
+            )}
+          </div>
+          {!diffMode && (
+            <button
+              type="button"
+              className={styles.marginToggle}
+              data-testid="margin-toggle-right"
+              title={
+                marginCollapse.right
+                  ? '右マージンを表示'
+                  : '右マージンを折りたたんで本文を広げる'
+              }
+              aria-pressed={marginCollapse.right}
+              onClick={() => toggleMargin('right')}
+            >
+              {marginCollapse.right ? '‹' : '›'}
+            </button>
           )}
         </div>
       </div>

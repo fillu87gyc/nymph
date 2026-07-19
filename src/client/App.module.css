@@ -3,10 +3,6 @@
   flex-direction: column;
   height: 100vh;
 }
-.main {
-  flex: 1;
-  overflow-y: auto;
-}
 /* ディレクトリモード: サイドバー + コンテンツ列の 2 カラム */
 .mainRow {
   flex: 1;
@@ -16,7 +12,48 @@
 }
 .contentCol {
   flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+/* 通常モード: 左右ガター(var(--gutter-l/r)) + 本文列(var(--content-max)) の
+   3 カラムグリッド。ガター折りたたみ時、本文列がその分だけ広がる。 */
+.contentGrid {
+  flex: 1;
+  min-width: 0;
   overflow-y: auto;
+  display: grid;
+  grid-template-columns:
+    var(--gutter-l, 1fr) minmax(0, var(--content-max, 960px))
+    var(--gutter-r, 1fr);
+}
+/* 差分チェックモード: DiffView 自体が画面幅いっぱいに使うため、グリッド不要 */
+.contentFull {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+.marginToggle {
+  flex-shrink: 0;
+  align-self: center;
+  width: 20px;
+  height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+.marginToggle:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border-light);
 }
 .dropOverlay {
   display: flex;

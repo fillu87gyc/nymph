@@ -76,6 +76,9 @@ export function CommentModal({
     if (!open) return;
     function handleOutsideClick(e: MouseEvent) {
       if (boxRef.current?.contains(e.target as Node)) return;
+      // 入力中のテキストがある場合は外側クリックで破棄しない
+      // （Escape や キャンセルボタンなど明示操作は従来通り閉じる）。
+      if (taRef.current?.value.trim()) return;
       onClose();
     }
     document.addEventListener('mousedown', handleOutsideClick);

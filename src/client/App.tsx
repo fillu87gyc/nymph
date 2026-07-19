@@ -26,7 +26,7 @@ import { useFiles } from './hooks/useFiles.ts';
 import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
 import { useTree } from './hooks/useTree.ts';
-import { ctxDisplay, isDiffContext } from './lib/comments.ts';
+import { ctxDisplay, isCommentsKey, isDiffContext } from './lib/comments.ts';
 import {
   contentMaxWidth,
   loadMarginCollapse,
@@ -125,6 +125,9 @@ export function App() {
     if (!scrollEl || scrollEl.contains(e.target as Node)) return;
     scrollEl.scrollBy(0, e.deltaY);
   }
+
+  const { files, activeFile, switchFile, closeFile, openFile, pickFile } =
+    useFiles();
   const {
     comments,
     addComment,
@@ -132,9 +135,7 @@ export function App() {
     deleteComment,
     clearAll,
     clearOrphaned,
-  } = useComments();
-  const { files, activeFile, switchFile, closeFile, openFile, pickFile } =
-    useFiles();
+  } = useComments(activeFile);
   const { recentFiles } = useRecent();
   const [recentOpen, setRecentOpen] = useState(false);
   const [quickOpenOpen, setQuickOpenOpen] = useState(false);
@@ -201,7 +202,7 @@ export function App() {
     if (!changedFile || !activeFile) return;
     if (changedFile === activeFile) {
       void mutate(contentKey);
-      void mutate('/comments');
+      void mutate(isCommentsKey);
       // 通常モードでも diff を取り直す（差分コメントの orphan 判定が古くならないように）
       void loadDiff();
       toast('ファイルが更新されました');
@@ -394,16 +395,16 @@ export function App() {
     setCommentModalOpen(true);
   }
 
-  function handleCommentSubmit(text: string) {
+  async function handleCommentSubmit(text: string) {
     if (!pending) return;
     setCommentModalOpen(false);
     if (editingId !== null) {
-      updateComment(editingId, text);
-      toast('コメントを更新しました');
+      const ok = await updateComment(editingId, text);
+      toast(ok ? 'コメントを更新しました' : 'コメントを保存できませんでした');
     } else {
-      addComment(pending, text);
+      const ok = await addComment(pending, text);
       setPanelOpen(true);
-      toast('コメントを追加しました');
+      toast(ok ? 'コメントを追加しました' : 'コメントを保存できませんでした');
     }
     setPending(null);
     setEditingId(null);
@@ -469,6 +470,11 @@ export function App() {
       .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
+  async function handleDeleteComment(id: number) {
+    const ok = await deleteComment(id);
+    if (!ok) toast('コメントを保存できませんでした');
+  }
+
   // Clear comments
   function handleClearAll() {
     if (!comments.length) {
@@ -478,15 +484,21 @@ export function App() {
     setConfirmOpen(true);
   }
 
-  function confirmAction(mode: DeleteMode) {
+  async function confirmAction(mode: DeleteMode) {
     if (mode === 'all') {
-      clearAll();
+      const ok = await clearAll();
       setPanelOpen(false);
-      toast('コメントをすべて削除しました');
+      toast(
+        ok ? 'コメントをすべて削除しました' : 'コメントを保存できませんでした',
+      );
     } else {
       const count = orphanedCommentIds.size;
-      clearOrphaned(orphanedCommentIds);
-      toast(`削除済みコメントを${count}件削除しました`);
+      const ok = await clearOrphaned(orphanedCommentIds);
+      toast(
+        ok
+          ? `削除済みコメントを${count}件削除しました`
+          : 'コメントを保存できませんでした',
+      );
     }
     setConfirmOpen(false);
   }
@@ -500,7 +512,7 @@ export function App() {
   // Switch file
   async function handleSwitchFile(path: string) {
     await switchFile(path);
-    await mutate('/comments');
+    await mutate(isCommentsKey);
   }
 
   // 履歴などタブ外からファイルを開く
@@ -592,7 +604,7 @@ export function App() {
   // Close file
   async function handleCloseFile(path: string) {
     await closeFile(path);
-    await mutate('/comments');
+    await mutate(isCommentsKey);
   }
 
   // Drag & drop
@@ -624,7 +636,7 @@ export function App() {
         body: JSON.stringify({ content, filename: file.name }),
       });
       await mutate('/files');
-      await mutate('/comments');
+      await mutate(isCommentsKey);
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       toast(message || 'ファイルの読み込みに失敗しました');
@@ -809,7 +821,7 @@ export function App() {
         orphanedIds={orphanedCommentIds}
         onScrollToComment={scrollToComment}
         onEdit={openEditModal}
-        onDelete={deleteComment}
+        onDelete={(id) => void handleDeleteComment(id)}
         onClose={() => setPanelOpen(false)}
       />
       <CommentModal

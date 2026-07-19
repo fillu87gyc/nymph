@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
+import { isCommentsKey } from '../lib/comments.ts';
 import { fetcher } from '../lib/fetcher.ts';
 import type { FileEntry } from '../types.ts';
 
@@ -54,7 +55,7 @@ export function useFiles() {
       const updated = await res.json();
       await mutate('/files', updated, { revalidate: false });
       await mutate('/recent');
-      await mutate('/comments');
+      await mutate(isCommentsKey);
     },
     [mutate],
   );

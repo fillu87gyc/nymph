@@ -575,3 +575,66 @@ test.describe('削除済みコメントの表示', () => {
     await expect(page.locator('[data-testid="c-deleted"]')).not.toBeVisible();
   });
 });
+
+test.describe('コメント入力中の外側クリック（入力破棄バグの回帰防止）', () => {
+  test('入力済みの状態で本文をクリックしても破棄されず、そのまま送信できる', async ({
+    page,
+    commentsPath,
+  }) => {
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await expect(page.locator('#comment-modal')).toBeVisible();
+
+    await page.locator('#comment-ta').fill('draft comment text');
+
+    // モーダル外（本文の見出し）をクリックする。以前は無条件に onClose が
+    // 呼ばれ入力中のテキストが消えていたが、入力済みなら閉じない仕様に修正済み。
+    await page.locator('#content h1').first().click();
+
+    await expect(page.locator('#comment-modal')).toBeVisible();
+    await expect(page.locator('#comment-ta')).toHaveValue('draft comment text');
+
+    await page.locator('#btn-submit').click();
+    await expect(
+      page.locator('[data-testid="comment-item"]').first(),
+    ).toContainText('draft comment text');
+
+    // .comments.json が実際に作成され、保存されていること
+    await expect.poll(() => existsSync(commentsPath)).toBe(true);
+    const saved = JSON.parse(readFileSync(commentsPath, 'utf-8'));
+    expect(saved).toHaveLength(1);
+    expect(saved[0].text).toBe('draft comment text');
+  });
+
+  test('未入力のまま本文をクリックするとモーダルは閉じる（従来通り）', async ({
+    page,
+  }) => {
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await expect(page.locator('#comment-modal')).toBeVisible();
+
+    await page.locator('#content h1').first().click();
+    await expect(page.locator('#comment-modal')).not.toBeVisible();
+  });
+
+  test('Escape キーは入力済みでも閉じる（明示操作は従来通り）', async ({
+    page,
+  }) => {
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await expect(page.locator('#comment-modal')).toBeVisible();
+
+    await page.locator('#comment-ta').fill('will be discarded via escape');
+    await page.locator('#comment-ta').press('Escape');
+    await expect(page.locator('#comment-modal')).not.toBeVisible();
+  });
+});

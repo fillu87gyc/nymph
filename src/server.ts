@@ -15,6 +15,7 @@ import {
   toggleBookmark,
 } from './bookmarks.ts';
 import { scanMdTree } from './fsTree.ts';
+import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 
 // NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
@@ -281,11 +282,23 @@ function handleGetComments(url: URL): Response {
   }
 }
 
-async function handleSaveComments(req: Request): Promise<Response> {
-  if (!state.commentsPath) return json({});
+async function handleSaveComments(req: Request, url: URL): Promise<Response> {
+  const fileParam = url.searchParams.get('file');
+  let cp: string | null;
+  if (fileParam) {
+    const allowed = new Set(activePaths());
+    if (!allowed.has(fileParam)) return err('Forbidden', 403);
+    cp = `${fileParam}.comments.json`;
+  } else {
+    cp = state.commentsPath;
+  }
+  // 保存先が確定できない場合（ディレクトリモード起動直後で未選択、または
+  // __dropped__ 表示中でファイル実体がない）はサイレントに 200 を返さず
+  // 4xx にしてクライアントに保存失敗を伝える。
+  if (!cp) return err('保存先のファイルが確定できません', 400);
   try {
     const body = await req.json();
-    writeFileSync(state.commentsPath, JSON.stringify(body, null, 2), 'utf-8');
+    writeFileSync(cp, JSON.stringify(body, null, 2), 'utf-8');
     return json({});
   } catch (e) {
     return err(String(e));
@@ -492,7 +505,7 @@ async function handleToggleBookmark(req: Request): Promise<Response> {
       (type !== 'file' && type !== 'dir')
     )
       return json({ error: 'invalid request' }, 400);
-    const abs = resolve(path);
+    const abs = normalizePath(path);
     try {
       const st = statSync(abs);
       if (type === 'file' && (!st.isFile() || !abs.endsWith('.md')))
@@ -516,7 +529,8 @@ async function handleOpenFile(req: Request): Promise<Response> {
     const { path } = (await req.json()) as { path: string };
     if (!path || typeof path !== 'string')
       return json({ error: 'invalid path' }, 400);
-    const abs = resolve(path);
+    // symlink 経由でも実体パスに正規化し、既に開いているファイルと同一視する
+    const abs = normalizePath(path);
     if (!abs.endsWith('.md')) return err('Forbidden', 403);
     if (
       !isRecentPath(abs) &&
@@ -765,7 +779,8 @@ export function createServer(port: number) {
       const path = url.pathname;
 
       if (req.method === 'GET') {
-        if (path === '/version') return json({ version: APP_VERSION });
+        if (path === '/version')
+          return json({ nymph: true, version: APP_VERSION });
         if (path === '/content') return handleContent(url);
         if (path === '/watch') return handleWatch();
         if (path === '/comments') return handleGetComments(url);
@@ -782,7 +797,7 @@ export function createServer(port: number) {
       }
 
       if (req.method === 'POST') {
-        if (path === '/comments') return handleSaveComments(req);
+        if (path === '/comments') return handleSaveComments(req, url);
         if (path === '/edit-op') return handleEditOp(req);
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/switch-file') return handleSwitchFile(req);

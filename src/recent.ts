@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
+import { normalizePath } from './pathUtils.ts';
 
 /**
  * 最近開いたファイルの履歴。
@@ -47,7 +48,7 @@ function saveEntries(entries: RecentFile[]): void {
 /** 開いたファイルを履歴の先頭に記録する（不存在・.md 以外はスキップ） */
 export function recordRecent(paths: string[]): void {
   const valid = paths
-    .map((p) => resolve(p))
+    .map((p) => normalizePath(p))
     .filter((p) => p.endsWith('.md') && existsSync(p));
   if (valid.length === 0) return;
 
@@ -66,7 +67,8 @@ export function listRecent(): RecentFile[] {
   return loadEntries().filter((e) => existsSync(e.path));
 }
 
-/** 認可用: 記録上のパスかどうか（ディスクの存在は問わない） */
+/** 認可用: 記録上のパスかどうか（ディスクの存在は問わない）。symlink 経由も同一視する */
 export function isRecentPath(path: string): boolean {
-  return loadEntries().some((e) => e.path === path);
+  const normalized = normalizePath(path);
+  return loadEntries().some((e) => e.path === normalized);
 }

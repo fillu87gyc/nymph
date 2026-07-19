@@ -1,7 +1,12 @@
 #!/usr/bin/env bun
 import { existsSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import { Glob } from 'bun';
+import {
+  computeLockPath,
+  delegateOpenFiles,
+  findExistingServer,
+} from './instanceLock.ts';
+import { normalizePath } from './pathUtils.ts';
 import { resolvePortOverride } from './portUtils.ts';
 import { recordRecent } from './recent.ts';
 import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
@@ -200,7 +205,9 @@ async function main() {
 
   if (fileArgs.length > 0) {
     for (const filePath of fileArgs) {
-      const abs = resolve(filePath);
+      // symlink 経由でも実体パスに正規化し、同じファイルを別表記で開いても
+      // 別ファイル扱いにならないようにする
+      const abs = normalizePath(filePath);
       // ディレクトリ指定はツリーのルートにする（glob フォールバックより先に判定）
       if (existsSync(abs) && statSync(abs).isDirectory()) {
         if (rootDir) {
@@ -218,11 +225,11 @@ async function main() {
         const glob = new Glob(filePath);
         const expanded: string[] = [];
         for await (const f of glob.scan('.')) {
-          if (f.endsWith('.md')) expanded.push(resolve(f));
+          if (f.endsWith('.md')) expanded.push(normalizePath(f));
         }
         if (expanded.length > 0) paths.push(...expanded.sort());
         else if (!paths.length) {
-          const single = resolve(filePath);
+          const single = normalizePath(filePath);
           if (existsSync(single)) paths.push(single);
         }
       }
@@ -234,6 +241,30 @@ async function main() {
     }
   }
 
+  // 既に同じファイル/ルートを開いている生きた nymph インスタンスがあれば、
+  // 新規プロセス・新規ポートを起動せずそちらへ委譲する
+  // （nymph <file> / nymphx <file> を同じファイルに対して再実行したケース）。
+  const lockPath = computeLockPath(paths, rootDir);
+  if (lockPath) {
+    const existingPort = await findExistingServer(lockPath);
+    if (existingPort !== null) {
+      // /open-file の許可チェック（isRecentPath 等）を通すため委譲前に記録する
+      recordRecent(paths);
+      await delegateOpenFiles(existingPort, paths);
+
+      const existingUrl = `http://localhost:${existingPort}`;
+      console.log(`nymph   既存のインスタンスで開きます   ${existingUrl}`);
+      if (paths.length > 0) console.log(`開いた  ${paths.join(', ')}`);
+
+      if (!noOpen) {
+        const { default: open } = await import('open');
+        await open(existingUrl);
+      }
+      process.exit(0);
+    }
+    // ロックが stale（サーバー死亡 or 別アプリ）なら従来通り新規起動して上書きする
+  }
+
   recordRecent(paths);
   initState(paths, rootDir);
 
@@ -242,12 +273,6 @@ async function main() {
     (await findPort());
   const server = createServer(port);
 
-  const lockPath =
-    paths.length > 0
-      ? `${paths[0]}.nymph-lock`
-      : rootDir
-        ? join(rootDir, '.nymph-lock')
-        : null;
   if (lockPath) writeFileSync(lockPath, String(port));
 
   const url = `http://localhost:${port}`;

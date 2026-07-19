@@ -42,12 +42,15 @@ const wrapper = ({ children }: { children: React.ReactNode }) =>
 // こうすることで SWR が revalidation を行っても現在の状態が返り、
 // mutate の結果がキャッシュから消えなくなる。
 let serverComments: Comment[] = [];
+let postShouldFail = false;
 
 beforeEach(() => {
   serverComments = [];
+  postShouldFail = false;
   vi.spyOn(global, 'fetch').mockImplementation(
     async (url: RequestInfo | URL, init?: RequestInit) => {
       if ((init as RequestInit | undefined)?.method === 'POST') {
+        if (postShouldFail) return new Response('error', { status: 400 });
         serverComments = JSON.parse((init as RequestInit).body as string);
         return new Response('ok', { status: 200 });
       }
@@ -205,5 +208,66 @@ describe('useComments', () => {
       '/comments',
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+
+  test('activeFile を渡すと /comments?file=... を GET/POST する', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    const { result } = renderHook(() => useComments('/tmp/a.md'), {
+      wrapper,
+    });
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenCalledWith('/comments?file=%2Ftmp%2Fa.md'),
+    );
+    await act(() => result.current.addComment(pending, 'x'));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/comments?file=%2Ftmp%2Fa.md',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  test('__dropped__ のときは file パラメータなしの /comments を使う', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    renderHook(() => useComments('__dropped__'), { wrapper });
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/comments'));
+  });
+
+  test('保存に失敗すると addComment は false を返し、キャッシュを再検証する', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+
+    postShouldFail = true;
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.addComment(pending, 'will fail');
+    });
+    expect(ok).toBe(false);
+
+    // revalidate によりサーバー側の実状態（空のまま）に揃う
+    await waitFor(() => {
+      expect(result.current.comments).toEqual([]);
+    });
+  });
+
+  test('保存に成功すると addComment は true を返す', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.addComment(pending, 'ok');
+    });
+    expect(ok).toBe(true);
+  });
+
+  test('保存に失敗すると deleteComment は false を返す', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'to delete'));
+
+    postShouldFail = true;
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.deleteComment(1);
+    });
+    expect(ok).toBe(false);
   });
 });

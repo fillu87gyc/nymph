@@ -700,7 +700,10 @@ export function App() {
         onSwitch={handleSwitchFile}
         onClose={handleCloseFile}
       />
-      <div id="main" className={styles.mainRow}>
+      <div
+        id="main"
+        className={diffMode && !root ? styles.main : styles.mainRow}
+      >
         {root && (
           <FileTree
             rootName={rootName}
@@ -709,8 +712,25 @@ export function App() {
             onOpenFile={(path) => void handleOpenFile(path)}
           />
         )}
-        <div className={styles.contentCol} onWheel={forwardWheelToContent}>
-          {!diffMode && (
+        {diffMode ? (
+          <div
+            ref={contentScrollRef}
+            className={root ? styles.contentCol : undefined}
+            data-testid="content-scroll"
+          >
+            <DiffView
+              diffData={diffData}
+              comments={comments}
+              highlightTarget={diffHighlight}
+              onAddComment={openCommentModal}
+              onClickCommentAnchor={handleClickCommentAnchor}
+            />
+          </div>
+        ) : (
+          <div
+            className={styles.contentColMargins}
+            onWheel={forwardWheelToContent}
+          >
             <button
               type="button"
               className={styles.marginToggle}
@@ -725,30 +745,18 @@ export function App() {
             >
               {marginCollapse.left ? '›' : '‹'}
             </button>
-          )}
-          <div
-            ref={contentScrollRef}
-            className={diffMode ? styles.contentFull : styles.contentGrid}
-            data-testid="content-scroll"
-            style={
-              diffMode
-                ? undefined
-                : ({
-                    '--gutter-l': marginCollapse.left ? '0px' : '1fr',
-                    '--gutter-r': marginCollapse.right ? '0px' : '1fr',
-                    '--content-max': contentMaxWidth(marginCollapse),
-                  } as React.CSSProperties)
-            }
-          >
-            {diffMode ? (
-              <DiffView
-                diffData={diffData}
-                comments={comments}
-                highlightTarget={diffHighlight}
-                onAddComment={openCommentModal}
-                onClickCommentAnchor={handleClickCommentAnchor}
-              />
-            ) : (
+            <div
+              ref={contentScrollRef}
+              className={styles.contentGrid}
+              data-testid="content-scroll"
+              style={
+                {
+                  '--gutter-l': marginCollapse.left ? '0px' : '1fr',
+                  '--gutter-r': marginCollapse.right ? '0px' : '1fr',
+                  '--content-max': contentMaxWidth(marginCollapse),
+                } as React.CSSProperties
+              }
+            >
               <ContentArea
                 source={source}
                 comments={comments}
@@ -777,9 +785,7 @@ export function App() {
                 onOpenFile={(path) => void handleOpenFile(path)}
                 onOpenDir={(path) => void handleOpenDir(path)}
               />
-            )}
-          </div>
-          {!diffMode && (
+            </div>
             <button
               type="button"
               className={styles.marginToggle}
@@ -794,8 +800,8 @@ export function App() {
             >
               {marginCollapse.right ? '‹' : '›'}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       <CommentsPanel
         open={panelOpen}

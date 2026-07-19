@@ -3,20 +3,36 @@
   flex-direction: column;
   height: 100vh;
 }
-/* ディレクトリモード: サイドバー + コンテンツ列の 2 カラム */
+/* 単一ファイルモード（ディレクトリなし）の差分チェック時: ボタン等を
+   挟まないシンプルな 1 カラムのまま（元の構造を保ち VRT を安定させる） */
+.main {
+  flex: 1;
+  overflow-y: auto;
+}
+/* ディレクトリモード、または折りたたみボタンが必要な通常モード:
+   サイドバー + コンテンツ列の 2 カラム */
 .mainRow {
   flex: 1;
   display: flex;
   min-height: 0;
   overflow: hidden;
 }
+/* 差分チェックモード: DiffView 自体が画面幅いっぱいに使うため、折りたたみ
+   ボタン等の追加レイアウトは挟まずシンプルなスクロール列のままにする
+   （余計な flex ネストを挟むとレンダリングの端数ピクセルがズレて
+   VRT スクリーンショットが不安定になるため）。 */
 .contentCol {
+  flex: 1;
+  overflow-y: auto;
+}
+/* 通常モード: 折りたたみボタン + 本文列の3カラム flex 行 */
+.contentColMargins {
   flex: 1;
   display: flex;
   min-width: 0;
   min-height: 0;
 }
-/* 通常モード: 左右ガター(var(--gutter-l/r)) + 本文列(var(--content-max)) の
+/* 左右ガター(var(--gutter-l/r)) + 本文列(var(--content-max)) の
    3 カラムグリッド。ガター折りたたみ時、本文列がその分だけ広がる。 */
 .contentGrid {
   flex: 1;
@@ -26,12 +42,6 @@
   grid-template-columns:
     var(--gutter-l, 1fr) minmax(0, var(--content-max, 960px))
     var(--gutter-r, 1fr);
-}
-/* 差分チェックモード: DiffView 自体が画面幅いっぱいに使うため、グリッド不要 */
-.contentFull {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
 }
 .marginToggle {
   flex-shrink: 0;

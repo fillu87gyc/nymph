@@ -208,9 +208,12 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
       page.locator('#file-tabs button', { hasText: 'README.md' }),
     ).toBeVisible();
 
+    // OS ネイティブダイアログは Playwright で操作できないため、
+    // 選択結果を返す /pick-dir をモックして後続の /open-dir フローを検証する。
+    await page.route('**/pick-dir', (route) =>
+      route.fulfill({ json: { path: join(treeDir, 'docs') } }),
+    );
     await page.getByTestId('open-dir-btn').click();
-    await page.getByTestId('open-dir-input').fill(join(treeDir, 'docs'));
-    await page.getByTestId('open-dir-submit').click();
 
     await expect(page.getByTestId('tree-root-name')).toContainText('docs');
     await expect(
@@ -222,9 +225,10 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     ).toBeVisible();
 
     // 後続テストのために元のルートへ戻す
+    await page.route('**/pick-dir', (route) =>
+      route.fulfill({ json: { path: treeDir } }),
+    );
     await page.getByTestId('open-dir-btn').click();
-    await page.getByTestId('open-dir-input').fill(treeDir);
-    await page.getByTestId('open-dir-submit').click();
     await expect(
       page.getByTestId('tree-dir').filter({ hasText: 'docs' }),
     ).toBeVisible();
@@ -234,12 +238,53 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     page,
   }) => {
     await gotoTree(page);
+    await page.route('**/pick-dir', (route) =>
+      route.fulfill({ json: { path: '/no/such/dir' } }),
+    );
     await page.getByTestId('open-dir-btn').click();
-    await page.getByTestId('open-dir-input').fill('/no/such/dir');
-    await page.getByTestId('open-dir-input').press('Enter');
     await expect(page.locator('#toast')).toContainText(
       'ディレクトリを開けませんでした',
       { timeout: 3000 },
     );
+  });
+
+  test('ダイアログでキャンセルすると何も起きない', async ({ page }) => {
+    await gotoTree(page);
+    await page.route('**/pick-dir', (route) =>
+      route.fulfill({ json: { path: null } }),
+    );
+    await page.getByTestId('open-dir-btn').click();
+    await expect(
+      page.getByTestId('tree-dir').filter({ hasText: 'docs' }),
+    ).toBeVisible();
+  });
+
+  test('「ファイルを開く」でOSダイアログから選んだファイルが開く', async ({
+    page,
+  }) => {
+    await gotoTree(page);
+    await page.route('**/pick-file', (route) =>
+      route.fulfill({ json: { path: guidePath } }),
+    );
+    await page.getByTestId('open-file-btn').click();
+
+    await expect(
+      page.locator('#file-tabs button', { hasText: 'guide.md' }),
+    ).toBeVisible();
+    await expect(page.locator('#content h1')).toContainText('Guide');
+  });
+
+  test('「ファイルを開く」でキャンセルするとタブは増えない', async ({
+    page,
+  }) => {
+    await gotoTree(page);
+    const tabsBefore = await page.locator('#file-tabs button').count();
+
+    await page.route('**/pick-file', (route) =>
+      route.fulfill({ json: { path: null } }),
+    );
+    await page.getByTestId('open-file-btn').click();
+
+    await expect(page.locator('#file-tabs button')).toHaveCount(tabsBefore);
   });
 });

@@ -117,11 +117,12 @@ export function App() {
     clearAll,
     clearOrphaned,
   } = useComments();
-  const { files, activeFile, switchFile, closeFile, openFile } = useFiles();
+  const { files, activeFile, switchFile, closeFile, openFile, pickFile } =
+    useFiles();
   const { recentFiles } = useRecent();
   const [recentOpen, setRecentOpen] = useState(false);
   const [quickOpenOpen, setQuickOpenOpen] = useState(false);
-  const { root, rootName, tree, openDir } = useTree();
+  const { root, rootName, tree, openDir, pickDir } = useTree();
   const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
   const {
@@ -504,6 +505,25 @@ export function App() {
     [openDir],
   );
 
+  // OS ネイティブのダイアログでファイル/フォルダを選ぶ
+  const handlePickFile = useCallback(async () => {
+    try {
+      await pickFile();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      toast(message || 'ファイルを開けませんでした');
+    }
+  }, [pickFile]);
+
+  const handlePickDir = useCallback(async () => {
+    try {
+      await pickDir();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      toast(message || 'ディレクトリを開けませんでした');
+    }
+  }, [pickDir]);
+
   // ブックマーク対象: アクティブファイル優先、なければツリーのルート dir
   const bookmarkTarget =
     activeFile && activeFile !== '__dropped__'
@@ -635,6 +655,8 @@ export function App() {
         onToggleRecent={setRecentOpen}
         onOpenFile={(path) => void handleOpenFile(path)}
         onOpenDir={(path) => void handleOpenDir(path)}
+        onPickFile={() => void handlePickFile()}
+        onPickDir={() => void handlePickDir()}
         onTogglePanel={() => setPanelOpen((o) => !o)}
         onCopyReview={copyReview}
         canCopyPath={!!activeFile && activeFile !== '__dropped__'}

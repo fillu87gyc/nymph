@@ -26,10 +26,22 @@ export function useTree() {
     [mutate],
   );
 
+  // OS ネイティブのフォルダ選択ダイアログを起動し、選択されたらルートを切り替える
+  const pickDir = useCallback(async () => {
+    const res = await fetch('/pick-dir', { method: 'POST' });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error || 'ダイアログを開けませんでした');
+    }
+    const { path } = (await res.json()) as { path: string | null };
+    if (path) await openDir(path);
+  }, [openDir]);
+
   return {
     root: data?.root ?? null,
     rootName: data?.rootName ?? '',
     tree: data?.tree ?? [],
     openDir,
+    pickDir,
   };
 }

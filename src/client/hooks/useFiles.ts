@@ -59,5 +59,16 @@ export function useFiles() {
     [mutate],
   );
 
-  return { files, activeFile, switchFile, closeFile, openFile };
+  // OS ネイティブのファイル選択ダイアログを起動し、選択されたら開く
+  const pickFile = useCallback(async () => {
+    const res = await fetch('/pick-file', { method: 'POST' });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error || 'ダイアログを開けませんでした');
+    }
+    const { path } = (await res.json()) as { path: string | null };
+    if (path) await openFile(path);
+  }, [openFile]);
+
+  return { files, activeFile, switchFile, closeFile, openFile, pickFile };
 }

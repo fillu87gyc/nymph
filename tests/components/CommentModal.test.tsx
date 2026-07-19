@@ -152,7 +152,7 @@ describe('CommentModal', () => {
     expect(box.style.top).toBe('310px'); // anchor.y + ANCHOR_OFFSET_Y
   });
 
-  test('モーダル外をクリックすると onClose が呼ばれる', () => {
+  test('未入力時にモーダル外をクリックすると onClose が呼ばれる', () => {
     const onClose = vi.fn();
     render(
       <CommentModal
@@ -167,6 +167,44 @@ describe('CommentModal', () => {
       />,
     );
     fireEvent.mouseDown(document.body);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  test('入力済みの状態でモーダル外をクリックしても onClose は呼ばれない（入力を破棄しない）', async () => {
+    const onClose = vi.fn();
+    render(
+      <CommentModal
+        open={true}
+        pending={pending}
+        editingId={null}
+        displayCtx="ctx"
+        initialText=""
+        anchor={{ x: 200, y: 300 }}
+        onSubmit={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    await userEvent.type(screen.getByRole('textbox'), 'draft in progress');
+    fireEvent.mouseDown(document.body);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('Escape キーは入力済みでも onClose を呼ぶ（明示操作は従来通り閉じる）', async () => {
+    const onClose = vi.fn();
+    render(
+      <CommentModal
+        open={true}
+        pending={pending}
+        editingId={null}
+        displayCtx="ctx"
+        initialText=""
+        anchor={{ x: 200, y: 300 }}
+        onSubmit={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    await userEvent.type(screen.getByRole('textbox'), 'draft in progress');
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 

@@ -1,26 +1,43 @@
 import { useCallback } from 'react';
 import useSWR from 'swr';
+import { commentsKey } from '../lib/comments.ts';
 import { fetcher } from '../lib/fetcher.ts';
 import type { Comment, PendingComment } from '../types.ts';
 
-function postComments(updated: Comment[]) {
-  fetch('/comments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updated),
-  }).catch(() => {});
+// 保存先ファイルを明示した URL に POST する。レスポンスが失敗した場合は
+// サイレントに諦めず呼び出し元に伝える（呼び出し元は SWR キャッシュを
+// 再検証して実状態に合わせる）。
+async function postComments(key: string, updated: Comment[]): Promise<boolean> {
+  try {
+    const res = await fetch(key, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
-export function useComments() {
-  const { data: comments = [], mutate } = useSWR<Comment[]>(
-    '/comments',
-    fetcher,
-    { fallbackData: [] },
-  );
+export function useComments(activeFile: string | null = null) {
+  const key = commentsKey(activeFile);
+  const { data: comments = [], mutate } = useSWR<Comment[]>(key, fetcher, {
+    fallbackData: [],
+  });
 
   const nextId = comments.length
     ? Math.max(...comments.map((c) => c.id)) + 1
     : 1;
+
+  // 保存に失敗したら、ローカルの楽観的更新を実際のサーバー状態で
+  // 上書きする（revalidate）ことで、消えたはずのコメントが UI 上だけ
+  // 残ってしまう食い違いを防ぐ。
+  async function save(updated: Comment[]): Promise<boolean> {
+    const ok = await postComments(key, updated);
+    if (!ok) await mutate();
+    return ok;
+  }
 
   const addComment = useCallback(
     async (pending: PendingComment, text: string) => {
@@ -45,9 +62,9 @@ export function useComments() {
         },
         { revalidate: false },
       );
-      if (updated) postComments(updated);
+      return updated ? save(updated) : true;
     },
-    [mutate],
+    [mutate, key],
   );
 
   const updateComment = useCallback(
@@ -57,9 +74,9 @@ export function useComments() {
           current.map((c) => (c.id === id ? { ...c, text } : c)),
         { revalidate: false },
       );
-      if (updated) postComments(updated);
+      return updated ? save(updated) : true;
     },
-    [mutate],
+    [mutate, key],
   );
 
   const deleteComment = useCallback(
@@ -68,15 +85,15 @@ export function useComments() {
         (current: Comment[] = []) => current.filter((c) => c.id !== id),
         { revalidate: false },
       );
-      if (updated) postComments(updated);
+      return updated ? save(updated) : true;
     },
-    [mutate],
+    [mutate, key],
   );
 
   const clearAll = useCallback(async () => {
     const updated = await mutate(() => [] as Comment[], { revalidate: false });
-    if (updated) postComments(updated);
-  }, [mutate]);
+    return updated ? save(updated) : true;
+  }, [mutate, key]);
 
   const clearOrphaned = useCallback(
     async (ids: Set<number>) => {
@@ -84,9 +101,9 @@ export function useComments() {
         (current: Comment[] = []) => current.filter((c) => !ids.has(c.id)),
         { revalidate: false },
       );
-      if (updated) postComments(updated);
+      return updated ? save(updated) : true;
     },
-    [mutate],
+    [mutate, key],
   );
 
   return {

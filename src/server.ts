@@ -281,11 +281,23 @@ function handleGetComments(url: URL): Response {
   }
 }
 
-async function handleSaveComments(req: Request): Promise<Response> {
-  if (!state.commentsPath) return json({});
+async function handleSaveComments(req: Request, url: URL): Promise<Response> {
+  const fileParam = url.searchParams.get('file');
+  let cp: string | null;
+  if (fileParam) {
+    const allowed = new Set(activePaths());
+    if (!allowed.has(fileParam)) return err('Forbidden', 403);
+    cp = `${fileParam}.comments.json`;
+  } else {
+    cp = state.commentsPath;
+  }
+  // 保存先が確定できない場合（ディレクトリモード起動直後で未選択、または
+  // __dropped__ 表示中でファイル実体がない）はサイレントに 200 を返さず
+  // 4xx にしてクライアントに保存失敗を伝える。
+  if (!cp) return err('保存先のファイルが確定できません', 400);
   try {
     const body = await req.json();
-    writeFileSync(state.commentsPath, JSON.stringify(body, null, 2), 'utf-8');
+    writeFileSync(cp, JSON.stringify(body, null, 2), 'utf-8');
     return json({});
   } catch (e) {
     return err(String(e));
@@ -782,7 +794,7 @@ export function createServer(port: number) {
       }
 
       if (req.method === 'POST') {
-        if (path === '/comments') return handleSaveComments(req);
+        if (path === '/comments') return handleSaveComments(req, url);
         if (path === '/edit-op') return handleEditOp(req);
         if (path === '/checkpoint') return handleSetCheckpoint();
         if (path === '/switch-file') return handleSwitchFile(req);

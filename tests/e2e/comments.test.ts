@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { expect, type Page, test } from './fixtures.ts';
 
 async function addComment(page: Page, text: string) {
@@ -16,8 +22,9 @@ async function addComment(page: Page, text: string) {
   });
 }
 
-test.beforeEach(async ({ page, commentsPath }) => {
+test.beforeEach(async ({ page, commentsPath, reviewDir }) => {
   if (existsSync(commentsPath)) rmSync(commentsPath);
+  rmSync(reviewDir, { recursive: true, force: true });
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),
@@ -26,12 +33,13 @@ test.beforeEach(async ({ page, commentsPath }) => {
   });
 });
 
-test.afterEach(async ({ commentsPath }) => {
+test.afterEach(async ({ commentsPath, reviewDir }) => {
   try {
     rmSync(commentsPath);
   } catch {
     /* ignore */
   }
+  rmSync(reviewDir, { recursive: true, force: true });
 });
 
 test.describe('コメントパネルの開閉', () => {
@@ -72,15 +80,15 @@ test.describe('コメントの削除', () => {
 
   test('削除後にコメントファイルから除去される', async ({
     page,
-    commentsPath,
+    reviewCommentsPath,
   }) => {
     await addComment(page, 'to delete');
     await page.locator('[data-testid="c-del"]').first().click();
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0);
-    if (existsSync(commentsPath)) {
-      const saved = JSON.parse(readFileSync(commentsPath, 'utf-8'));
-      expect(saved).toHaveLength(0);
-    }
+    // 保存先は新store（reviewStore.ts のエンベロープ形式）
+    await expect.poll(() => existsSync(reviewCommentsPath)).toBe(true);
+    const envelope = JSON.parse(readFileSync(reviewCommentsPath, 'utf-8'));
+    expect(envelope.comments).toHaveLength(0);
   });
 });
 
@@ -530,7 +538,9 @@ test.describe('複数コメント', () => {
 test.describe('削除済みコメントの表示', () => {
   test('対象テキストが存在しない selection コメントに「削除済み」バッジが表示される', async ({
     page,
-    commentsPath,
+    fixturePath,
+    reviewDir,
+    reviewCommentsPath,
   }) => {
     const orphanedComment = [
       {
@@ -543,7 +553,17 @@ test.describe('削除済みコメントの表示', () => {
         text: '孤立コメント',
       },
     ];
-    writeFileSync(commentsPath, JSON.stringify(orphanedComment));
+    // 新store（reviewStore.ts のエンベロープ形式）に直接シードする
+    mkdirSync(reviewDir, { recursive: true });
+    writeFileSync(
+      reviewCommentsPath,
+      JSON.stringify({
+        version: 2,
+        file: fixturePath,
+        updatedAt: new Date().toISOString(),
+        comments: orphanedComment,
+      }),
+    );
 
     await page.reload();
     await expect(
@@ -579,7 +599,7 @@ test.describe('削除済みコメントの表示', () => {
 test.describe('コメント入力中の外側クリック（入力破棄バグの回帰防止）', () => {
   test('入力済みの状態で本文をクリックしても破棄されず、そのまま送信できる', async ({
     page,
-    commentsPath,
+    reviewCommentsPath,
   }) => {
     const tableBlock = page
       .locator('#content [data-testid="md-block"][data-block-type="table"]')
@@ -602,11 +622,11 @@ test.describe('コメント入力中の外側クリック（入力破棄バグ�
       page.locator('[data-testid="comment-item"]').first(),
     ).toContainText('draft comment text');
 
-    // .comments.json が実際に作成され、保存されていること
-    await expect.poll(() => existsSync(commentsPath)).toBe(true);
-    const saved = JSON.parse(readFileSync(commentsPath, 'utf-8'));
-    expect(saved).toHaveLength(1);
-    expect(saved[0].text).toBe('draft comment text');
+    // 新store（reviewStore.ts のエンベロープ形式）が実際に作成され、保存されていること
+    await expect.poll(() => existsSync(reviewCommentsPath)).toBe(true);
+    const envelope = JSON.parse(readFileSync(reviewCommentsPath, 'utf-8'));
+    expect(envelope.comments).toHaveLength(1);
+    expect(envelope.comments[0].text).toBe('draft comment text');
   });
 
   test('未入力のまま本文をクリックするとモーダルは閉じる（従来通り）', async ({

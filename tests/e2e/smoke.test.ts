@@ -70,12 +70,19 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
 });
 
 test.describe('コメント: 追加 → 保存 → リロード後復元', () => {
-  test.afterEach(async ({ commentsPath }) => {
+  // 新store（XDG data dir 配下）はワーカー内の他テストと fixturePath を共有する
+  // ため、before/after 両方で掃除して汚染を防ぐ。
+  test.beforeEach(async ({ reviewDir }) => {
+    rmSync(reviewDir, { recursive: true, force: true });
+  });
+
+  test.afterEach(async ({ commentsPath, reviewDir }) => {
     try {
       rmSync(commentsPath);
     } catch {
       /* ignore */
     }
+    rmSync(reviewDir, { recursive: true, force: true });
   });
 
   test('コメントを追加してリロード後も残る', async ({ page }) => {

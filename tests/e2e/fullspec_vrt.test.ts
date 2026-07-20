@@ -19,6 +19,7 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures.ts';
+import { routeVrtAssets, stabilizeVrt } from './vrt.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -129,6 +130,9 @@ test.describe('フルスペック VRT', () => {
     await page.setViewportSize({ width: 1600, height: 900 });
 
     // ── 1. ページ読み込み ──────────────────────────────────────────
+    // 外部 CDN（フォント・hljs CSS）をベンダリング済みコピーで返し、
+    // レンダリングをネットワーク状態から切り離す（goto より前に登録）
+    await routeVrtAssets(page);
     await page.goto('/');
     await expect(
       page.locator('#content [data-testid="md-block"]').first(),
@@ -176,37 +180,12 @@ test.describe('フルスペック VRT', () => {
       },
     );
 
-    // ── 5. 縦長キャプチャのためレイアウトを展開 ──────────────────
-    // #main は flex:1 の scroll container。fullPage:true + window scroll では
-    // #main 内部のコンテンツが viewport 分しか撮影されないため、
-    // viewport 自体をドキュメント全高さに拡張して単一フレームで撮影する。
-    await page.evaluate(() => {
-      const app = document.getElementById('app') as HTMLElement;
-      const main = document.getElementById('main') as HTMLElement;
-      if (!main || !app) return;
-      const h = main.scrollHeight; // コンテンツ全高さ（変更前）
-      app.style.height = 'auto';
-      main.style.flex = 'none'; // flex:1 (flex-basis:0) を解除
-      main.style.height = `${h}px`; // スクロール不要な高さに固定
-    });
-
-    // ビューポートをドキュメント全高さに合わせて単一フレームで全体を撮影する
-    const docHeight = await page.evaluate(
-      () => document.documentElement.scrollHeight,
-    );
-    await page.setViewportSize({ width: 1600, height: docHeight });
-
-    // ── 6. VRT 安定化用 CSS を注入 ───────────────────────────────
-    // アニメーションを初期フレームで停止し、トースト・接続ドットを固定表示
-    await page.addStyleTag({
-      content: `
-        *, *::before, *::after {
-          animation-play-state: paused !important;
-          transition-duration: 0ms !important;
-        }
-        [data-testid="connection-dot"] { opacity: 1 !important; }
-        #toast { display: none !important; }
-        #update-time { visibility: hidden !important; }
+    // ── 5. VRT 安定化（フォント確定 + 安定化 CSS 注入） ─────────────
+    // 高さ計測より前にフォントを確定させる。フォントスワップ後に文書高さが
+    // 変わると、スクリーンショットの寸法自体がベースラインとズレるため。
+    await stabilizeVrt(
+      page,
+      `
         /* highlighted 状態を明るいオレンジで固定表示（アニメーション無効化） */
         [data-testid="md-block"][data-highlighted="true"][data-block-type="table"] > div,
         [data-testid="md-block"][data-highlighted="true"][data-block-type="mermaid"] > div {
@@ -215,7 +194,44 @@ test.describe('フルスペック VRT', () => {
           border-radius: 6px;
         }
       `,
+    );
+
+    // ── 6. 縦長キャプチャのためレイアウトを展開 ──────────────────
+    // 実際のスクロールコンテナは #main ではなく内側の
+    // [data-testid="content-scroll"]（.contentGrid, overflow-y:auto）。
+    // fullPage:true + window scroll では内部コンテンツが viewport 分しか
+    // 撮影されないため、コンテナの全コンテンツ高さに合わせて #main を固定し、
+    // viewport 自体をドキュメント全高さに拡張して単一フレームで撮影する。
+    await page.evaluate(() => {
+      const app = document.getElementById('app') as HTMLElement;
+      const main = document.getElementById('main') as HTMLElement;
+      const scroll = document.querySelector<HTMLElement>(
+        '[data-testid="content-scroll"]',
+      );
+      if (!main || !app || !scroll) return;
+      const h = scroll.scrollHeight; // コンテンツ全高さ
+      app.style.height = 'auto';
+      main.style.flex = 'none'; // flex:1 (flex-basis:0) を解除
+      main.style.height = `${h}px`; // スクロール不要な高さに固定
+      main.style.overflow = 'visible'; // .mainRow の overflow:hidden を解除
+      scroll.style.overflowY = 'visible'; // スクロールコンテナを解除
+      scroll.scrollTop = 0; // 途中スクロール状態を持ち込まない
+
+      // コメントパネル（高さ固定 210px・内部スクロール）も全件見えるよう
+      // 展開し、7 件のコメントと削除済みバッジを撮影対象に含める
+      const panel = document.getElementById('comments-panel');
+      const list = document.getElementById('comments-list');
+      if (panel && list) {
+        panel.style.height = 'auto';
+        list.style.overflowY = 'visible';
+      }
     });
+
+    // ビューポートをドキュメント全高さに合わせて単一フレームで全体を撮影する
+    const docHeight = await page.evaluate(
+      () => document.documentElement.scrollHeight,
+    );
+    await page.setViewportSize({ width: 1600, height: docHeight });
 
     // ── 7. テーブルコメント（3 番目）をクリックしてハイライト ───
     await page.locator('[data-testid="comment-item"]').nth(2).click();
@@ -224,9 +240,6 @@ test.describe('フルスペック VRT', () => {
         '#content [data-testid="md-block"][data-line-start="32"][data-highlighted="true"]',
       ),
     ).toBeVisible({ timeout: 2000 });
-
-    // フォントが完全にロードされてからスクリーンショットを撮る
-    await page.evaluate(() => document.fonts.ready);
 
     // ── 8. 縦長 VRT スクリーンショット（viewport = doc 高さ → 単一フレーム）
     await expect(page).toHaveScreenshot('fullspec-vrt.png', {

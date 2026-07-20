@@ -29,7 +29,7 @@
 | 1 | **HTML エクスポート** — `nymph report.md --export out.html` でコメント埋め込みの静的 HTML を生成 | 高 |
 | 2 | **PDF 出力** — 印刷用 CSS を追加し、ブラウザ印刷 API で PDF 生成 | 中 |
 | 3 | **コメントを Markdown に書き戻し** — レビューコメントを元ファイルのブロック直下に `> [nymph] …` 形式で挿入するオプション | 中 |
-| 4 | **JSON → CSV エクスポート** — `.comments.json` を CSV に変換する CLI サブコマンド `nymph export` | 低 |
+| 4 | **JSON → CSV エクスポート** — 保存済みコメントを CSV に変換する CLI サブコマンド `nymph export` | 低 |
 
 ---
 

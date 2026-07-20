@@ -4,7 +4,18 @@
  * Each Playwright worker gets its own:
  *   - nymph server on port 6276 + workerIndex
  *   - fixture file copy  (tests/fixtures/sample-w{n}.md)
- *   - comments file      (sample-w{n}.md.comments.json)
+ *   - review store dir   ($nymphConfigDir/nymph/reviews/<reviewKey>/)
+ *
+ * Review data (comments / checkpoint) no longer lives beside the fixture
+ * file — it lives under the worker's XDG_DATA_HOME (`nymphConfigDir`), keyed
+ * deterministically by `reviewKey()` (see src/reviewStore.ts). Because the
+ * fixture file path is stable for the whole worker's lifetime, comments
+ * written by one test persist into the next test unless explicitly cleared;
+ * tests that add comments/checkpoints must clean `reviewDir` (or
+ * `reviewCommentsPath` / `reviewCheckpointPath`) in beforeEach/afterEach.
+ *
+ * `commentsPath` (legacy `<file>.comments.json`) is kept only for tests that
+ * specifically exercise legacy-sidecar auto-migration.
  *
  * Overriding the built-in `context` fixture sets baseURL per worker so that
  * page.goto('/') always resolves to the correct isolated server.
@@ -25,9 +36,33 @@ import {
   expect,
   type Page,
 } from '@playwright/test';
+import { reviewKey } from '../../src/reviewStore.ts';
 
 const SAMPLE_PATH = join(process.cwd(), 'tests/fixtures/sample.md');
 const BASE_PORT = 6276;
+
+/**
+ * サーバー側 reviewStore.ts と同じ reviewKey を使い、新store（XDG data dir 配下）
+ * のレビューデータ格納ディレクトリを解決する。キー導出ロジックを重複させない
+ * ため、実装は import した reviewKey にそのまま委譲する。
+ */
+export function reviewDirFor(nymphDataHome: string, file: string): string {
+  return join(nymphDataHome, 'nymph', 'reviews', reviewKey(file));
+}
+
+export function reviewCommentsPathFor(
+  nymphDataHome: string,
+  file: string,
+): string {
+  return join(reviewDirFor(nymphDataHome, file), 'comments.json');
+}
+
+export function reviewCheckpointPathFor(
+  nymphDataHome: string,
+  file: string,
+): string {
+  return join(reviewDirFor(nymphDataHome, file), 'checkpoint');
+}
 
 const ASSETS_DIR = join(process.cwd(), 'tests/e2e/assets');
 const HLJS_STYLES_DIR = join(process.cwd(), 'node_modules/highlight.js/styles');
@@ -81,7 +116,16 @@ type WorkerFixtures = {
 type TestFixtures = {
   context: BrowserContext;
   fixturePath: string;
+  /** レガシーサイドカー（`fixturePath + '.comments.json'`）。移行テスト専用。 */
   commentsPath: string;
+  /** レガシーサイドカー（`fixturePath + '.checkpoint'`）。移行テスト専用。 */
+  legacyCheckpointPath: string;
+  /** 新store（XDG data dir 配下）でのこのワーカーの fixturePath 用格納ディレクトリ */
+  reviewDir: string;
+  /** 新store側の comments.json（`reviewDir + '/comments.json'`） */
+  reviewCommentsPath: string;
+  /** 新store側の checkpoint（`reviewDir + '/checkpoint'`） */
+  reviewCheckpointPath: string;
   dictDir: string;
   dictPath: string;
   /** サーバープロセスが使う XDG_CONFIG_HOME（承認済みハッシュの保存先） */
@@ -186,6 +230,24 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
   commentsPath: async ({ _workerServer }, use) => {
     await use(`${_workerServer.fixturePath}.comments.json`);
+  },
+
+  legacyCheckpointPath: async ({ _workerServer }, use) => {
+    await use(`${_workerServer.fixturePath}.checkpoint`);
+  },
+
+  reviewDir: async ({ _workerServer }, use) => {
+    await use(
+      reviewDirFor(_workerServer.nymphConfigDir, _workerServer.fixturePath),
+    );
+  },
+
+  reviewCommentsPath: async ({ reviewDir }, use) => {
+    await use(join(reviewDir, 'comments.json'));
+  },
+
+  reviewCheckpointPath: async ({ reviewDir }, use) => {
+    await use(join(reviewDir, 'checkpoint'));
   },
 
   dictDir: async ({ _workerServer }, use) => {

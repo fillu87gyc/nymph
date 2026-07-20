@@ -11,33 +11,33 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe('本文フォント選択', () => {
-  test('デフォルトでは Lora が #content の本文フォントとして適用される', async ({
+  test('デフォルトでは Inter が #content の本文フォントとして適用される', async ({
     page,
   }) => {
-    const fontFamily = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue(
-        '--content-font',
-      ),
-    );
-    expect(fontFamily).toContain('Lora');
-  });
-
-  test('フォントを切り替えると --content-font 変数が変わり localStorage に保存される', async ({
-    page,
-  }) => {
-    await page.selectOption('#content-font-select', 'inter');
-
     const fontFamily = await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue(
         '--content-font',
       ),
     );
     expect(fontFamily).toContain('Inter');
+  });
+
+  test('フォントを切り替えると --content-font 変数が変わり localStorage に保存される', async ({
+    page,
+  }) => {
+    await page.selectOption('#content-font-select', 'default');
+
+    const fontFamily = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue(
+        '--content-font',
+      ),
+    );
+    expect(fontFamily).toContain('Lora');
 
     const saved = await page.evaluate(() =>
       localStorage.getItem('nymph-content-font'),
     );
-    expect(saved).toBe('inter');
+    expect(saved).toBe('default');
   });
 
   test('リロード後も選択したフォントが復元される', async ({ page }) => {

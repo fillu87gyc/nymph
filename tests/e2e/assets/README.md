@@ -21,8 +21,7 @@ E2E / VRT を CDN・ネットワーク状態から切り離し、本番と同じ
 | Family | Copyright |
 |---|---|
 | DM Sans | Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts) |
-| Lora | Copyright 2011 The Lora Project Authors (https://github.com/cyrealtype/Lora-Cyrillic), with Reserved Font Name "Lora". |
-| Playfair Display | Copyright 2017 The Playfair Display Project Authors (https://github.com/clauseggers/Playfair-Display), with Reserved Font Name "Playfair Display". |
+| Inter | Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter) |
 | JetBrains Mono | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
 
 highlight.js のテーマ CSS はここには含めない（BSD-3-Clause、テスト実行時に

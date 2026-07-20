@@ -9,10 +9,19 @@ export interface ContentFontOption {
 
 export const CONTENT_FONT_OPTIONS: ContentFontOption[] = [
   {
+    id: 'inter',
+    label: 'デフォルト（Inter）',
+    bodyFont: '"Inter", sans-serif',
+    headingFont: '"Inter", sans-serif',
+    // index.html で先読み済み
+  },
+  {
     id: 'default',
-    label: 'デフォルト（Lora / Playfair Display）',
+    label: 'Lora / Playfair Display',
     bodyFont: '"Lora", serif',
     headingFont: '"Playfair Display", serif',
+    googleFontsParam:
+      'family=Lora:ital,wght@0,400;0,500;1,400&family=Playfair+Display:wght@700',
   },
   {
     id: 'noto-serif-jp',
@@ -34,13 +43,6 @@ export const CONTENT_FONT_OPTIONS: ContentFontOption[] = [
     bodyFont: '"Merriweather", serif',
     headingFont: '"Merriweather", serif',
     googleFontsParam: 'family=Merriweather:ital,wght@0,400;0,700;1,400',
-  },
-  {
-    id: 'inter',
-    label: 'Inter',
-    bodyFont: '"Inter", sans-serif',
-    headingFont: '"Inter", sans-serif',
-    googleFontsParam: 'family=Inter:wght@400;500;600;700',
   },
   {
     id: 'atkinson-hyperlegible',

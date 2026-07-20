@@ -150,10 +150,12 @@ test.describe('フルスペック VRT', () => {
     });
 
     // ── 2. チェックポイント設定（⋯ メニューの中） ──────────────────
-    // 後続の #btn-comments クリックがオーバーフローメニュー外へのクリックと
-    // なり自動的に閉じるため、最終スクリーンショットにメニューは映り込まない。
+    // 項目クリックでメニューは閉じるため、状態確認には開き直す。開いた
+    // ままでも後続の #btn-comments クリックがオーバーフローメニュー外への
+    // クリックとなり自動的に閉じるため、最終スクリーンショットに映り込まない。
     await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',

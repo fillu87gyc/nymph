@@ -1,7 +1,13 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, type Page, pollUntilReady, test } from './fixtures.ts';
+import {
+  expect,
+  openOverflowMenu,
+  type Page,
+  pollUntilReady,
+  test,
+} from './fixtures.ts';
 
 // ブックマーク機能の専用サーバー（ディレクトリモードで起動）。
 // 標準ワーカー（6276+）・recent（6400+）・tree（6450+）と衝突しないポート帯。
@@ -61,6 +67,8 @@ test.describe('ブックマーク', () => {
     page,
   }) => {
     await gotoApp(page);
+    // ブックマーク・フォルダを開くは ⋯ オーバーフローメニューの中
+    await openOverflowMenu(page);
     // ファイル未選択 → ★はルート dir を登録する
     await expect(page.getByTestId('bookmark-toggle')).toContainText('☆');
     await page.getByTestId('bookmark-toggle').click();
@@ -88,7 +96,8 @@ test.describe('ブックマーク', () => {
       `bmdir-w${test.info().workerIndex}`,
     );
 
-    // 後片付け: ルート dir の★を解除
+    // 後片付け: ルート dir の★を解除（「最近」メニューを開いた際に ⋯ は閉じている）
+    await openOverflowMenu(page);
     await page.getByTestId('bookmark-toggle').click();
     await expect(page.getByTestId('bookmark-toggle')).toContainText('☆');
   });
@@ -100,6 +109,7 @@ test.describe('ブックマーク', () => {
     await page.getByTestId('tree-file').filter({ hasText: 'memo.md' }).click();
     await expect(page.locator('#content h1')).toContainText('Memo');
 
+    await openOverflowMenu(page);
     await page.getByTestId('bookmark-toggle').click();
     await expect(page.getByTestId('bookmark-toggle')).toContainText('★');
 
@@ -113,6 +123,7 @@ test.describe('ブックマーク', () => {
 
     // リロードしても永続している
     await page.reload();
+    await openOverflowMenu(page);
     await expect(page.getByTestId('bookmark-toggle')).toContainText('★', {
       timeout: 5000,
     });

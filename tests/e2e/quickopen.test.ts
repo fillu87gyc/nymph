@@ -65,7 +65,13 @@ test.describe('Quick Open（Ctrl+P）', () => {
       page.getByTestId('quick-open-item').filter({ hasText: 'beta.md' }),
     ).toBeVisible();
 
+    // タブ行は2ファイル以上で表示されるため、先に alpha.md を開いておく
+    await page.getByTestId('quick-open-input').fill('alpha');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('quick-open')).not.toBeVisible();
+
     // 絞り込み → Enter で開く
+    await page.keyboard.press('Control+p');
     await page.getByTestId('quick-open-input').fill('beta');
     await expect(page.getByTestId('quick-open-item')).toHaveCount(1);
     await page.keyboard.press('Enter');

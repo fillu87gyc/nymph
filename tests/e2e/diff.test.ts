@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { expect, type Page, test } from './fixtures.ts';
+import { expect, openOverflowMenu, type Page, test } from './fixtures.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -21,6 +21,7 @@ async function enableDiffWithChange(
   fixturePath: string,
   replacement = 'Some XYZ here.',
 ) {
+  await openOverflowMenu(page);
   await page.locator('#btn-checkpoint').click();
   await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
     'data-has-checkpoint',
@@ -91,6 +92,7 @@ test.describe('チェックポイント', () => {
   test('チェックポイントボタンでチェックポイント状態になる', async ({
     page,
   }) => {
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
@@ -99,6 +101,7 @@ test.describe('チェックポイント', () => {
   });
 
   test('チェックポイント設定後にトーストが表示される', async ({ page }) => {
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#toast')).toContainText('チェックポイント', {
       timeout: 3000,
@@ -108,6 +111,7 @@ test.describe('チェックポイント', () => {
   test('チェックポイント設定でボタンの配色が変わる（has-checkpoint スタイル）', async ({
     page,
   }) => {
+    await openOverflowMenu(page);
     const btn = page.locator('#btn-checkpoint');
     // var(--accent) の実 RGB をプローブ要素で取得（テーマ依存のため固定値にしない）
     const accentRgb = await page.evaluate(() => {
@@ -133,6 +137,7 @@ test.describe('チェックポイント', () => {
     page,
     reviewCheckpointPath,
   }) => {
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
@@ -145,6 +150,7 @@ test.describe('チェックポイント', () => {
     await expect(
       page.locator('#content [data-testid="md-block"]').first(),
     ).toBeVisible({ timeout: 5000 });
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',
@@ -252,6 +258,7 @@ test.describe('差分チェックモード', () => {
       timeout: 5000,
     });
 
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
@@ -291,6 +298,7 @@ test.describe('差分チェックモード', () => {
     fixturePath,
   }) => {
     const longLine = `これは非常に長い段落で、Markdown ソースでは 1 行になっている。${'画面幅の半分に収まらないほど長いテキストが続く。'.repeat(10)}`;
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
@@ -356,6 +364,7 @@ test.describe('差分チェックモード', () => {
   test('ファイルを変更していない場合は変更行が表示されない', async ({
     page,
   }) => {
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
@@ -481,6 +490,7 @@ test.describe('差分への指摘（diff コメント）', () => {
     // 新しい checkpoint を設定 → 差分がなくなり、指摘先の行は diff に存在しなくなる…
     // が、行内容自体は現在ファイルに残っているため一致し続ける。
     // ここでは行内容そのものを変えて不一致にする。
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     writeFileSync(
       fixturePath,

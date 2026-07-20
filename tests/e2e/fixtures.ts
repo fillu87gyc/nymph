@@ -29,7 +29,7 @@
 
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import {
   type BrowserContext,
   test as base,
@@ -262,5 +262,63 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     await use(_workerServer.nymphConfigDir);
   },
 });
+
+/**
+ * ルートディレクトリなしの標準ワーカー（fixturePath 1 ファイルのみ）で、
+ * FileTabs を表示させるための2ファイル目を用意して開く。
+ *
+ * FileTabs は2ファイル以上でのみ表示される（Stage B: mo 方式のタブ自動非表示）
+ * ため、タブ関連の検証をする既存テストはこのヘルパーで2ファイル目を開いてから
+ * アサーションする。標準ワーカーには root（ディレクトリツリー）が無く
+ * /open-file は「既知のパス」（recent または bookmark 済み）にしか通らないため、
+ * ブックマーク登録 → /open-file → reload という手順を踏む。
+ */
+export async function openSecondFile(
+  page: Page,
+  fixturePath: string,
+): Promise<{ path: string; name: string }> {
+  const path = fixturePath.replace(/\.md$/, '-second.md');
+  writeFileSync(path, '# Second\n\nSecond file for tab visibility tests.\n');
+  await page.request.post('/bookmarks/toggle', {
+    data: { path, type: 'file' },
+  });
+  await page.request.post('/open-file', { data: { path } });
+  await page.reload();
+  return { path, name: basename(path) };
+}
+
+/** openSecondFile で開いたファイルの後片付け（bookmark 登録解除 + 実ファイル削除）。 */
+export async function closeSecondFile(page: Page, path: string): Promise<void> {
+  await page.request.post('/close-file', { data: { path } }).catch(() => {});
+  await page.request
+    .post('/bookmarks/toggle', { data: { path, type: 'file' } })
+    .catch(() => {});
+  rmSync(path, { force: true });
+}
+
+/**
+ * Stage B のツールバー再編で「⋯」オーバーフローメニューに移動した項目
+ * （フォルダを開く・パスをコピー・ブックマーク・チェックポイント設定・
+ * 辞書更新・すべて削除）を操作する前に呼ぶ。既に開いていれば何もしない
+ * （項目クリックではメニューが閉じない設計のため、連続操作の途中で
+ * 何度呼んでも安全）。
+ */
+export async function openOverflowMenu(page: Page): Promise<void> {
+  const menu = page.getByTestId('overflow-menu');
+  if (await menu.isVisible().catch(() => false)) return;
+  await page.getByTestId('overflow-menu-btn').click();
+  await menu.waitFor({ state: 'visible' });
+}
+
+/**
+ * 設定ポップオーバー（テーマ切替・本文フォント・本文幅）を操作する前に呼ぶ。
+ * openOverflowMenu と同様、既に開いていれば何もしない。
+ */
+export async function openSettingsMenu(page: Page): Promise<void> {
+  const menu = page.getByTestId('settings-menu');
+  if (await menu.isVisible().catch(() => false)) return;
+  await page.getByTestId('settings-menu-btn').click();
+  await menu.waitFor({ state: 'visible' });
+}
 
 export { expect, type Page };

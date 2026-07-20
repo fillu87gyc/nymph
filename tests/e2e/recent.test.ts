@@ -1,7 +1,13 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { expect, pollUntilReady, test } from './fixtures.ts';
+import {
+  closeSecondFile,
+  expect,
+  openSecondFile,
+  pollUntilReady,
+  test,
+} from './fixtures.ts';
 
 // ───────────────────────────────────────────────────────────
 // 1. ツールバーの「最近」メニュー（標準ワーカーサーバー）
@@ -25,16 +31,24 @@ test.describe('最近開いたファイル（ツールバー）', () => {
 
   test('履歴のファイルをクリックして開ける', async ({ page, fixturePath }) => {
     await page.goto('/');
-    await page.getByTestId('recent-menu-btn').click();
-    await page
-      .getByTestId('recent-item')
-      .filter({ hasText: basename(fixturePath) })
-      .click();
-    await expect(page.getByTestId('recent-menu')).not.toBeVisible();
-    await expect(
-      page.locator('#file-tabs button', { hasText: basename(fixturePath) }),
-    ).toBeVisible();
-    await expect(page.locator('#content h1').first()).toBeVisible();
+    // 「最近」に載るのは今開いている fixturePath 自身なので、クリックしても
+    // ファイル数は増えない。タブ行は2ファイル以上で表示されるため、
+    // タブ表示の検証をするには先にもう1ファイル開いておく。
+    const second = await openSecondFile(page, fixturePath);
+    try {
+      await page.getByTestId('recent-menu-btn').click();
+      await page
+        .getByTestId('recent-item')
+        .filter({ hasText: basename(fixturePath) })
+        .click();
+      await expect(page.getByTestId('recent-menu')).not.toBeVisible();
+      await expect(
+        page.locator('#file-tabs button', { hasText: basename(fixturePath) }),
+      ).toBeVisible();
+      await expect(page.locator('#content h1').first()).toBeVisible();
+    } finally {
+      await closeSecondFile(page, second.path);
+    }
   });
 });
 
@@ -118,9 +132,9 @@ test.describe('最近開いたファイル（welcome 画面）', () => {
     await expect(item.filter({ hasText: 'history.md' })).toBeVisible();
     await item.filter({ hasText: 'history.md' }).click();
 
-    await expect(
-      page.locator('#file-tabs button', { hasText: 'history.md' }),
-    ).toBeVisible();
+    // welcome 画面から開いた時点ではファイルは1件だけなのでタブ行は出ない
+    // （タブ行は2ファイル以上で表示される。別途 file_tabs.test.ts で検証）。
+    // ここではファイルが正しく開いたことを本文で確認する。
     await expect(page.locator('#content h1')).toContainText('History File');
 
     // SSE: 接続確立後に /open-file で開いたファイルもホットリロードされる

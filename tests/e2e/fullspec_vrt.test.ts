@@ -18,7 +18,7 @@
  */
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from './fixtures.ts';
+import { expect, openOverflowMenu, test } from './fixtures.ts';
 import { stabilizeVrt } from './vrt.ts';
 
 const ORIGINAL = readFileSync(
@@ -149,7 +149,10 @@ test.describe('フルスペック VRT', () => {
       timeout: 15000,
     });
 
-    // ── 2. チェックポイント設定 ──────────────────────────────────
+    // ── 2. チェックポイント設定（⋯ メニューの中） ──────────────────
+    // 後続の #btn-comments クリックがオーバーフローメニュー外へのクリックと
+    // なり自動的に閉じるため、最終スクリーンショットにメニューは映り込まない。
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',

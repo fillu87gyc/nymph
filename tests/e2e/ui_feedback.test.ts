@@ -1,6 +1,6 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
-import { expect, test } from './fixtures.ts';
+import { join } from 'node:path';
+import { expect, openOverflowMenu, test } from './fixtures.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -66,13 +66,14 @@ test.describe('ドラッグ＆ドロップのオーバーレイ', () => {
 
 test.describe('ドロップファイルのタブ', () => {
   // ドロップ後に元ファイルを閉じると __dropped__ だけが残る状態を再現し、
-  // コンテンツが 403 にならず表示されることと閉じるボタンの動作を確認する。
-  test('元ファイルを閉じるとドロップファイルのコンテンツが表示され、閉じるボタンがある', async ({
+  // コンテンツが 403 にならず表示されることを確認する。__dropped__ が唯一の
+  // ファイルになるとタブ行は自動的に隠れる（2ファイル以上で表示される仕様の
+  // ため）。「閉じるボタン」を使ったタブの close 操作自体は2ファイル以上の
+  // シナリオで file_tabs.test.ts が検証する。
+  test('元ファイルを閉じるとドロップファイルのコンテンツが表示され、タブ行は1件のため非表示になる', async ({
     page,
     fixturePath,
   }) => {
-    const origName = basename(fixturePath);
-
     // サーバーに dropped コンテンツを直接セット
     await page.request.post('/switch-file', {
       data: { content: '# Dropped Content\n', filename: 'dropped.md' },
@@ -84,28 +85,13 @@ test.describe('ドロップファイルのタブ', () => {
     // ページをリロード → クライアントが /files を再取得し activeFile: '__dropped__' を得る
     await page.reload();
 
-    // __dropped__ タブが表示される
-    const droppedTab = page.locator('#file-tabs button', {
-      hasText: 'dropped.md',
-    });
-    await expect(droppedTab).toBeVisible({ timeout: 5000 });
+    // __dropped__ 1件だけなのでタブ行は表示されない
+    await expect(page.locator('#file-tabs')).not.toBeVisible();
 
     // コンテンツが 403 にならずロードされる（"ファイルを読み込んでいます…" で止まらない）
     await expect(
       page.locator('#content [data-testid="md-block"]').first(),
     ).toBeVisible({ timeout: 5000 });
-
-    // 閉じるボタンが存在する
-    await expect(droppedTab.locator('span')).toBeVisible();
-
-    // 閉じるボタンをクリックするとタブが消える
-    await droppedTab.locator('span').click();
-    await expect(droppedTab).toHaveCount(0, { timeout: 3000 });
-
-    // 元ファイルタブも残っていない（dropped だけだった）
-    await expect(
-      page.locator('#file-tabs button', { hasText: origName }),
-    ).toHaveCount(0);
   });
 });
 
@@ -131,6 +117,7 @@ test.describe('ファイルパスのコピー', () => {
   }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
+    await openOverflowMenu(page);
     await page.locator('#btn-copy-path').click();
 
     const toast = page.locator('#toast');
@@ -149,6 +136,7 @@ test.describe('ファイルパスのコピー', () => {
     await page.request.post('/close-file', { data: { path: fixturePath } });
     await page.reload();
 
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-copy-path')).toBeDisabled();
   });
 });

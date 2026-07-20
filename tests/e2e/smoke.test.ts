@@ -1,6 +1,6 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from './fixtures.ts';
+import { closeSecondFile, expect, openSecondFile, test } from './fixtures.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -28,30 +28,57 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     });
   });
 
-  test('ファイルタブが表示される', async ({ page }) => {
+  test('ファイルタブは2ファイル目を開くと表示される（1ファイルでは非表示）', async ({
+    page,
+    fixturePath,
+  }) => {
     await page.goto('/');
-    await expect(page.locator('#file-tabs')).toBeVisible();
-  });
+    await expect(page.locator('#content h1')).toContainText('Sample', {
+      timeout: 5000,
+    });
+    // 1ファイルのみのときはタブ行自体が描画されない（mo 方式の自動非表示）
+    await expect(page.locator('#file-tabs')).not.toBeVisible();
 
-  test('ファイルタブはツールバーとは別の段で表示される', async ({ page }) => {
-    await page.goto('/');
-    const toolbarBox = await page.locator('#toolbar').boundingBox();
-    const tabsBox = await page.locator('#file-tabs').boundingBox();
-    if (toolbarBox === null || tabsBox === null) {
-      throw new Error('toolbar or file-tabs bounding box not found');
+    const second = await openSecondFile(page, fixturePath);
+    try {
+      await expect(page.locator('#file-tabs')).toBeVisible();
+    } finally {
+      await closeSecondFile(page, second.path);
     }
-    expect(tabsBox.y).toBeGreaterThanOrEqual(toolbarBox.y + toolbarBox.height);
   });
 
-  test('コネクションステータスバッジが表示されている', async ({ page }) => {
+  test('ファイルタブはツールバーとは別の段で表示される', async ({
+    page,
+    fixturePath,
+  }) => {
+    await page.goto('/');
+    const second = await openSecondFile(page, fixturePath);
+    try {
+      const toolbarBox = await page.locator('#toolbar').boundingBox();
+      const tabsBox = await page.locator('#file-tabs').boundingBox();
+      if (toolbarBox === null || tabsBox === null) {
+        throw new Error('toolbar or file-tabs bounding box not found');
+      }
+      expect(tabsBox.y).toBeGreaterThanOrEqual(
+        toolbarBox.y + toolbarBox.height,
+      );
+    } finally {
+      await closeSecondFile(page, second.path);
+    }
+  });
+
+  test('コネクションステータスドットが表示され、title に接続情報を持つ', async ({
+    page,
+  }) => {
     await page.goto('/');
     await expect(page.locator('#connection-status')).toBeVisible();
-    await expect(page.locator('#connection-status')).toContainText(
-      'コネクション',
+    await expect(page.locator('#connection-status')).toHaveAttribute(
+      'title',
+      /接続中/,
     );
   });
 
-  test('コネクションステータスバッジが接続状態を表示', async ({ page }) => {
+  test('コネクションステータスドットが接続状態を表示', async ({ page }) => {
     await page.goto('/');
     const connectionStatus = page.locator('#connection-status');
     const connectionDot = connectionStatus.locator(

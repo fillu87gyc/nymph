@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from './fixtures.ts';
+import { expect, openOverflowMenu, test } from './fixtures.ts';
 
 const MOCK_DICT = {
   version: 1,
@@ -56,8 +56,9 @@ test.describe('dict: 用語ホバーツールチップ', () => {
     });
   });
 
-  test('辞書更新ボタンが存在する', async ({ page }) => {
+  test('辞書更新ボタンが存在する（⋯メニューの中）', async ({ page }) => {
     await page.goto('/');
+    await openOverflowMenu(page);
     await expect(page.locator('[data-testid="dict-fetch-btn"]')).toBeVisible();
     mkdirSync('playwright-screenshots', { recursive: true });
     await page.screenshot({

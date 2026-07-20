@@ -10,7 +10,7 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Page, test } from './fixtures.ts';
-import { routeVrtAssets, stabilizeVrt } from './vrt.ts';
+import { stabilizeVrt } from './vrt.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -28,8 +28,6 @@ async function produceDiff(
   afterMarker: string,
 ) {
   writeFileSync(fixturePath, before, 'utf-8');
-  // 外部 CDN（フォント・hljs CSS）をベンダリング済みコピーで返す（goto より前）
-  await routeVrtAssets(page);
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),

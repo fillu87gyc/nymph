@@ -3,8 +3,11 @@
  *
  * jsdom は document.fonts (FontFaceSet) を実装していないため、
  * モックを defineProperty で注入して挙動を検証する。
+ *
+ * 実時間（Date.now 比較や実 setTimeout 待ち）に依存すると遅い CI で
+ * フレークするため、時間に関する検証はすべて fake timers で決定的に行う。
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitForFonts } from '../../src/client/lib/fontReady.ts';
 
 interface FontsMock {
@@ -35,12 +38,14 @@ function addStylesheetLink(): HTMLLinkElement {
   return link;
 }
 
-describe('waitForFonts', () => {
-  beforeEach(() => {
-    vi.useRealTimers();
-  });
+/** fake timers 環境でマイクロタスクを消化し、promise の解決状態を確定させる */
+async function flushMicrotasks(): Promise<void> {
+  await vi.advanceTimersByTimeAsync(0);
+}
 
+describe('waitForFonts', () => {
   afterEach(() => {
+    vi.useRealTimers();
     // biome-ignore lint/suspicious/noExplicitAny: テスト用モックの後始末
     delete (document as any).fonts;
     document.head.innerHTML = '';
@@ -53,54 +58,78 @@ describe('waitForFonts', () => {
   });
 
   it('stylesheet link の load を待ってからフォントを load する', async () => {
+    vi.useFakeTimers();
     const fonts = installFontsMock();
     const link = addStylesheetLink();
 
     let resolved = false;
-    const p = waitForFonts(['16px "JetBrains Mono"']).then(() => {
+    void waitForFonts(['16px "JetBrains Mono"']).then(() => {
       resolved = true;
     });
 
-    // link が未決着の間は完了しない
-    await new Promise((r) => setTimeout(r, 20));
+    // link が未決着の間は完了せず、フォントの load も呼ばれない
+    await flushMicrotasks();
     expect(resolved).toBe(false);
     expect(fonts.load).not.toHaveBeenCalled();
 
     link.dispatchEvent(new Event('load'));
-    await p;
+    await flushMicrotasks();
+    expect(resolved).toBe(true);
     expect(fonts.load).toHaveBeenCalledWith('16px "JetBrains Mono"');
   });
 
   it('stylesheet link が error でも解決する（オフラインフォールバック）', async () => {
+    vi.useFakeTimers();
     installFontsMock();
     const link = addStylesheetLink();
 
-    const p = waitForFonts(['16px "JetBrains Mono"']);
+    let resolved = false;
+    void waitForFonts(['16px "JetBrains Mono"']).then(() => {
+      resolved = true;
+    });
     link.dispatchEvent(new Event('error'));
-    await expect(p).resolves.toBeUndefined();
+    await flushMicrotasks();
+    expect(resolved).toBe(true);
   });
 
   it('link が決着しない場合も timeoutMs 経過で解決する', async () => {
+    vi.useFakeTimers();
     installFontsMock();
     addStylesheetLink();
 
-    const start = Date.now();
-    await waitForFonts(['16px "JetBrains Mono"'], 50);
-    expect(Date.now() - start).toBeGreaterThanOrEqual(45);
+    let resolved = false;
+    void waitForFonts(['16px "JetBrains Mono"'], 3000).then(() => {
+      resolved = true;
+    });
+
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(resolved).toBe(true);
   });
 
   it('一度決着を待った link は次回以降待たない', async () => {
+    vi.useFakeTimers();
     installFontsMock();
     const link = addStylesheetLink();
 
-    const p = waitForFonts(['16px "JetBrains Mono"']);
+    let resolved1 = false;
+    void waitForFonts(['16px "JetBrains Mono"']).then(() => {
+      resolved1 = true;
+    });
     link.dispatchEvent(new Event('load'));
-    await p;
+    await flushMicrotasks();
+    expect(resolved1).toBe(true);
 
-    // 2 回目は同じ link を再度待たず即座に解決する
-    const start = Date.now();
-    await waitForFonts(['16px "JetBrains Mono"'], 5000);
-    expect(Date.now() - start).toBeLessThan(1000);
+    // 2 回目はタイマーを一切進めずに解決する（= 同じ link を待ち直さない。
+    // link.sheet は jsdom では null のままなので、memo が効かなければ
+    // timeout まで待つことになり resolved2 は false になる）
+    let resolved2 = false;
+    void waitForFonts(['16px "JetBrains Mono"'], 3000).then(() => {
+      resolved2 = true;
+    });
+    await flushMicrotasks();
+    expect(resolved2).toBe(true);
   });
 
   it('fonts.load の失敗（NetworkError 等）は握りつぶして解決する', async () => {

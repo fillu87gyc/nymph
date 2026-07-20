@@ -19,7 +19,7 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures.ts';
-import { routeVrtAssets, stabilizeVrt } from './vrt.ts';
+import { stabilizeVrt } from './vrt.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -130,9 +130,8 @@ test.describe('フルスペック VRT', () => {
     await page.setViewportSize({ width: 1600, height: 900 });
 
     // ── 1. ページ読み込み ──────────────────────────────────────────
-    // 外部 CDN（フォント・hljs CSS）をベンダリング済みコピーで返し、
-    // レンダリングをネットワーク状態から切り離す（goto より前に登録）
-    await routeVrtAssets(page);
+    // 外部 CDN 資産は fixtures.ts の routeStaticAssets がベンダリング済み
+    // コピーで返すため、レンダリングはネットワーク状態に依存しない
     await page.goto('/');
     await expect(
       page.locator('#content [data-testid="md-block"]').first(),

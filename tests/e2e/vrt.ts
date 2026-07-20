@@ -5,21 +5,14 @@
  * 読込タイミング非決定性。フォールバックフォントのまま撮影されたり、
  * mermaid がフォント確定前にテキストを計測してダイアグラム寸法が揺れる。
  *
- * 対策:
- *   1. routeVrtAssets  — 外部 CDN へのリクエストをリポジトリ内のベンダリング
- *      済みコピー（tests/e2e/assets/）で返し、その他の外部ホストは遮断する。
- *      ネットワーク状態・CDN 側のフォント更新に依存しない密閉的なレンダリング
- *      になり、ベースライン生成時と検証時で必ず同じ資産が使われる。
- *   2. stabilizeVrt — 全 stylesheet の適用と対象フォントのロード完了を待って
- *      から、アニメーション停止等の安定化 CSS を注入する。
- *      スクリーンショットやレイアウト計測（文書高さの取得など）は必ず
- *      この後に行うこと。フォントスワップ前に高さを測ると寸法自体がズレる。
+ * 前提: 外部 CDN 資産はベンダリング済みコピーで返される（fixtures.ts の
+ * routeStaticAssets が全 E2E コンテキストに適用済み）。その上で本モジュールの
+ * stabilizeVrt が「全 stylesheet の適用と対象フォントのロード完了」を待って
+ * から安定化 CSS を注入する。スクリーンショットやレイアウト計測（文書高さの
+ * 取得など）は必ずこの後に行うこと。フォントスワップ前に高さを測ると
+ * 寸法自体がズレる。
  */
-import { join } from 'node:path';
 import type { Page } from './fixtures.ts';
-
-const ASSETS_DIR = join(process.cwd(), 'tests/e2e/assets');
-const HLJS_STYLES_DIR = join(process.cwd(), 'node_modules/highlight.js/styles');
 
 /**
  * index.html + アプリが利用する Web フォント（ベンダリング済みセット）。
@@ -56,42 +49,6 @@ export const VRT_STABILIZE_CSS = `
   #update-time { display: none !important; }
   [data-testid="brand-version"] { visibility: hidden !important; }
 `;
-
-/**
- * 外部 CDN 資産をベンダリング済みコピーで返す。page.goto() より前に呼ぶこと。
- * 想定外の外部リクエストは abort されるため、新たな外部依存が入り込むと
- * テストが（ピクセル差分ではなく）明確に失敗して顕在化する。
- */
-export async function routeVrtAssets(page: Page): Promise<void> {
-  // 後に登録した route が優先されるため、遮断のキャッチオールを最初に登録する
-  await page.route(/^https?:\/\/(?!localhost[:/]|127\.0\.0\.1[:/])/, (route) =>
-    route.abort(),
-  );
-  await page.route('https://fonts.googleapis.com/**', (route) =>
-    route.fulfill({
-      path: join(ASSETS_DIR, 'google-fonts.css'),
-      contentType: 'text/css',
-    }),
-  );
-  await page.route('https://fonts.gstatic.com/**', (route) => {
-    const name = new URL(route.request().url()).pathname.split('/').pop() ?? '';
-    return route.fulfill({
-      path: join(ASSETS_DIR, 'fonts', name),
-      contentType: 'font/woff2',
-    });
-  });
-  // hljs テーマ CSS は lockfile 固定の node_modules コピーで返す
-  await page.route(
-    'https://cdn.jsdelivr.net/npm/highlight.js@*/**',
-    (route) => {
-      const file = new URL(route.request().url()).pathname.split('/styles/')[1];
-      return route.fulfill({
-        path: join(HLJS_STYLES_DIR, file),
-        contentType: 'text/css',
-      });
-    },
-  );
-}
 
 /**
  * 全 stylesheet の適用と VRT_FONT_SPECS のロード完了を待ち、

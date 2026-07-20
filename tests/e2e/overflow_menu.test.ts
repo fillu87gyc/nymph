@@ -61,18 +61,37 @@ test.describe('⋯ オーバーフローメニュー', () => {
     await expect(page.getByTestId('overflow-menu')).not.toBeVisible();
   });
 
+  test('項目クリックでハンドラが実行されると同時にメニューが閉じる（すべて削除の確認モーダルの背後に残らない）', async ({
+    page,
+  }) => {
+    // コメントが無い状態で「すべて削除」をクリックしてもモーダルは開かない
+    // （既存挙動）ため、ここではブックマーク切替で「実行されると閉じる」ことを検証する
+    await page.getByTestId('overflow-menu-btn').click();
+    await page.getByTestId('bookmark-toggle').click();
+    await expect(page.getByTestId('overflow-menu')).not.toBeVisible();
+    await expect(page.locator('#toast')).toContainText('ブックマーク', {
+      timeout: 3000,
+    });
+
+    // 後片付け
+    await page.getByTestId('overflow-menu-btn').click();
+    await page.getByTestId('bookmark-toggle').click();
+  });
+
   test('項目実行例: メニュー経由のチェックポイント設定 → 差分チェックモードに反映される', async ({
     page,
   }) => {
     await page.getByTestId('overflow-menu-btn').click();
     await page.locator('#btn-checkpoint').click();
+    // 項目クリックでメニューは閉じるため、状態確認には開き直す
+    await page.getByTestId('overflow-menu-btn').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',
     );
 
-    // メニュー内の別項目クリックでは閉じないため、続けて差分チェックへ
-    // 切り替えると「チェックポイント未設定」の案内は出ず、通常の差分表示になる
+    // 続けて差分チェックへ切り替えると「チェックポイント未設定」の案内は
+    // 出ず、通常の差分表示になる
     await page.locator('#btn-diff').click();
     await expect(page.locator('[data-testid="diff-view"]')).toBeVisible({
       timeout: 3000,

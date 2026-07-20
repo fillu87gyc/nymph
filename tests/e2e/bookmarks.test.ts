@@ -76,6 +76,8 @@ test.describe('ブックマーク', () => {
       'ブックマークに追加しました',
       { timeout: 3000 },
     );
+    // 項目クリックでメニューは閉じるため、続けて状態確認するには開き直す
+    await openOverflowMenu(page);
     await expect(page.getByTestId('bookmark-toggle')).toContainText('★');
 
     // サブディレクトリへルートを切り替えてから、ブックマークで戻る
@@ -99,6 +101,7 @@ test.describe('ブックマーク', () => {
     // 後片付け: ルート dir の★を解除（「最近」メニューを開いた際に ⋯ は閉じている）
     await openOverflowMenu(page);
     await page.getByTestId('bookmark-toggle').click();
+    await openOverflowMenu(page);
     await expect(page.getByTestId('bookmark-toggle')).toContainText('☆');
   });
 
@@ -111,6 +114,7 @@ test.describe('ブックマーク', () => {
 
     await openOverflowMenu(page);
     await page.getByTestId('bookmark-toggle').click();
+    await openOverflowMenu(page);
     await expect(page.getByTestId('bookmark-toggle')).toContainText('★');
 
     // メニューに file ブックマークとして出る
@@ -130,6 +134,7 @@ test.describe('ブックマーク', () => {
 
     // 解除すると消える
     await page.getByTestId('bookmark-toggle').click();
+    await openOverflowMenu(page);
     await expect(page.getByTestId('bookmark-toggle')).toContainText('☆');
     await page.getByTestId('recent-menu-btn').click();
     await expect(

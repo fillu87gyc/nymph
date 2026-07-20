@@ -19,8 +19,9 @@ interface OverflowMenuProps {
 // 「⋯」オーバーフローメニュー。フォルダを開く / パスをコピー / ブックマーク /
 // チェックポイント設定 / 辞書更新 / すべて削除 をまとめる。
 // RecentMenu と同じ「外側クリックで閉じる」パターンに加え、Esc でも閉じる。
-// 項目クリックでは閉じない（同一操作内で複数の状態確認・連続操作ができるように
-// するため。閉じるのは ⋯ ボタンの再クリック・外側クリック・Esc のみ）。
+// 項目クリックは一律メニューを閉じてから実行する（一般的なドロップダウンの
+// 作法に合わせる。「すべて削除」の確認モーダルや「フォルダを開く」の OS
+// ダイアログの背後にメニューが開いたまま残らないようにするため）。
 export function OverflowMenu({
   onPickDir,
   canCopyPath,
@@ -36,6 +37,12 @@ export function OverflowMenu({
 }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // 項目実行前にメニューを閉じる（全項目共通）
+  function runAndClose(action: () => void) {
+    setOpen(false);
+    action();
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -69,7 +76,7 @@ export function OverflowMenu({
       {open && (
         <div className={styles.dropdown} data-testid="overflow-menu">
           <div className={styles.row}>
-            <OpenDirButton onPickDir={onPickDir} />
+            <OpenDirButton onPickDir={() => runAndClose(onPickDir)} />
           </div>
           <div className={styles.row}>
             <button
@@ -79,7 +86,7 @@ export function OverflowMenu({
               data-testid="copy-path-btn"
               title="開いているファイルのフルパスをコピー"
               disabled={!canCopyPath}
-              onClick={onCopyPath}
+              onClick={() => runAndClose(onCopyPath)}
             >
               <svg
                 width="14"
@@ -109,7 +116,7 @@ export function OverflowMenu({
                 title={
                   bookmarkActive ? 'ブックマークを解除' : 'ブックマークに追加'
                 }
-                onClick={onToggleBookmark}
+                onClick={() => runAndClose(onToggleBookmark)}
               >
                 {bookmarkActive ? '★' : '☆'} ブックマーク
               </button>
@@ -122,7 +129,7 @@ export function OverflowMenu({
               className="btn"
               data-has-checkpoint={String(checkpointSet)}
               title="チェックポイントを設定"
-              onClick={onCheckpoint}
+              onClick={() => runAndClose(onCheckpoint)}
             >
               📍 チェックポイント設定
             </button>
@@ -133,7 +140,7 @@ export function OverflowMenu({
                 type="button"
                 data-testid="dict-fetch-btn"
                 className="btn"
-                onClick={onDictSync}
+                onClick={() => runAndClose(onDictSync)}
                 disabled={isDictSyncing}
               >
                 {isDictSyncing ? '辞書更新中...' : '辞書更新'}
@@ -147,7 +154,7 @@ export function OverflowMenu({
               className="btn danger"
               id="btn-clear-all"
               title="コメントを削除"
-              onClick={onClearAll}
+              onClick={() => runAndClose(onClearAll)}
             >
               <svg
                 width="14"

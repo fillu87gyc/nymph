@@ -58,14 +58,46 @@ describe('OverflowMenu', () => {
     expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
   });
 
-  test('項目クリックではメニューが閉じない（連続操作のため）', async () => {
+  test('チェックポイント設定クリックでハンドラが呼ばれメニューが閉じる', async () => {
     const onCheckpoint = vi.fn();
     render(<OverflowMenu {...makeProps({ onCheckpoint })} />);
     await userEvent.click(screen.getByTestId('overflow-menu-btn'));
     await userEvent.click(document.getElementById('btn-checkpoint') as Element);
 
     expect(onCheckpoint).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('overflow-menu')).toBeInTheDocument();
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+  });
+
+  test('フォルダを開くクリックでハンドラが呼ばれメニューが閉じる', async () => {
+    const onPickDir = vi.fn();
+    render(<OverflowMenu {...makeProps({ onPickDir })} />);
+    await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+    await userEvent.click(screen.getByTestId('open-dir-btn'));
+
+    expect(onPickDir).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+  });
+
+  test('パスをコピークリックでハンドラが呼ばれメニューが閉じる', async () => {
+    const onCopyPath = vi.fn();
+    render(<OverflowMenu {...makeProps({ onCopyPath, canCopyPath: true })} />);
+    await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+    await userEvent.click(screen.getByTestId('copy-path-btn'));
+
+    expect(onCopyPath).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+  });
+
+  test('ブックマーク切替クリックでハンドラが呼ばれメニューが閉じる', async () => {
+    const onToggleBookmark = vi.fn();
+    render(
+      <OverflowMenu {...makeProps({ onToggleBookmark, canBookmark: true })} />,
+    );
+    await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+    await userEvent.click(screen.getByTestId('bookmark-toggle'));
+
+    expect(onToggleBookmark).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
   });
 
   test('既存の id / data-testid を保ったまま項目を描画する（開く・パス・チェックポイント・全削除）', async () => {
@@ -103,7 +135,7 @@ describe('OverflowMenu', () => {
     expect(screen.queryByTestId('dict-fetch-btn')).not.toBeInTheDocument();
   });
 
-  test('onDictSync が渡されているとき辞書更新項目が出る', async () => {
+  test('onDictSync が渡されているとき辞書更新項目が出て、クリックでハンドラが呼ばれメニューが閉じる', async () => {
     const onDictSync = vi.fn();
     render(<OverflowMenu {...makeProps({ onDictSync })} />);
     await userEvent.click(screen.getByTestId('overflow-menu-btn'));
@@ -111,6 +143,7 @@ describe('OverflowMenu', () => {
     expect(btn).toBeInTheDocument();
     await userEvent.click(btn);
     expect(onDictSync).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
   });
 
   test('パスをコピーは canCopyPath が false のとき無効化される', async () => {
@@ -119,11 +152,12 @@ describe('OverflowMenu', () => {
     expect(screen.getByTestId('copy-path-btn')).toBeDisabled();
   });
 
-  test('すべて削除クリックで onClearAll が呼ばれる', async () => {
+  test('すべて削除クリックで onClearAll が呼ばれメニューが閉じる', async () => {
     const onClearAll = vi.fn();
     render(<OverflowMenu {...makeProps({ onClearAll })} />);
     await userEvent.click(screen.getByTestId('overflow-menu-btn'));
     await userEvent.click(document.getElementById('btn-clear-all') as Element);
     expect(onClearAll).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
   });
 });

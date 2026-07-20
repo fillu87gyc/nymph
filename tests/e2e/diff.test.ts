@@ -23,6 +23,7 @@ async function enableDiffWithChange(
 ) {
   await openOverflowMenu(page);
   await page.locator('#btn-checkpoint').click();
+  await openOverflowMenu(page);
   await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
     'data-has-checkpoint',
     'true',
@@ -94,6 +95,7 @@ test.describe('チェックポイント', () => {
   }) => {
     await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',
@@ -123,6 +125,7 @@ test.describe('チェックポイント', () => {
       return c;
     });
     await btn.click();
+    await openOverflowMenu(page);
     await expect(btn).toHaveAttribute('data-has-checkpoint', 'true');
     // hover の border-color 変化と切り分けるためマウスをボタンから離す。
     // その上で枠線が「実際にアクセント色」になっていることを検証する
@@ -139,6 +142,7 @@ test.describe('チェックポイント', () => {
   }) => {
     await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',
@@ -260,6 +264,7 @@ test.describe('差分チェックモード', () => {
 
     await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',
@@ -300,6 +305,7 @@ test.describe('差分チェックモード', () => {
     const longLine = `これは非常に長い段落で、Markdown ソースでは 1 行になっている。${'画面幅の半分に収まらないほど長いテキストが続く。'.repeat(10)}`;
     await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',
@@ -366,6 +372,7 @@ test.describe('差分チェックモード', () => {
   }) => {
     await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',

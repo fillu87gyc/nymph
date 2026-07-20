@@ -85,10 +85,22 @@ test.describe('コメントの削除', () => {
     await addComment(page, 'to delete');
     await page.locator('[data-testid="c-del"]').first().click();
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0);
-    // 保存先は新store（reviewStore.ts のエンベロープ形式）
-    await expect.poll(() => existsSync(reviewCommentsPath)).toBe(true);
-    const envelope = JSON.parse(readFileSync(reviewCommentsPath, 'utf-8'));
-    expect(envelope.comments).toHaveLength(0);
+    // 保存先は新store（reviewStore.ts のエンベロープ形式）。
+    // この時点までに追加(1件目)・削除(2件目)の2回 POST /comments が起きて
+    // いるため、existsSync だけを poll すると1回目の書き込みで真になって
+    // しまい、2回目(削除後)の保存が終わる前に読んでしまうレースがある。
+    // ファイルの有無ではなく中身（件数）そのものを poll することで、
+    // 「最終的に空配列になった」ことを直接待つ。
+    await expect
+      .poll(
+        () => {
+          if (!existsSync(reviewCommentsPath)) return null;
+          return JSON.parse(readFileSync(reviewCommentsPath, 'utf-8')).comments
+            .length;
+        },
+        { timeout: 3000 },
+      )
+      .toBe(0);
   });
 });
 

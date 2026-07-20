@@ -15,6 +15,7 @@ import { MermaidZoomModal } from './components/MermaidZoomModal.tsx';
 import { QuickOpen } from './components/QuickOpen.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { Toast } from './components/Toast.tsx';
+import { TocPanel } from './components/TocPanel.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
@@ -35,6 +36,7 @@ import {
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
+import { extractToc } from './lib/toc.ts';
 import type { Comment, DictEntry, PendingComment } from './types.ts';
 
 const HLJS_DARK =
@@ -61,6 +63,7 @@ export function App() {
   const appVersion = use(versionPromise);
   const { mutate } = useSWRConfig();
   const [panelOpen, setPanelOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(false);
   const [toastState, setToastState] = useState({ msg: '', v: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [hljsTheme, setHljsTheme] = useState<'dark' | 'light'>(() => {
@@ -142,6 +145,7 @@ export function App() {
   const { root, rootName, tree, openDir, pickDir } = useTree();
   const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
   const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
+  const tocItems = useMemo(() => extractToc(source), [source]);
   const {
     diffMode,
     diffData,
@@ -353,6 +357,23 @@ export function App() {
       }
     },
     [flashBlockHighlight, showDiff],
+  );
+
+  const scrollToLine = useCallback(
+    (lineStart: number) => {
+      const map = blockRefsMapRef.current;
+      let targetEl: HTMLElement | null = null;
+      for (const el of map.values()) {
+        if (+(el.dataset.lineStart ?? 0) === lineStart) {
+          targetEl = el;
+          break;
+        }
+      }
+      if (!targetEl) return;
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      flashBlockHighlight(lineStart);
+    },
+    [flashBlockHighlight],
   );
 
   // Comment modal
@@ -694,6 +715,8 @@ export function App() {
         onPickFile={() => void handlePickFile()}
         onPickDir={() => void handlePickDir()}
         onTogglePanel={() => setPanelOpen((o) => !o)}
+        tocOpen={tocOpen}
+        onToggleToc={() => setTocOpen((o) => !o)}
         onCopyReview={copyReview}
         canCopyPath={!!activeFile && activeFile !== '__dropped__'}
         onCopyPath={copyFilePath}
@@ -813,6 +836,9 @@ export function App() {
               {marginCollapse.right ? '‹' : '›'}
             </button>
           </div>
+        )}
+        {tocOpen && !diffMode && (
+          <TocPanel items={tocItems} onSelect={scrollToLine} />
         )}
       </div>
       <CommentsPanel

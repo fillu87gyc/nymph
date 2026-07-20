@@ -24,6 +24,8 @@ interface ToolbarProps {
   onPickFile: () => void;
   onPickDir: () => void;
   onTogglePanel: () => void;
+  tocOpen: boolean;
+  onToggleToc: () => void;
   onCopyReview: () => void;
   canCopyPath: boolean;
   onCopyPath: () => void;
@@ -56,6 +58,8 @@ export function Toolbar({
   onPickFile,
   onPickDir,
   onTogglePanel,
+  tocOpen,
+  onToggleToc,
   onCopyReview,
   canCopyPath,
   onCopyPath,
@@ -146,6 +150,17 @@ export function Toolbar({
         </span>
       </span>
       <span className="spacer" />
+      <button
+        className="btn"
+        id="btn-toc"
+        data-testid="toc-toggle"
+        data-active={String(tocOpen)}
+        title="目次を表示"
+        disabled={diffMode}
+        onClick={onToggleToc}
+      >
+        目次
+      </button>
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>
         コメント{' '}
         {commentCount > 0 && (

@@ -96,9 +96,9 @@
   display: inline-block;
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
-  color: #b04040;
-  background: rgba(176, 64, 64, 0.12);
-  border: 1px solid rgba(176, 64, 64, 0.25);
+  color: var(--danger);
+  background: rgba(var(--danger-rgb), 0.12);
+  border: 1px solid rgba(var(--danger-rgb), 0.25);
   padding: 1px 5px;
   border-radius: 3px;
   margin-right: 5px;
@@ -139,7 +139,7 @@
   color: var(--accent);
 }
 .delBtn:hover {
-  color: #b04040;
+  color: var(--danger);
 }
 .empty {
   padding: 28px 18px;

@@ -105,6 +105,6 @@
   justify-content: flex-end;
 }
 .acpDel:hover {
-  color: #b04040;
-  border-color: #b04040;
+  color: var(--danger);
+  border-color: var(--danger);
 }

@@ -29,7 +29,7 @@ test.describe('hljs テーマ link portal', () => {
     expect(href).toContain('highlight.js');
   });
 
-  test('初期テーマが dark の場合は gruvbox-dark の URL が設定される', async ({
+  test('初期テーマが dark の場合は dark 用テーマの URL が設定される', async ({
     page,
   }) => {
     // localStorage がなければ dark がデフォルト

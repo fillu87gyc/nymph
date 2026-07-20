@@ -15,36 +15,56 @@
 
 /* ── Design tokens / theme ── */
 :root {
-  --bg: #0d0c0a;
-  --bg-surface: #161410;
-  --bg-hover: #1e1c18;
-  --border: #252218;
-  --border-light: #302d25;
-  --text: #e4ddc8;
-  --text-muted: #6b6454;
-  --text-dim: #302d20;
-  --accent: #c27030;
-  --accent-dim: rgba(194, 112, 48, 0.13);
-  --accent-glow: rgba(194, 112, 48, 0.06);
-  --code-bg: #131210;
-  --sb: #252218;
-  --content-font: "Lora", serif;
-  --content-heading-font: "Playfair Display", serif;
+  --bg: #0e0f13;
+  --bg-surface: #171922;
+  --bg-hover: #1e2130;
+  --border: #262b3d;
+  --border-light: #343a52;
+  --text: #c0caf5;
+  --text-muted: #565f89;
+  --text-dim: #3b4261;
+  --accent: #85aaf8;
+  --accent-rgb: 133, 170, 248;
+  --accent-dim: rgba(133, 170, 248, 0.13);
+  --accent-glow: rgba(133, 170, 248, 0.06);
+  --code-bg: #1a1b26;
+  --sb: #262b3d;
+  --content-font: "Inter", sans-serif;
+  --content-heading-font: "Inter", sans-serif;
+  --danger: #f7768e;
+  --danger-hover: #e0607a;
+  --danger-rgb: 247, 118, 142;
+  --success: #56d364;
+  --success-rgb: 86, 211, 100;
+  --diff-add-bg: rgba(86, 211, 100, 0.08);
+  --diff-add-word-bg: rgba(86, 211, 100, 0.18);
+  --diff-del-bg: rgba(247, 118, 142, 0.06);
+  --diff-del-word-bg: rgba(247, 118, 142, 0.14);
 }
 [data-theme="light"] {
-  --bg: #f8f5ee;
-  --bg-surface: #eeeade;
-  --bg-hover: #e8e3d4;
-  --border: #d4cfc0;
-  --border-light: #cac4b2;
-  --text: #28241c;
-  --text-muted: #887f6a;
-  --text-dim: #cac4b0;
-  --accent: #a85e20;
-  --accent-dim: rgba(168, 94, 32, 0.1);
-  --accent-glow: rgba(168, 94, 32, 0.05);
-  --code-bg: #eee9dc;
-  --sb: #cac4b2;
+  --bg: #ffffff;
+  --bg-surface: #f6f8fa;
+  --bg-hover: #e1e4e8;
+  --border: #d0d7de;
+  --border-light: #d8dee4;
+  --text: #1f2328;
+  --text-muted: #636c76;
+  --text-dim: #c6ccd2;
+  --accent: #0969da;
+  --accent-rgb: 9, 105, 218;
+  --accent-dim: rgba(9, 105, 218, 0.1);
+  --accent-glow: rgba(9, 105, 218, 0.05);
+  --code-bg: #f6f8fa;
+  --sb: #d0d7de;
+  --danger: #d1242f;
+  --danger-hover: #a40e26;
+  --danger-rgb: 209, 36, 47;
+  --success: #1a7f37;
+  --success-rgb: 26, 127, 55;
+  --diff-add-bg: #dafbe1;
+  --diff-add-word-bg: #aceebb;
+  --diff-del-bg: #ffebe9;
+  --diff-del-word-bg: #ffcecb;
 }
 
 /* ── Reset ── */
@@ -89,13 +109,13 @@ body {
 @keyframes connection-blink {
   0%,
   100% {
-    background: rgba(192, 64, 64, 0.4);
-    border-color: rgba(192, 64, 64, 1);
-    box-shadow: 0 0 8px rgba(192, 64, 64, 0.5);
+    background: rgba(var(--danger-rgb), 0.4);
+    border-color: rgba(var(--danger-rgb), 1);
+    box-shadow: 0 0 8px rgba(var(--danger-rgb), 0.5);
   }
   50% {
-    background: rgba(192, 64, 64, 0.04);
-    border-color: rgba(192, 64, 64, 0.35);
+    background: rgba(var(--danger-rgb), 0.04);
+    border-color: rgba(var(--danger-rgb), 0.35);
     box-shadow: none;
   }
 }
@@ -105,8 +125,8 @@ body {
     opacity: 1;
     transform: scale(1.4);
     box-shadow:
-      0 0 10px rgba(224, 80, 80, 1),
-      0 0 20px rgba(224, 80, 80, 0.5);
+      0 0 10px rgba(var(--danger-rgb), 1),
+      0 0 20px rgba(var(--danger-rgb), 0.5);
   }
   50% {
     opacity: 0.15;
@@ -126,10 +146,10 @@ body {
 @keyframes comment-block-flash {
   0%,
   55% {
-    background: rgba(194, 112, 48, 0.22);
+    background: rgba(var(--accent-rgb), 0.22);
   }
   100% {
-    background: rgba(194, 112, 48, 0.07);
+    background: rgba(var(--accent-rgb), 0.07);
   }
 }
 
@@ -169,12 +189,12 @@ body {
   padding: 0 8px;
 }
 .btn.danger {
-  background: #c94444;
+  background: var(--danger);
   color: #fff;
   border-color: transparent;
 }
 .btn.danger:hover {
-  background: #b03535;
+  background: var(--danger-hover);
 }
 .sep {
   width: 1px;
@@ -328,17 +348,17 @@ body {
 
 /* ── CSS Custom Highlight API（選択ハイライト・コメントアンカー） ── */
 ::highlight(comment-anchor) {
-  background-color: rgba(194, 112, 48, 0.14);
+  background-color: rgba(var(--accent-rgb), 0.14);
   text-decoration: underline;
-  text-decoration-color: rgba(194, 112, 48, 0.45);
+  text-decoration-color: rgba(var(--accent-rgb), 0.45);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 ::highlight(text-highlight) {
-  background-color: rgba(194, 112, 48, 0.45);
+  background-color: rgba(var(--accent-rgb), 0.45);
   color: inherit;
   text-decoration: underline;
-  text-decoration-color: rgba(194, 112, 48, 0.9);
+  text-decoration-color: rgba(var(--accent-rgb), 0.9);
 }
 
 /* ── 辞書用語ハイライト ── */

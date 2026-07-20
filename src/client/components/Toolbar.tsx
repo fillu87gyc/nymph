@@ -1,8 +1,9 @@
-import { CONTENT_FONT_OPTIONS } from '../lib/fonts.ts';
+import type { MarginCollapse } from '../lib/contentWidth.ts';
 import type { BookmarkEntry, RecentEntry } from '../types.ts';
-import { OpenDirButton } from './OpenDirButton.tsx';
 import { OpenFileButton } from './OpenFileButton.tsx';
+import { OverflowMenu } from './OverflowMenu.tsx';
 import { RecentMenu } from './RecentMenu.tsx';
+import { SettingsPopover } from './SettingsPopover.tsx';
 import styles from './Toolbar.module.css';
 
 interface ToolbarProps {
@@ -37,6 +38,8 @@ interface ToolbarProps {
   onChangeContentFont: (id: string) => void;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
+  marginCollapse: MarginCollapse;
+  onToggleMargin: (side: 'left' | 'right') => void;
 }
 
 export function Toolbar({
@@ -71,7 +74,16 @@ export function Toolbar({
   onChangeContentFont,
   onDictSync,
   isDictSyncing,
+  marginCollapse,
+  onToggleMargin,
 }: ToolbarProps) {
+  // 接続状態＋最終更新時刻はドット1個に統合し、詳細は title のツールチップに出す
+  const connectionTitle = isConnected
+    ? updateTime
+      ? `接続中 ・ ${updateTime}`
+      : '接続中'
+    : '接続が切れています';
+
   return (
     <header id="toolbar" className={styles.toolbar}>
       <span className={styles.brand} data-testid="brand">
@@ -82,11 +94,6 @@ export function Toolbar({
           </span>
         )}
       </span>
-      {updateTime && (
-        <span className={styles.updateTime} id="update-time">
-          {updateTime}
-        </span>
-      )}
       <span className="sep" />
       <RecentMenu
         open={recentOpen}
@@ -97,59 +104,19 @@ export function Toolbar({
         onOpenDir={onOpenDir}
       />
       <OpenFileButton onPickFile={onPickFile} />
-      <OpenDirButton onPickDir={onPickDir} />
-      <button
-        type="button"
-        className="btn icon"
-        id="btn-copy-path"
-        data-testid="copy-path-btn"
-        title="開いているファイルのフルパスをコピー"
-        disabled={!canCopyPath}
-        onClick={onCopyPath}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M5 1.5h5.5A1.5 1.5 0 0 1 12 3v7M4.5 4.5H10A1.5 1.5 0 0 1 11.5 6v6a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 12V6a1.5 1.5 0 0 1 1.5-1.5Z"
-            stroke="currentColor"
-            strokeWidth="1.25"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {canBookmark && (
-        <button
-          type="button"
-          className="btn icon"
-          data-testid="bookmark-toggle"
-          data-active={String(bookmarkActive)}
-          title={bookmarkActive ? 'ブックマークを解除' : 'ブックマークに追加'}
-          onClick={onToggleBookmark}
-        >
-          {bookmarkActive ? '★' : '☆'}
-        </button>
-      )}
+      <span className="spacer" />
       <span
         id="connection-status"
         className={styles.connectionStatus}
         data-connected={String(isConnected)}
+        title={connectionTitle}
       >
         <span
           className={styles.connectionDot}
           data-testid="connection-dot"
           data-connected={String(isConnected)}
         />
-        <span className={styles.connectionLabel}>
-          {isConnected ? 'コネクション' : '切断'}
-        </span>
       </span>
-      <span className="spacer" />
       <button
         className="btn"
         id="btn-toc"
@@ -169,65 +136,6 @@ export function Toolbar({
           </span>
         )}
       </button>
-      {onDictSync && (
-        <button
-          data-testid="dict-fetch-btn"
-          className="btn"
-          onClick={onDictSync}
-          disabled={isDictSyncing}
-        >
-          {isDictSyncing ? '辞書更新中...' : '辞書更新'}
-        </button>
-      )}
-      <button className="btn primary" id="btn-copy" onClick={onCopyReview}>
-        レビューをコピー
-      </button>
-      <button
-        className="btn icon"
-        id="btn-clear-all"
-        title="コメントを削除"
-        onClick={onClearAll}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M1.5 3.5h11M5.5 3.5V2.5h3v1M3 3.5l.9 8h6.2l.9-8"
-            stroke="currentColor"
-            strokeWidth="1.25"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      <select
-        id="content-font-select"
-        data-testid="content-font-select"
-        className={styles.fontSelect}
-        title="本文フォント"
-        value={contentFontId}
-        onChange={(e) => onChangeContentFont(e.target.value)}
-      >
-        {CONTENT_FONT_OPTIONS.map((opt) => (
-          <option key={opt.id} value={opt.id}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <span className="sep" />
-      <button
-        id="btn-checkpoint"
-        className="btn"
-        data-has-checkpoint={String(checkpointSet)}
-        title="チェックポイントを設定"
-        onClick={onCheckpoint}
-      >
-        📍
-      </button>
       <button
         id="btn-diff"
         className="btn"
@@ -237,14 +145,29 @@ export function Toolbar({
       >
         ± 差分チェック
       </button>
-      <button
-        className="btn icon"
-        id="btn-theme"
-        title="テーマ切替"
-        onClick={onToggleTheme}
-      >
-        ◐
+      <button className="btn primary" id="btn-copy" onClick={onCopyReview}>
+        レビューをコピー
       </button>
+      <SettingsPopover
+        onToggleTheme={onToggleTheme}
+        contentFontId={contentFontId}
+        onChangeContentFont={onChangeContentFont}
+        marginCollapse={marginCollapse}
+        onToggleMargin={onToggleMargin}
+      />
+      <OverflowMenu
+        onPickDir={onPickDir}
+        canCopyPath={canCopyPath}
+        onCopyPath={onCopyPath}
+        bookmarkActive={bookmarkActive}
+        canBookmark={canBookmark}
+        onToggleBookmark={onToggleBookmark}
+        checkpointSet={checkpointSet}
+        onCheckpoint={onCheckpoint}
+        onDictSync={onDictSync}
+        isDictSyncing={isDictSyncing}
+        onClearAll={onClearAll}
+      />
     </header>
   );
 }

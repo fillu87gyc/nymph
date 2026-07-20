@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { probeNymphServer } from './instanceLock.ts';
+import { nymphDataDir } from './xdgPaths.ts';
 
 /**
  * 実行中の nymph インスタンス（ポート番号）のレジストリ。
@@ -20,8 +20,7 @@ interface RegistryJson {
 }
 
 export function getRegistryPath(): string {
-  const base = process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
-  return join(base, 'nymph', 'instances.json');
+  return join(nymphDataDir(), 'instances.json');
 }
 
 function loadPorts(): number[] {

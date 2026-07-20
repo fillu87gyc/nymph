@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { normalizePath } from './pathUtils.ts';
+import { nymphDataDir } from './xdgPaths.ts';
 
 /**
  * ブックマーク（ファイル・ディレクトリ両対応）。
@@ -21,8 +21,7 @@ interface BookmarksJson {
 }
 
 export function getBookmarksJsonPath(): string {
-  const base = process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
-  return join(base, 'nymph', 'bookmarks.json');
+  return join(nymphDataDir(), 'bookmarks.json');
 }
 
 function loadEntries(): BookmarkEntry[] {

@@ -21,8 +21,9 @@ async function addCommentToBlock(page: Page, selector: string, text: string) {
   });
 }
 
-test.beforeEach(async ({ page, commentsPath }) => {
+test.beforeEach(async ({ page, commentsPath, reviewDir }) => {
   if (existsSync(commentsPath)) rmSync(commentsPath);
+  rmSync(reviewDir, { recursive: true, force: true });
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"]').first(),
@@ -31,12 +32,13 @@ test.beforeEach(async ({ page, commentsPath }) => {
   });
 });
 
-test.afterEach(async ({ commentsPath }) => {
+test.afterEach(async ({ commentsPath, reviewDir }) => {
   try {
     rmSync(commentsPath);
   } catch {
     /* ignore */
   }
+  rmSync(reviewDir, { recursive: true, force: true });
 });
 
 test.describe('blockRefsMap 経由のスクロール', () => {

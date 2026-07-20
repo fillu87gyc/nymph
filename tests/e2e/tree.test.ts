@@ -1,7 +1,13 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, type Page, pollUntilReady, test } from './fixtures.ts';
+import {
+  expect,
+  type Page,
+  pollUntilReady,
+  reviewCommentsPathFor,
+  test,
+} from './fixtures.ts';
 
 // ディレクトリモード（nymph <dir>）の専用サーバーをワーカーごとに立てる。
 // 標準ワーカーサーバー（6276+）と衝突しないポート帯を使う。
@@ -130,7 +136,14 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
   test('ツリーから開いたファイルへのコメントがリロード後も残る', async ({
     page,
   }) => {
-    const commentsPath = `${guidePath}.comments.json`;
+    // 保存先は新store（reviewStore.ts）。legacy パスの掃除は移行テストの
+    // 残骸掃除として残す。
+    const legacyCommentsPath = `${guidePath}.comments.json`;
+    const commentsPath = reviewCommentsPathFor(
+      join(treeDir, '.xdg'),
+      guidePath,
+    );
+    rmSync(legacyCommentsPath, { force: true });
     rmSync(commentsPath, { force: true });
     try {
       await gotoTree(page);

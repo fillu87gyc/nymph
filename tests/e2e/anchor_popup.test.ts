@@ -44,8 +44,9 @@ async function clickAnchoredParagraph(page: Page): Promise<void> {
   await page.mouse.click(pRect.x + 60, pRect.y + pRect.height / 2);
 }
 
-test.beforeEach(async ({ page, commentsPath }) => {
+test.beforeEach(async ({ page, commentsPath, reviewDir }) => {
   if (existsSync(commentsPath)) rmSync(commentsPath);
+  rmSync(reviewDir, { recursive: true, force: true });
   await page.goto('/');
   await expect(
     page.locator('#content [data-testid="md-block"] p').first(),
@@ -54,12 +55,13 @@ test.beforeEach(async ({ page, commentsPath }) => {
   });
 });
 
-test.afterEach(async ({ commentsPath }) => {
+test.afterEach(async ({ commentsPath, reviewDir }) => {
   try {
     rmSync(commentsPath);
   } catch {
     /* ignore */
   }
+  rmSync(reviewDir, { recursive: true, force: true });
 });
 
 test.describe('コメントアンカークリック', () => {

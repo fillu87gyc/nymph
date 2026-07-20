@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { nymphDataDir } from '../xdgPaths.ts';
 import type { NymphYml } from './schema.ts';
 
 /**
@@ -10,8 +10,7 @@ import type { NymphYml } from './schema.ts';
  * テスト時は XDG_DATA_HOME 環境変数で一時ディレクトリに切り替えられる。
  */
 function getAcceptedHashesPath(): string {
-  const base = process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
-  return join(base, 'nymph', 'accepted_hashes.json');
+  return join(nymphDataDir(), 'accepted_hashes.json');
 }
 
 /**

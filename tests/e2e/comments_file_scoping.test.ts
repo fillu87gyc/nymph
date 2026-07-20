@@ -7,7 +7,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { expect, type Page, pollUntilReady, test } from './fixtures.ts';
+import {
+  expect,
+  type Page,
+  pollUntilReady,
+  reviewCommentsPathFor,
+  test,
+} from './fixtures.ts';
 
 // コメント保存先ファイルの指定（?file=）と、ファイル未確定時のエラー応答を
 // 検証するための専用ディレクトリモードサーバー。
@@ -89,14 +95,17 @@ test.describe('ディレクトリモード起動直後（ファイル未選択�
 });
 
 test.describe('複数ファイル間でのコメント保存先の分離', () => {
-  test('ファイルを切り替えてもコメントが混ざらず、別々の .comments.json に保存される', async ({
+  test('ファイルを切り替えてもコメントが混ざらず、別々の新store（reviews/<key>/comments.json）に保存される', async ({
     page,
   }) => {
     // 2ファイルの切替・2回のコメント追加・ディスク検証まで行う多段テストのため
     // デフォルトの 30s では並列実行時の負荷次第でタイムアウトしうる。余裕を持たせる。
     test.setTimeout(45000);
-    const aCommentsPath = `${aPath}.comments.json`;
-    const bCommentsPath = `${bPath}.comments.json`;
+    // このテストは共有ワーカーサーバーを使わず専用サーバーを立てるため、
+    // 新store側のパスは自前の XDG_DATA_HOME（beforeAll 参照）から解決する。
+    const xdgDataHome = join(dir, '.xdg');
+    const aCommentsPath = reviewCommentsPathFor(xdgDataHome, aPath);
+    const bCommentsPath = reviewCommentsPathFor(xdgDataHome, bPath);
     rmSync(aCommentsPath, { force: true });
     rmSync(bCommentsPath, { force: true });
 
@@ -136,10 +145,11 @@ test.describe('複数ファイル間でのコメント保存先の分離', () =>
       ).toContainText('comment on A');
 
       // ディスク上でも別ファイルに正しく分離して保存されている
+      // （新store: reviewStore.ts のエンベロープ形式）
       await expect.poll(() => existsSync(aCommentsPath)).toBe(true);
       await expect.poll(() => existsSync(bCommentsPath)).toBe(true);
-      const savedA = JSON.parse(readFileSync(aCommentsPath, 'utf-8'));
-      const savedB = JSON.parse(readFileSync(bCommentsPath, 'utf-8'));
+      const savedA = JSON.parse(readFileSync(aCommentsPath, 'utf-8')).comments;
+      const savedB = JSON.parse(readFileSync(bCommentsPath, 'utf-8')).comments;
       expect(savedA).toHaveLength(1);
       expect(savedA[0].text).toBe('comment on A');
       expect(savedB).toHaveLength(1);

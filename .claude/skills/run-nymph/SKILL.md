@@ -61,5 +61,5 @@ bun run test:e2e    # Playwright、workers: 1（シリアル実行）
 - **`node` では動かない**: `playwright` パッケージの解決に `bun` が必要。必ず `bun driver.mjs` で実行する。
 - **`dist/` が古いと空白ページ**: フロントエンドを変更したら `bun run build` してからドライバを動かす。開発中は代わりに `bun run dev`（Vite HMR）を使う。
 - **ポート衝突**: 6276 が使用中の場合は 6277 以降に自動で移る。lock ファイル（`<file>.nymph-lock`）に実際のポートが書き込まれる。ドライバは stdout からポートを読むので問題なし。
-- **前回の `.comments.json` が残る**: ドライバは comments を消さない。E2E テストは `beforeEach` で削除しているが、ドライバ経由で動かす場合は手動削除が必要な場合がある。
+- **前回のコメント／チェックポイントが残る**: コメント・チェックポイントはレビュー対象ファイルの隣ではなく `~/.local/share/nymph/reviews/<key>/`（`<key>` は絶対パスの決定論的ハッシュ、`src/reviewStore.ts` の `reviewKey()` 参照）に保存される。ドライバはこれを消さない。E2E テストは `beforeEach` で該当ディレクトリ（`reviewDir` fixture）を削除しているが、ドライバ経由で動かす場合は手動削除が必要な場合がある。旧バージョンが残した `<file>.comments.json` / `<file>.checkpoint` は初回読み取り時に自動でこの新storeへ移行され、レガシーファイルは削除される。
 - **`bun run dev` との共存**: `bun run dev` が 6276 を使っている場合、ドライバは別ポートで起動する。

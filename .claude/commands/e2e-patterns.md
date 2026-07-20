@@ -25,11 +25,28 @@ import { expect, test, type Page } from './fixtures.ts';
 
 ### fixture パラメータ
 
+コメント・チェックポイントの保存先は `src/reviewStore.ts` により
+レビュー対象ファイルの隣ではなく XDG data dir 配下 `reviews/<reviewKey>/` に
+移った（`<reviewKey>` は絶対パスから決定論的に導出）。**新storeはワーカーの
+`fixturePath` に対して1つしかなく、そのワーカーの全テストで共有される**ため、
+コメント/チェックポイントを書き込むテストは `reviewDir` を
+beforeEach/afterEach で必ず掃除すること（さもないと前のテストの残留物で
+件数系アサーションが壊れる）。
+
 | パラメータ | 型 | 説明 |
 |-----------|-----|------|
 | `fixturePath` | `string` | ワーカー専用の markdown ファイルパス |
-| `commentsPath` | `string` | `fixturePath + '.comments.json'` |
+| `reviewDir` | `string` | 新store側のこのワーカー用格納ディレクトリ（`comments.json` / `checkpoint` を含む） |
+| `reviewCommentsPath` | `string` | `reviewDir + '/comments.json'`（version/file/updatedAt/comments のエンベロープ形式） |
+| `reviewCheckpointPath` | `string` | `reviewDir + '/checkpoint'`（プレーンテキスト） |
+| `commentsPath` | `string` | レガシーサイドカー `fixturePath + '.comments.json'`。**移行テスト専用**（通常のテストでは新storeが使われるため書き込まれない） |
+| `legacyCheckpointPath` | `string` | レガシーサイドカー `fixturePath + '.checkpoint'`。移行テスト専用 |
 | `page` | `Page` | そのワーカーのポートに向いた `baseURL` 付き |
+
+fixtures.ts は `reviewCommentsPathFor(nymphDataHome, file)` /
+`reviewCheckpointPathFor(nymphDataHome, file)` / `reviewDirFor(nymphDataHome, file)`
+も export している。専用サーバーを立てて独自の `XDG_DATA_HOME` を使うテスト
+（`comments_file_scoping.test.ts` や `tree.test.ts` など）はこちらを使う。
 
 ### beforeEach / afterEach でのファイル操作
 
@@ -44,17 +61,24 @@ const ORIGINAL = readFileSync(
   'utf-8',
 );
 
-test.beforeEach(async ({ page, fixturePath, commentsPath }) => {
+test.beforeEach(async ({ page, fixturePath, reviewDir }) => {
   writeFileSync(fixturePath, ORIGINAL);  // ← FIXTURE ではなく fixturePath
-  rmSync(commentsPath, { force: true });
+  rmSync(reviewDir, { recursive: true, force: true }); // 新store（コメント・checkpoint）を掃除
   await page.goto('/');
 });
 
-test.afterEach(async ({ fixturePath, commentsPath }) => {
+test.afterEach(async ({ fixturePath, reviewDir }) => {
   writeFileSync(fixturePath, ORIGINAL);
-  rmSync(commentsPath, { force: true });
+  rmSync(reviewDir, { recursive: true, force: true });
 });
 ```
+
+### レガシーサイドカーからの自動移行を検証するテスト
+
+`commentsPath` / `legacyCheckpointPath`（レガシーパス）に直接書き込んでから
+アプリを開き、内容が表示されること・レガシーが削除されること・
+`reviewCommentsPath` / `reviewCheckpointPath`（新store）に移行されていることを
+確認する。実例は `tests/e2e/review_migration.test.ts` を参照。
 
 ### テスト内でのファイル書き込み
 

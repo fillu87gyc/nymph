@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { normalizePath } from './pathUtils.ts';
+import { nymphDataDir } from './xdgPaths.ts';
 
 /**
  * 最近開いたファイルの履歴。
@@ -22,8 +22,7 @@ interface RecentJson {
 const MAX_RECENT = 20;
 
 export function getRecentJsonPath(): string {
-  const base = process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share');
-  return join(base, 'nymph', 'recent.json');
+  return join(nymphDataDir(), 'recent.json');
 }
 
 function loadEntries(): RecentFile[] {

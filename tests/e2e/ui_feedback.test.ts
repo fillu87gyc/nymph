@@ -7,12 +7,13 @@ const ORIGINAL = readFileSync(
   'utf-8',
 );
 
-test.beforeEach(async ({ page, fixturePath, commentsPath }) => {
+test.beforeEach(async ({ page, fixturePath, commentsPath, reviewDir }) => {
   try {
     rmSync(commentsPath);
   } catch {
     /* ignore */
   }
+  rmSync(reviewDir, { recursive: true, force: true });
   writeFileSync(fixturePath, ORIGINAL);
   await page.goto('/');
   await expect(
@@ -22,13 +23,14 @@ test.beforeEach(async ({ page, fixturePath, commentsPath }) => {
   });
 });
 
-test.afterEach(async ({ page, fixturePath, commentsPath }) => {
+test.afterEach(async ({ page, fixturePath, commentsPath, reviewDir }) => {
   writeFileSync(fixturePath, ORIGINAL);
   try {
     rmSync(commentsPath);
   } catch {
     /* ignore */
   }
+  rmSync(reviewDir, { recursive: true, force: true });
   // ドロップファイルのタブ系テストは元ファイルをサーバーから close するため、
   // 同一 worker の後続テストに影響しないよう active file を復元する。
   await page.request.post('/open-file', { data: { path: fixturePath } });

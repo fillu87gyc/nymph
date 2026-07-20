@@ -53,24 +53,39 @@ async function addDiffComment(page: Page, text: string) {
   ).toBeVisible({ timeout: 3000 });
 }
 
-test.beforeEach(async ({ page, fixturePath, commentsPath }) => {
-  rmSync(commentsPath, { force: true });
-  rmSync(`${fixturePath}.checkpoint`, { force: true });
-  writeFileSync(fixturePath, ORIGINAL);
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/');
-  await expect(
-    page.locator('#content [data-testid="md-block"]').first(),
-  ).toBeVisible({
-    timeout: 5000,
-  });
-});
+test.beforeEach(
+  async ({
+    page,
+    fixturePath,
+    commentsPath,
+    legacyCheckpointPath,
+    reviewDir,
+  }) => {
+    // レガシーサイドカーの削除は移行テストの残骸掃除として残す
+    rmSync(commentsPath, { force: true });
+    rmSync(legacyCheckpointPath, { force: true });
+    // 新store（コメント・チェックポイントとも）はテスト間で残留するため、
+    // ワーカー内の他テストと分離できるようここでまとめて掃除する
+    rmSync(reviewDir, { recursive: true, force: true });
+    writeFileSync(fixturePath, ORIGINAL);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/');
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({
+      timeout: 5000,
+    });
+  },
+);
 
-test.afterEach(async ({ fixturePath, commentsPath }) => {
-  writeFileSync(fixturePath, ORIGINAL);
-  rmSync(commentsPath, { force: true });
-  rmSync(`${fixturePath}.checkpoint`, { force: true });
-});
+test.afterEach(
+  async ({ fixturePath, commentsPath, legacyCheckpointPath, reviewDir }) => {
+    writeFileSync(fixturePath, ORIGINAL);
+    rmSync(commentsPath, { force: true });
+    rmSync(legacyCheckpointPath, { force: true });
+    rmSync(reviewDir, { recursive: true, force: true });
+  },
+);
 
 test.describe('チェックポイント', () => {
   test('チェックポイントボタンでチェックポイント状態になる', async ({
@@ -116,14 +131,15 @@ test.describe('チェックポイント', () => {
 
   test('チェックポイントはファイルに永続化され、リロード後も復元される', async ({
     page,
-    fixturePath,
+    reviewCheckpointPath,
   }) => {
     await page.locator('#btn-checkpoint').click();
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',
     );
-    expect(existsSync(`${fixturePath}.checkpoint`)).toBe(true);
+    // 保存先は新store（レビュー対象ファイルの隣ではない）
+    expect(existsSync(reviewCheckpointPath)).toBe(true);
 
     await page.reload();
     await expect(
@@ -359,24 +375,28 @@ test.describe('差分への指摘（diff コメント）', () => {
   test('変更行の ＋ からコメントを追加でき、comments.json に diff 種別で保存される', async ({
     page,
     fixturePath,
-    commentsPath,
+    reviewCommentsPath,
   }) => {
     await enableDiffWithChange(page, fixturePath);
     await addDiffComment(page, 'この変更は意図的？');
 
+    // 保存先は新store（reviewStore.ts のエンベロープ形式）
     await expect
-      .poll(() => existsSync(commentsPath), { timeout: 3000 })
+      .poll(() => existsSync(reviewCommentsPath), { timeout: 3000 })
       .toBe(true);
-    const saved = JSON.parse(readFileSync(commentsPath, 'utf-8')) as Array<{
-      block_type: string;
-      text: string;
-      context: {
-        side: string;
-        newLine: number | null;
-        line: string;
-        hunk: string[];
-      };
-    }>;
+    const envelope = JSON.parse(readFileSync(reviewCommentsPath, 'utf-8')) as {
+      comments: Array<{
+        block_type: string;
+        text: string;
+        context: {
+          side: string;
+          newLine: number | null;
+          line: string;
+          hunk: string[];
+        };
+      }>;
+    };
+    const saved = envelope.comments;
     expect(saved).toHaveLength(1);
     expect(saved[0].block_type).toBe('diff');
     expect(saved[0].text).toBe('この変更は意図的？');

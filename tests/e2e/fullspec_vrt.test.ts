@@ -108,18 +108,23 @@ const PRESEEDED_COMMENTS = JSON.stringify(
 );
 
 test.describe('フルスペック VRT', () => {
-  test.beforeEach(async ({ fixturePath, commentsPath }) => {
+  test.beforeEach(async ({ fixturePath, commentsPath, reviewDir }) => {
+    // 新store（前回実行分の checkpoint/comments）が残っていると、レガシー
+    // シードより新store側が優先されてしまう（リトライ時に顕在化する）ため、
+    // 毎回ここで掃除してからレガシーへシードし、自動移行で拾わせる。
+    rmSync(reviewDir, { recursive: true, force: true });
     writeFileSync(fixturePath, FULLSPEC, 'utf-8');
     writeFileSync(commentsPath, PRESEEDED_COMMENTS, 'utf-8');
   });
 
-  test.afterEach(async ({ fixturePath, commentsPath }) => {
+  test.afterEach(async ({ fixturePath, commentsPath, reviewDir }) => {
     writeFileSync(fixturePath, ORIGINAL, 'utf-8');
     try {
       rmSync(commentsPath);
     } catch {
       /* ignore */
     }
+    rmSync(reviewDir, { recursive: true, force: true });
   });
 
   test('全要素（コード・Mermaid・コメント複数・テーブルハイライト・selection・孤立コメント）縦長 VRT', async ({

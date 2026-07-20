@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import {
   basename,
   dirname,
@@ -14,9 +14,16 @@ import {
   listBookmarks,
   toggleBookmark,
 } from './bookmarks.ts';
+import type { Comment } from './client/types.ts';
 import { scanMdTree } from './fsTree.ts';
 import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
+import {
+  readCheckpoint,
+  readComments,
+  writeCheckpoint,
+  writeComments,
+} from './reviewStore.ts';
 
 // NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
 // 省略時は process.cwd()/.nymph を使う（E2E ワーカー分離に対応）。
@@ -43,7 +50,6 @@ const APP_VERSION = resolveAppVersion();
 interface State {
   filePaths: string[];
   activeFile: string | null;
-  commentsPath: string | null;
   cachedContent: string | null;
   droppedContent: string | null;
   droppedName: string | null;
@@ -53,23 +59,15 @@ interface State {
 const state: State = {
   filePaths: [],
   activeFile: null,
-  commentsPath: null,
   cachedContent: null,
   droppedContent: null,
   droppedName: null,
   rootDir: null,
 };
 
-// checkpoint はサーバーを再起動しても diff（と差分コメント）が意味を保つよう、
-// レビュー対象ファイルの隣にスナップショットとして永続化する（.comments.json と同じ扱い）。
-function checkpointPath(file: string): string {
-  return `${file}.checkpoint`;
-}
-
 export function initState(paths: string[], rootDir: string | null = null) {
   state.filePaths = paths;
   state.activeFile = paths[0] ?? null;
-  state.commentsPath = paths.length > 0 ? `${paths[0]}.comments.json` : null;
   state.cachedContent = null;
   state.droppedContent = null;
   state.droppedName = null;
@@ -271,12 +269,10 @@ function handleGetComments(url: URL): Response {
 
   if (fileParam && !allowed.has(fileParam)) return err('Forbidden', 403);
 
-  const cp = fileParam ? `${fileParam}.comments.json` : state.commentsPath;
-  if (!cp) return json([]);
+  const target = fileParam ?? state.activeFile;
+  if (!target) return json([]);
   try {
-    return new Response(existsSync(cp) ? readFileSync(cp, 'utf-8') : '[]', {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json(readComments(target));
   } catch (e) {
     return err(String(e));
   }
@@ -284,21 +280,21 @@ function handleGetComments(url: URL): Response {
 
 async function handleSaveComments(req: Request, url: URL): Promise<Response> {
   const fileParam = url.searchParams.get('file');
-  let cp: string | null;
+  let target: string | null;
   if (fileParam) {
     const allowed = new Set(activePaths());
     if (!allowed.has(fileParam)) return err('Forbidden', 403);
-    cp = `${fileParam}.comments.json`;
+    target = fileParam;
   } else {
-    cp = state.commentsPath;
+    target = state.activeFile;
   }
   // 保存先が確定できない場合（ディレクトリモード起動直後で未選択、または
   // __dropped__ 表示中でファイル実体がない）はサイレントに 200 を返さず
   // 4xx にしてクライアントに保存失敗を伝える。
-  if (!cp) return err('保存先のファイルが確定できません', 400);
+  if (!target) return err('保存先のファイルが確定できません', 400);
   try {
-    const body = await req.json();
-    writeFileSync(cp, JSON.stringify(body, null, 2), 'utf-8');
+    const body = (await req.json()) as Comment[];
+    writeComments(target, body);
     return json({});
   } catch (e) {
     return err(String(e));
@@ -323,7 +319,6 @@ async function handleSetActiveFile(req: Request): Promise<Response> {
     if (!path || !allowed.has(path))
       return json({ error: 'invalid path' }, 400);
     state.activeFile = path;
-    state.commentsPath = `${path}.comments.json`;
     return json({});
   } catch (e) {
     return err(String(e));
@@ -348,7 +343,6 @@ async function handleCloseFile(req: Request): Promise<Response> {
     if (state.activeFile === path) {
       const next = state.filePaths[idx] ?? state.filePaths[idx - 1] ?? null;
       state.activeFile = next;
-      state.commentsPath = next ? `${next}.comments.json` : null;
     }
     return json({
       activeFile: state.activeFile,
@@ -542,7 +536,6 @@ async function handleOpenFile(req: Request): Promise<Response> {
 
     if (!state.filePaths.includes(abs)) state.filePaths.push(abs);
     state.activeFile = abs;
-    state.commentsPath = `${abs}.comments.json`;
     recordRecent([abs]);
     return json({
       files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
@@ -571,7 +564,7 @@ function handleSetCheckpoint(): Response {
   try {
     if (!state.activeFile) return json({ ok: true, lines: 0 });
     const content = readFileSync(state.activeFile, 'utf-8');
-    writeFileSync(checkpointPath(state.activeFile), content, 'utf-8');
+    writeCheckpoint(state.activeFile, content);
     return json({
       ok: true,
       lines: content.split('\n').length,
@@ -584,9 +577,8 @@ function handleSetCheckpoint(): Response {
 function handleDiff(): Response {
   try {
     if (!state.activeFile) return json({ lines: [], hasCheckpoint: false });
-    const cpPath = checkpointPath(state.activeFile);
-    if (!existsSync(cpPath)) return json({ lines: [], hasCheckpoint: false });
-    const checkpoint = readFileSync(cpPath, 'utf-8');
+    const checkpoint = readCheckpoint(state.activeFile);
+    if (checkpoint === null) return json({ lines: [], hasCheckpoint: false });
     const current = readFileSync(state.activeFile, 'utf-8');
     return json({
       lines: computeDiff(checkpoint, current),
@@ -724,11 +716,10 @@ async function handleEditOp(req: Request): Promise<Response> {
 }
 
 function remapComments(editLine: number, oldLineCount: number, delta: number) {
-  if (!state.commentsPath || !existsSync(state.commentsPath)) return;
+  if (!state.activeFile) return;
   try {
-    const comments = JSON.parse(
-      readFileSync(state.commentsPath, 'utf-8'),
-    ) as Array<{ lineStart: number; lineEnd: number }>;
+    const comments = readComments(state.activeFile);
+    if (comments.length === 0) return;
     const editEnd = editLine + oldLineCount - 1;
     for (const c of comments) {
       if (c.lineStart > editEnd) {
@@ -738,11 +729,7 @@ function remapComments(editLine: number, oldLineCount: number, delta: number) {
         c.lineEnd += delta;
       }
     }
-    writeFileSync(
-      state.commentsPath,
-      JSON.stringify(comments, null, 2),
-      'utf-8',
-    );
+    writeComments(state.activeFile, comments);
   } catch {
     /* ignore */
   }

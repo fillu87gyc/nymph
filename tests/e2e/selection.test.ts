@@ -8,8 +8,9 @@
 import { existsSync, rmSync } from 'node:fs';
 import { expect, test } from './fixtures.ts';
 
-test.beforeEach(async ({ page, commentsPath }) => {
+test.beforeEach(async ({ page, commentsPath, reviewDir }) => {
   if (existsSync(commentsPath)) rmSync(commentsPath);
+  rmSync(reviewDir, { recursive: true, force: true });
   await page.goto('/');
   // #welcome の p ではなく、実際のコンテンツブロック内 p を待つ
   await expect(
@@ -19,12 +20,13 @@ test.beforeEach(async ({ page, commentsPath }) => {
   });
 });
 
-test.afterEach(async ({ commentsPath }) => {
+test.afterEach(async ({ commentsPath, reviewDir }) => {
   try {
     rmSync(commentsPath);
   } catch {
     /* ignore */
   }
+  rmSync(reviewDir, { recursive: true, force: true });
 });
 
 test.describe('コンテンツ内テキスト選択 → popup 表示', () => {

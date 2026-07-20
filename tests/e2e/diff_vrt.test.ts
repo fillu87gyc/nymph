@@ -64,16 +64,22 @@ async function produceDiff(
 }
 
 test.describe('差分チェックモード VRT', () => {
-  test.beforeEach(async ({ fixturePath, commentsPath }) => {
+  test.beforeEach(async ({ commentsPath, legacyCheckpointPath, reviewDir }) => {
     rmSync(commentsPath, { force: true });
-    rmSync(`${fixturePath}.checkpoint`, { force: true });
+    rmSync(legacyCheckpointPath, { force: true });
+    // 新store（checkpoint 含む）はワーカー内の他 VRT テストと fixturePath を
+    // 共有するため、リトライ等で再実行されても汚染されないよう掃除する。
+    rmSync(reviewDir, { recursive: true, force: true });
   });
 
-  test.afterEach(async ({ fixturePath, commentsPath }) => {
-    writeFileSync(fixturePath, ORIGINAL, 'utf-8');
-    rmSync(commentsPath, { force: true });
-    rmSync(`${fixturePath}.checkpoint`, { force: true });
-  });
+  test.afterEach(
+    async ({ fixturePath, commentsPath, legacyCheckpointPath, reviewDir }) => {
+      writeFileSync(fixturePath, ORIGINAL, 'utf-8');
+      rmSync(commentsPath, { force: true });
+      rmSync(legacyCheckpointPath, { force: true });
+      rmSync(reviewDir, { recursive: true, force: true });
+    },
+  );
 
   test('1 行の変更: 全画面 split で同じ行に左=削除・右=追加、変更箇所だけハイライト', async ({
     page,

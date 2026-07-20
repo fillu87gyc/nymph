@@ -160,22 +160,87 @@ describe('comments: レガシー移行', () => {
     expect(existsSync(legacyPath)).toBe(false);
   });
 
-  it('新store側に既にファイルがあればレガシーには触れず新store側を優先する', () => {
+  it('新store側に既にファイルがあれば読み取り時にレガシーには触れず新store側を優先する', () => {
     const a = makeMd('a.md');
+    const newStoreComments = [sampleComment({ text: 'new store wins' })];
+    // 先に新storeを作っておく（この時点ではレガシーは存在しないので触られない）
+    writeComments(a, newStoreComments);
+
+    // その後に（例えば手動で）レガシーが置かれたとしても、読み取りは新store優先。
     const legacyPath = `${a}.comments.json`;
     writeFileSync(
       legacyPath,
       JSON.stringify([sampleComment({ text: 'legacy stale' })]),
     );
 
-    const newStoreComments = [sampleComment({ text: 'new store wins' })];
-    writeComments(a, newStoreComments);
-
     const result = readComments(a);
 
     expect(result).toEqual(newStoreComments);
-    // 新store優先のためレガシーファイルは触らず残る
+    // 新store優先の読み取りではレガシーファイルには触れず残る
     expect(existsSync(legacyPath)).toBe(true);
+  });
+});
+
+describe('comments: 破損レガシーの扱い（黙殺的データ損失を防ぐ）', () => {
+  it('パース不能なレガシー comments.json は削除せず corrupt- に退避し、空配列を返す', () => {
+    const a = makeMd('a.md');
+    const legacyPath = `${a}.comments.json`;
+    writeFileSync(legacyPath, '{not valid json');
+
+    const result = readComments(a);
+
+    expect(result).toEqual([]);
+    // 原本を黙って消さない: 削除ではなく退避されている
+    expect(existsSync(legacyPath)).toBe(false);
+    const entries = readdirSync(FILES_DIR);
+    const corruptFile = entries.find((e) =>
+      /^a\.md\.comments\.json\.corrupt-\d+$/.test(e),
+    );
+    expect(corruptFile).toBeDefined();
+    if (corruptFile) {
+      expect(readFileSync(join(FILES_DIR, corruptFile), 'utf-8')).toBe(
+        '{not valid json',
+      );
+    }
+  });
+
+  it('配列以外の形式のレガシー comments.json も同様に退避する（データ破壊を防ぐ）', () => {
+    const a = makeMd('a.md');
+    const legacyPath = `${a}.comments.json`;
+    writeFileSync(legacyPath, JSON.stringify({ not: 'an array' }));
+
+    const result = readComments(a);
+
+    expect(result).toEqual([]);
+    expect(existsSync(legacyPath)).toBe(false);
+    const entries = readdirSync(FILES_DIR);
+    const corruptFile = entries.find((e) =>
+      /^a\.md\.comments\.json\.corrupt-\d+$/.test(e),
+    );
+    expect(corruptFile).toBeDefined();
+  });
+});
+
+describe('comments: 書き込み経路でのレガシー掃除', () => {
+  it('readComments を経由しない POST 相当の書き込みでも、残っているレガシーは削除される', () => {
+    const a = makeMd('a.md');
+    const legacyPath = `${a}.comments.json`;
+    writeFileSync(
+      legacyPath,
+      JSON.stringify([sampleComment({ text: 'old sidecar' })]),
+    );
+
+    // 差分ビューや GET を一度も経由せず、いきなり保存する headless なフローを模す
+    const fresh = [sampleComment({ text: 'fully replaced' })];
+    writeComments(a, fresh);
+
+    expect(existsSync(legacyPath)).toBe(false);
+    expect(readComments(a)).toEqual(fresh);
+  });
+
+  it('レガシーが存在しない場合でも writeComments は例外を投げない', () => {
+    const a = makeMd('a.md');
+    expect(() => writeComments(a, [sampleComment()])).not.toThrow();
   });
 });
 
@@ -281,13 +346,17 @@ describe('checkpoint: レガシー移行', () => {
     expect(second).toBe(text);
   });
 
-  it('新store側に既にあればレガシーには触れず新store側を優先する', () => {
+  it('新store側に既にあれば読み取り時にレガシーには触れず新store側を優先する', () => {
     const a = makeMd('a.md');
-    const legacyPath = `${a}.checkpoint`;
-    writeFileSync(legacyPath, 'legacy stale');
+    // 先に新storeを作っておく（この時点ではレガシーは存在しないので触られない）
     writeCheckpoint(a, 'new store wins');
 
+    // その後に（例えば手動で）レガシーが置かれたとしても、読み取りは新store優先。
+    const legacyPath = `${a}.checkpoint`;
+    writeFileSync(legacyPath, 'legacy stale');
+
     expect(readCheckpoint(a)).toBe('new store wins');
+    // 新store優先の読み取りではレガシーファイルには触れず残る
     expect(existsSync(legacyPath)).toBe(true);
   });
 });
@@ -300,6 +369,26 @@ describe('checkpoint: アトミック書き込み', () => {
     const entries = readdirSync(dir);
     expect(entries).toContain('checkpoint');
     expect(entries.every((e) => !e.includes('.tmp'))).toBe(true);
+  });
+});
+
+describe('checkpoint: 書き込み経路でのレガシー掃除', () => {
+  it('readCheckpoint を経由しない POST /checkpoint 相当の書き込みでも、残っているレガシーは削除される', () => {
+    const a = makeMd('a.md');
+    const legacyPath = `${a}.checkpoint`;
+    writeFileSync(legacyPath, 'old sidecar checkpoint');
+
+    // 差分ビューを一度も開かず（＝readCheckpoint を経由せず）チェックポイントボタンを
+    // 押した場合のフローを模す。
+    writeCheckpoint(a, 'fresh checkpoint');
+
+    expect(existsSync(legacyPath)).toBe(false);
+    expect(readCheckpoint(a)).toBe('fresh checkpoint');
+  });
+
+  it('レガシーが存在しない場合でも writeCheckpoint は例外を投げない', () => {
+    const a = makeMd('a.md');
+    expect(() => writeCheckpoint(a, 'content')).not.toThrow();
   });
 });
 

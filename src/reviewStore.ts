@@ -75,9 +75,10 @@ function quarantineCorrupt(filePath: string): void {
 }
 
 // レガシーファイルの削除は非致命（失敗してもログのみで処理は続行する）。
+// force: true により、既に無い場合（他経路で先に削除済み等）は無音で成功扱いにする。
 function removeLegacy(legacyPath: string): void {
   try {
-    rmSync(legacyPath);
+    rmSync(legacyPath, { force: true });
   } catch (e) {
     console.error(`レガシーファイルの削除に失敗しました: ${legacyPath}`, e);
   }
@@ -101,22 +102,33 @@ export function readComments(absPath: string): Comment[] {
 
   const legacyPath = `${resolve(absPath)}.comments.json`;
   if (existsSync(legacyPath)) {
-    let legacyComments: Comment[] = [];
+    let legacyComments: Comment[];
     try {
       const parsed = JSON.parse(readFileSync(legacyPath, 'utf-8'));
-      if (Array.isArray(parsed)) legacyComments = parsed as Comment[];
+      if (!Array.isArray(parsed))
+        throw new Error('legacy comments.json: 想定外の形式です');
+      legacyComments = parsed as Comment[];
     } catch {
-      legacyComments = [];
+      // パース不能・想定外形式のレガシーは、ユーザーのコメントデータが
+      // 復元可能かもしれないため黙って消さず、新store側の破損時と同じく
+      // 退避してから空配列で開始する。
+      quarantineCorrupt(legacyPath);
+      return [];
     }
+    // writeComments が新storeへの保存と合わせてレガシーの削除まで行う。
     writeComments(absPath, legacyComments);
-    removeLegacy(legacyPath);
     return legacyComments;
   }
 
   return [];
 }
 
-/** コメントをエンベロープ（version/file/updatedAt/comments）に包んでアトミックに保存する。 */
+/**
+ * コメントをエンベロープ（version/file/updatedAt/comments）に包んでアトミックに保存する。
+ * POST は全量置換セマンティクスのため、レガシー(`<file>.comments.json`)が
+ * 残っていれば読み取りを経ていなくてもここで削除する（レビュー対象リポジトリに
+ * 汚れを残さないため。中身は新store側の保存内容で意図的に上書きされたとみなす）。
+ */
 export function writeComments(absPath: string, comments: Comment[]): void {
   const commentsPath = join(getReviewDir(absPath), COMMENTS_FILE);
   const envelope: CommentsEnvelope = {
@@ -126,6 +138,7 @@ export function writeComments(absPath: string, comments: Comment[]): void {
     comments,
   };
   atomicWriteFileSync(commentsPath, `${JSON.stringify(envelope, null, 2)}\n`);
+  removeLegacy(`${resolve(absPath)}.comments.json`);
 }
 
 /** 保存済みチェックポイント（全文テキスト）。無ければ null。
@@ -154,18 +167,23 @@ export function readCheckpoint(absPath: string): string | null {
       );
       return null;
     }
+    // writeCheckpoint が新storeへの保存と合わせてレガシーの削除まで行う。
     writeCheckpoint(absPath, content);
-    removeLegacy(legacyPath);
     return content;
   }
 
   return null;
 }
 
-/** チェックポイント（全文テキスト、エンベロープなし）をアトミックに保存する。 */
+/**
+ * チェックポイント（全文テキスト、エンベロープなし）をアトミックに保存する。
+ * writeComments と同様、残っているレガシー(`<file>.checkpoint`)があれば
+ * 読み取りを経ていなくてもここで削除する。
+ */
 export function writeCheckpoint(absPath: string, content: string): void {
   const cpPath = join(getReviewDir(absPath), CHECKPOINT_FILE);
   atomicWriteFileSync(cpPath, content);
+  removeLegacy(`${resolve(absPath)}.checkpoint`);
 }
 
 /** チェックポイントが存在するか（レガシーからの移行も行った上で判定する）。 */

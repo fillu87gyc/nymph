@@ -8,6 +8,12 @@
  *
  * Overriding the built-in `context` fixture sets baseURL per worker so that
  * page.goto('/') always resolves to the correct isolated server.
+ *
+ * All contexts also serve external CDN assets (Google Fonts / hljs CSS) from
+ * vendored local copies and block any other external request — see
+ * routeStaticAssets. E2E therefore always runs with the real production
+ * fonts loaded (never the fallback-font state) and never depends on network
+ * availability or CDN-side changes.
  */
 
 import { spawn } from 'node:child_process';
@@ -22,6 +28,46 @@ import {
 
 const SAMPLE_PATH = join(process.cwd(), 'tests/fixtures/sample.md');
 const BASE_PORT = 6276;
+
+const ASSETS_DIR = join(process.cwd(), 'tests/e2e/assets');
+const HLJS_STYLES_DIR = join(process.cwd(), 'node_modules/highlight.js/styles');
+
+/**
+ * 外部 CDN 資産（Google Fonts / hljs CSS）をリポジトリ内のベンダリング済み
+ * コピーで返し、その他の外部ホストへのリクエストは遮断する。
+ *
+ * これにより E2E は常に本番と同じ Web フォントがロードされた状態で動作する
+ * （ネットワーク状況次第でフォールバックフォントのまま走る、という
+ * 本番非再現な状態を排除する）。想定外の外部リクエストは abort されるため、
+ * 新たな外部依存が入り込むとテストが明確に失敗して顕在化する。
+ */
+async function routeStaticAssets(ctx: BrowserContext): Promise<void> {
+  // 後に登録した route が優先されるため、遮断のキャッチオールを最初に登録する
+  await ctx.route(/^https?:\/\/(?!localhost[:/]|127\.0\.0\.1[:/])/, (route) =>
+    route.abort(),
+  );
+  await ctx.route('https://fonts.googleapis.com/**', (route) =>
+    route.fulfill({
+      path: join(ASSETS_DIR, 'google-fonts.css'),
+      contentType: 'text/css',
+    }),
+  );
+  await ctx.route('https://fonts.gstatic.com/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop() ?? '';
+    return route.fulfill({
+      path: join(ASSETS_DIR, 'fonts', name),
+      contentType: 'font/woff2',
+    });
+  });
+  // hljs テーマ CSS は lockfile 固定の node_modules コピーで返す
+  await ctx.route('https://cdn.jsdelivr.net/npm/highlight.js@*/**', (route) => {
+    const file = new URL(route.request().url()).pathname.split('/styles/')[1];
+    return route.fulfill({
+      path: join(HLJS_STYLES_DIR, file),
+      contentType: 'text/css',
+    });
+  });
+}
 
 type WorkerFixtures = {
   _workerServer: {
@@ -124,11 +170,12 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     { scope: 'worker' },
   ],
 
-  // Override built-in context to set per-worker baseURL
+  // Override built-in context to set per-worker baseURL + deterministic assets
   context: async ({ browser, _workerServer }, use) => {
     const ctx = await browser.newContext({
       baseURL: `http://localhost:${_workerServer.port}`,
     });
+    await routeStaticAssets(ctx);
     await use(ctx);
     await ctx.close();
   },

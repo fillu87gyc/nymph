@@ -77,11 +77,19 @@ test.describe('mermaid 拡大モーダルのサイズ', () => {
     }
     await page.keyboard.up('Control');
 
+    // wheel イベント → React の state 反映は非同期なので、一発読みせず
+    // 拡大が反映されるまで待つ（タイミング依存のフレーク防止）
+    await expect
+      .poll(() =>
+        page
+          .locator('#mermaid-zoom-scale')
+          .evaluate((el) => getComputedStyle(el).transform),
+      )
+      .toMatch(/^matrix\((?!1, 0, 0, 1, 0, 0\))/);
+
     const scaleAfterZoomIn = await page
       .locator('#mermaid-zoom-scale')
       .evaluate((el) => getComputedStyle(el).transform);
-    expect(scaleAfterZoomIn).not.toBe('matrix(1, 0, 0, 1, 0, 0)');
-    expect(scaleAfterZoomIn).not.toBe('none');
 
     // ctrl なしのスクロールは拡大に影響しない
     await page.mouse.wheel(0, -100);
@@ -131,9 +139,13 @@ test.describe('mermaid 拡大モーダルのサイズ', () => {
 
     await page.locator('[data-testid="mermaid-area"]').first().click();
     await expect(page.locator('#mermaid-zoom-modal')).toBeVisible();
-    const transform = await page
-      .locator('#mermaid-zoom-scale')
-      .evaluate((el) => getComputedStyle(el).transform);
-    expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(transform);
+    // リセットは React の state 反映を挟むため、一発読みせず待つ
+    await expect
+      .poll(() =>
+        page
+          .locator('#mermaid-zoom-scale')
+          .evaluate((el) => getComputedStyle(el).transform),
+      )
+      .toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
   });
 });

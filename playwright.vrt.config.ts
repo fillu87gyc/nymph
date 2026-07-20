@@ -27,6 +27,10 @@ export default defineConfig({
   // execution use the same CPU conditions, preventing Mermaid rendering
   // non-determinism that occurs under parallel load.
   workers: 1,
+  // Rendering is hermetic (fonts / hljs CSS are served from vendored copies,
+  // see tests/e2e/vrt.ts), but keep a retry on CI as a last-resort guard
+  // against residual environment noise.
+  retries: process.env.CI ? 1 : 0,
   use: {
     baseURL: 'http://localhost:6276', // overridden per-worker in fixtures.ts
     ...(executablePath ? { launchOptions: { executablePath } } : {}),

@@ -1,4 +1,9 @@
-import { expect, test } from './fixtures.ts';
+import {
+  expect,
+  openOverflowMenu,
+  openSettingsMenu,
+  test,
+} from './fixtures.ts';
 
 // 折りたたみによる幅の増分を viewport の制約なく検証するため、ワイドな
 // ビューポートを固定する（デフォルト viewport だと早期に上限に達してしまう）。
@@ -11,6 +16,8 @@ test.beforeEach(async ({ page }) => {
   ).toBeVisible({
     timeout: 5000,
   });
+  // 本文幅トグルは設定ポップオーバーの中に移動した
+  await openSettingsMenu(page);
 });
 
 test.describe('本文の左右マージン折りたたみ', () => {
@@ -106,20 +113,38 @@ test.describe('本文の左右マージン折りたたみ', () => {
     expect(restoredWidth).toBe(collapsedWidth);
   });
 
-  test('差分チェックモードでは折りたたみボタンが表示されない', async ({
+  // 本文幅トグルは設定ポップオーバーへ移動し、フロート型の ‹› ボタンとは違って
+  // 本文カラムの描画有無に紐づかなくなったため、diff モードでも操作できる。
+  // ここでは「diff モードでも状態を変更でき、通常表示に戻ると反映される」ことを検証する。
+  test('diff モードでも設定ポップオーバーから本文幅を変更でき、通常表示に戻ると反映される', async ({
     page,
   }) => {
+    const before = await page
+      .locator('#content')
+      .evaluate((el) => el.getBoundingClientRect().width);
+
+    await openOverflowMenu(page);
     await page.locator('#btn-checkpoint').click();
     await page.locator('#btn-diff').click();
     await expect(page.locator('[data-testid="diff-view"]')).toBeVisible({
       timeout: 5000,
     });
 
+    await openSettingsMenu(page);
+    await page.locator('[data-testid="margin-toggle-left"]').click();
+    const saved = await page.evaluate(() =>
+      localStorage.getItem('nymph-margin-left-collapsed'),
+    );
+    expect(saved).toBe('1');
+
+    await page.locator('#btn-diff').click();
     await expect(
-      page.locator('[data-testid="margin-toggle-left"]'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('[data-testid="margin-toggle-right"]'),
-    ).toHaveCount(0);
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible();
+
+    const after = await page
+      .locator('#content')
+      .evaluate((el) => el.getBoundingClientRect().width);
+    expect(after).toBeGreaterThan(before);
   });
 });

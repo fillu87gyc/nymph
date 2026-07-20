@@ -44,9 +44,8 @@ export const VRT_STABILIZE_CSS = `
   }
   [data-testid="connection-dot"] { opacity: 1 !important; }
   #toast { display: none !important; }
-  /* 更新時刻はプロポーショナル数字で文字幅が毎回変わり、visibility:hidden
-     では幅が残ってツールバー全体が横にズレるため、レイアウトごと除去する */
-  #update-time { display: none !important; }
+  /* 更新時刻は接続ドットの title 属性に統合され、ホバー時のみ表示される
+     ネイティブツールチップのためレイアウト・スクリーンショットに影響しない */
   [data-testid="brand-version"] { visibility: hidden !important; }
 `;
 

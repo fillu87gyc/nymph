@@ -6,7 +6,7 @@
  * portal が機能しないと <head> に link タグが現れず、hljs スタイルが
  * 一切当たらない（シンタックスハイライトが崩れる）。
  */
-import { expect, test } from './fixtures.ts';
+import { expect, openSettingsMenu, test } from './fixtures.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -56,6 +56,7 @@ test.describe('hljs テーマ link portal', () => {
         ?.getAttribute('href'),
     );
 
+    await openSettingsMenu(page);
     await page.locator('#btn-theme').click();
 
     // React state 更新 → portal 再レンダー
@@ -84,6 +85,7 @@ test.describe('hljs テーマ link portal', () => {
         ?.getAttribute('href'),
     );
 
+    await openSettingsMenu(page);
     await page.locator('#btn-theme').click();
     await page.waitForFunction(
       (prev) =>
@@ -113,6 +115,7 @@ test.describe('hljs テーマ link portal', () => {
   });
 
   test('link タグは head 内に1つだけ存在する（重複なし）', async ({ page }) => {
+    await openSettingsMenu(page);
     await page.locator('#btn-theme').click();
     await page.locator('#btn-theme').click();
 
@@ -128,6 +131,7 @@ test.describe('テーマ状態の永続化', () => {
     const before = await page.evaluate(
       () => document.documentElement.dataset.theme ?? 'dark',
     );
+    await openSettingsMenu(page);
     await page.locator('#btn-theme').click();
     const saved = await page.evaluate(() =>
       localStorage.getItem('nymph-theme'),
@@ -140,6 +144,7 @@ test.describe('テーマ状態の永続化', () => {
   });
 
   test('リロード後にテーマが復元される', async ({ page }) => {
+    await openSettingsMenu(page);
     await page.locator('#btn-theme').click();
     const theme = await page.evaluate(
       () => document.documentElement.dataset.theme,

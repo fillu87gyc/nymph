@@ -9,7 +9,7 @@
  */
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, type Page, test } from './fixtures.ts';
+import { expect, openOverflowMenu, type Page, test } from './fixtures.ts';
 import { stabilizeVrt } from './vrt.ts';
 
 const ORIGINAL = readFileSync(
@@ -35,7 +35,11 @@ async function produceDiff(
     timeout: 8000,
   });
 
+  // チェックポイント設定は ⋯ メニューの中。項目クリックでメニューは閉じる
+  // ため、状態確認には開き直す。
+  await openOverflowMenu(page);
   await page.locator('#btn-checkpoint').click();
+  await openOverflowMenu(page);
   await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
     'data-has-checkpoint',
     'true',

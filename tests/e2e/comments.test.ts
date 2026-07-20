@@ -5,7 +5,13 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { expect, type Page, test } from './fixtures.ts';
+import {
+  expect,
+  openOverflowMenu,
+  openSettingsMenu,
+  type Page,
+  test,
+} from './fixtures.ts';
 
 async function addComment(page: Page, text: string) {
   const tableBlock = page
@@ -199,6 +205,7 @@ test.describe('コメント窓の位置・操作性', () => {
 test.describe('コメント削除モーダル', () => {
   test('ゴミ箱アイコン → モーダルが開く', async ({ page }) => {
     await addComment(page, 'comment 1');
+    await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.locator('#btn-confirm-cancel').click();
@@ -206,6 +213,7 @@ test.describe('コメント削除モーダル', () => {
 
   test('孤立コメントなし: すべて削除がデフォルト選択', async ({ page }) => {
     await addComment(page, 'comment');
+    await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await expect(
@@ -219,6 +227,7 @@ test.describe('コメント削除モーダル', () => {
     await addComment(page, 'comment 2');
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(2);
 
+    await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.locator('[data-testid="choice-all"]').click();
@@ -233,6 +242,7 @@ test.describe('コメント削除モーダル', () => {
 
   test('キャンセルするとコメントが残る', async ({ page }) => {
     await addComment(page, 'keep me');
+    await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.locator('#btn-confirm-cancel').click();
@@ -254,6 +264,7 @@ test.describe('コメント削除モーダル', () => {
       { timeout: 8000 },
     );
 
+    await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await expect(
@@ -284,6 +295,7 @@ test.describe('コメント削除モーダル', () => {
       { timeout: 8000 },
     );
 
+    await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.locator('[data-testid="choice-orphaned"]').click();
@@ -314,6 +326,7 @@ test.describe('コメント削除モーダル', () => {
       { timeout: 8000 },
     );
 
+    await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.locator('#btn-confirm-cancel').click();
@@ -506,6 +519,7 @@ test.describe('テーマ切替', () => {
     const initial = await page.evaluate(
       () => document.documentElement.dataset.theme ?? 'dark',
     );
+    await openSettingsMenu(page);
     await page.locator('#btn-theme').click();
     const next = await page.evaluate(
       () => document.documentElement.dataset.theme,
@@ -514,6 +528,7 @@ test.describe('テーマ切替', () => {
   });
 
   test('テーマが localStorage に保存される', async ({ page }) => {
+    await openSettingsMenu(page);
     await page.locator('#btn-theme').click();
     const saved = await page.evaluate(() =>
       localStorage.getItem('nymph-theme'),

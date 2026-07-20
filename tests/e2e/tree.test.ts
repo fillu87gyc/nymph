@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   expect,
+  openOverflowMenu,
   type Page,
   pollUntilReady,
   reviewCommentsPathFor,
@@ -100,6 +101,11 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     page,
   }) => {
     await gotoTree(page);
+    // タブ行は2ファイル以上で表示されるため、先に README を開いておく
+    await page
+      .getByTestId('tree-file')
+      .filter({ hasText: 'README.md' })
+      .click();
     const guide = page.getByTestId('tree-file').filter({ hasText: 'guide.md' });
     await expect(guide).toBeVisible(); // dir は初期展開
     await guide.click();
@@ -212,20 +218,23 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     page,
   }) => {
     await gotoTree(page);
-    // タブを 1 つ開いておく
+    // タブ行は2ファイル以上で表示されるため、2つ開いておく
     await page
       .getByTestId('tree-file')
       .filter({ hasText: 'README.md' })
       .click();
+    await page.getByTestId('tree-file').filter({ hasText: 'guide.md' }).click();
     await expect(
       page.locator('#file-tabs button', { hasText: 'README.md' }),
     ).toBeVisible();
 
     // OS ネイティブダイアログは Playwright で操作できないため、
     // 選択結果を返す /pick-dir をモックして後続の /open-dir フローを検証する。
+    // 「フォルダを開く」は ⋯ オーバーフローメニューの中。
     await page.route('**/pick-dir', (route) =>
       route.fulfill({ json: { path: join(treeDir, 'docs') } }),
     );
+    await openOverflowMenu(page);
     await page.getByTestId('open-dir-btn').click();
 
     await expect(page.getByTestId('tree-root-name')).toContainText('docs');
@@ -241,6 +250,7 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     await page.route('**/pick-dir', (route) =>
       route.fulfill({ json: { path: treeDir } }),
     );
+    await openOverflowMenu(page);
     await page.getByTestId('open-dir-btn').click();
     await expect(
       page.getByTestId('tree-dir').filter({ hasText: 'docs' }),
@@ -254,6 +264,7 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     await page.route('**/pick-dir', (route) =>
       route.fulfill({ json: { path: '/no/such/dir' } }),
     );
+    await openOverflowMenu(page);
     await page.getByTestId('open-dir-btn').click();
     await expect(page.locator('#toast')).toContainText(
       'ディレクトリを開けませんでした',
@@ -266,6 +277,7 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     await page.route('**/pick-dir', (route) =>
       route.fulfill({ json: { path: null } }),
     );
+    await openOverflowMenu(page);
     await page.getByTestId('open-dir-btn').click();
     await expect(
       page.getByTestId('tree-dir').filter({ hasText: 'docs' }),
@@ -276,6 +288,11 @@ test.describe('ディレクトリモード（ツリー表示）', () => {
     page,
   }) => {
     await gotoTree(page);
+    // タブ行は2ファイル以上で表示されるため、先に README を開いておく
+    await page
+      .getByTestId('tree-file')
+      .filter({ hasText: 'README.md' })
+      .click();
     await page.route('**/pick-file', (route) =>
       route.fulfill({ json: { path: guidePath } }),
     );

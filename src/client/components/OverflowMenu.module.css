@@ -1,0 +1,31 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+.dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  z-index: 700;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.row {
+  display: flex;
+}
+.row :global(.btn) {
+  width: 100%;
+  justify-content: flex-start;
+}
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}

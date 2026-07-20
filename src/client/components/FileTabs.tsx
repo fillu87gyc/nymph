@@ -14,7 +14,9 @@ export function FileTabs({
   onSwitch,
   onClose,
 }: FileTabsProps) {
-  if (files.length === 0) return null;
+  // タブ行は複数ファイルを行き来する必要があるときだけ出す（mo 方式）。
+  // 1 ファイル以下では常時表示せず、2 ファイル以上で自動的に現れる。
+  if (files.length <= 1) return null;
 
   return (
     <div id="file-tabs" className={styles.fileTabs}>

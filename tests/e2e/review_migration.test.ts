@@ -9,7 +9,7 @@
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from './fixtures.ts';
+import { expect, openOverflowMenu, test } from './fixtures.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -99,7 +99,8 @@ test.describe('レガシーサイドカーからの自動移行', () => {
     );
 
     // ページ読み込み時の /diff 呼び出しで自動移行され、チェックポイント
-    // 「設定済み」表示が復元される
+    // 「設定済み」表示が復元される（チェックポイント設定は ⋯ メニューの中）
+    await openOverflowMenu(page);
     await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
       'data-has-checkpoint',
       'true',

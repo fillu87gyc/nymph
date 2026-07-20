@@ -728,6 +728,8 @@ export function App() {
         onChangeContentFont={handleChangeContentFont}
         onDictSync={handleDictSync}
         isDictSyncing={isDictSyncing}
+        marginCollapse={marginCollapse}
+        onToggleMargin={toggleMargin}
       />
       <FileTabs
         files={files}
@@ -766,20 +768,6 @@ export function App() {
             className={styles.contentColMargins}
             onWheel={forwardWheelToContent}
           >
-            <button
-              type="button"
-              className={styles.marginToggle}
-              data-testid="margin-toggle-left"
-              title={
-                marginCollapse.left
-                  ? '左マージンを表示'
-                  : '左マージンを折りたたんで本文を広げる'
-              }
-              aria-pressed={marginCollapse.left}
-              onClick={() => toggleMargin('left')}
-            >
-              {marginCollapse.left ? '›' : '‹'}
-            </button>
             <div
               ref={contentScrollRef}
               className={styles.contentGrid}
@@ -821,20 +809,6 @@ export function App() {
                 onOpenDir={(path) => void handleOpenDir(path)}
               />
             </div>
-            <button
-              type="button"
-              className={styles.marginToggle}
-              data-testid="margin-toggle-right"
-              title={
-                marginCollapse.right
-                  ? '右マージンを表示'
-                  : '右マージンを折りたたんで本文を広げる'
-              }
-              aria-pressed={marginCollapse.right}
-              onClick={() => toggleMargin('right')}
-            >
-              {marginCollapse.right ? '‹' : '›'}
-            </button>
           </div>
         )}
         {tocOpen && !diffMode && (

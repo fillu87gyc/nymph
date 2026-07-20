@@ -1,5 +1,5 @@
 import { CONTENT_FONT_OPTIONS } from '../../src/client/lib/fonts.ts';
-import { expect, test } from './fixtures.ts';
+import { expect, openSettingsMenu, test } from './fixtures.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -8,6 +8,8 @@ test.beforeEach(async ({ page }) => {
   ).toBeVisible({
     timeout: 5000,
   });
+  // 本文フォント select は設定ポップオーバーの中に移動した
+  await openSettingsMenu(page);
 });
 
 test.describe('本文フォント選択', () => {
@@ -46,6 +48,7 @@ test.describe('本文フォント選択', () => {
     await expect(
       page.locator('#content [data-testid="md-block"]').first(),
     ).toBeVisible({ timeout: 5000 });
+    await openSettingsMenu(page);
 
     const selected = await page.locator('#content-font-select').inputValue();
     expect(selected).toBe('merriweather');

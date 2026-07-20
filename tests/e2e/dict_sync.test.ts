@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from './fixtures.ts';
+import { expect, openOverflowMenu, test } from './fixtures.ts';
 
 const STALE_DICT = {
   version: 1,
@@ -91,6 +91,7 @@ test.describe('dict: POST /dict/sync', () => {
 
   test('辞書更新ボタンクリックで /dict/sync が呼ばれる', async ({ page }) => {
     await page.goto('/');
+    await openOverflowMenu(page);
     const [response] = await Promise.all([
       page.waitForResponse(
         (r) =>

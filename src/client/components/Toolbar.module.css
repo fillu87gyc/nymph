@@ -27,65 +27,26 @@
   color: var(--fg-muted, color-mix(in srgb, var(--accent) 60%, transparent));
   letter-spacing: 0;
 }
-.updateTime {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: "DM Sans", sans-serif;
-}
 .connectionStatus {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 22px;
   height: 30px;
-  gap: 6px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  transition: all 0.15s;
-}
-.connectionStatus[data-connected="false"] {
-  animation: connection-blink 0.6s ease-in-out infinite;
+  flex-shrink: 0;
 }
 .connectionDot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--success);
   box-shadow: 0 0 6px rgba(var(--success-rgb), 0.6);
   animation: pulse 2s ease-in-out infinite;
-  flex-shrink: 0;
 }
 .connectionStatus[data-connected="false"] .connectionDot {
   background: var(--danger);
   animation: dot-error-blink 0.6s ease-in-out infinite;
-}
-.connectionLabel {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-.connectionStatus[data-connected="false"] .connectionLabel {
-  color: var(--danger);
-  font-weight: 700;
-  animation: label-blink 0.6s ease-in-out infinite;
-}
-.fontSelect {
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: "DM Sans", sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.fontSelect:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-  border-color: var(--border-light);
 }
 .commentCount {
   display: inline-flex;

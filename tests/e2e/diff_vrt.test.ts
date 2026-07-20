@@ -10,22 +10,12 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Page, test } from './fixtures.ts';
+import { stabilizeVrt } from './vrt.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
   'utf-8',
 );
-
-// VRT 安定化: アニメーション停止 + 可変表示（時刻・コミットハッシュ等）を隠す
-const STABILIZE = `
-  *, *::before, *::after {
-    animation-play-state: paused !important;
-    transition-duration: 0ms !important;
-  }
-  [data-testid="connection-dot"] { opacity: 1 !important; }
-  #toast { display: none !important; }
-  #update-time, [data-testid="brand-version"] { visibility: hidden !important; }
-`;
 
 // before を読み込み → checkpoint → after に変更 → 差分チェックモード ON、までを行う。
 // afterMarker は変更後の本文に現れる文字列。本文が SSE で再描画され切ってから
@@ -69,9 +59,8 @@ async function produceDiff(
   ).toBeVisible({
     timeout: 5000,
   });
-  await page.addStyleTag({ content: STABILIZE });
-  // フォントが完全にロードされてからスクリーンショットを撮る
-  await page.evaluate(() => document.fonts.ready);
+  // フォント確定を待ってから安定化 CSS を注入する
+  await stabilizeVrt(page);
 }
 
 test.describe('差分チェックモード VRT', () => {

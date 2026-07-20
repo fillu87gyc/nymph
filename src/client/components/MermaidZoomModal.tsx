@@ -19,9 +19,12 @@ export function MermaidZoomModal({
   const [scale, setScale] = useState(1);
   const areaRef = useRef<HTMLDivElement | null>(null);
 
-  // 開くたびに「拡大も縮小もしていない」原寸表示に戻す
+  // 開閉のたびに「拡大も縮小もしていない」原寸表示に戻す。
+  // open 時だけにすると、再オープンの最初のコミットは前回の拡大率のまま
+  // 描画され effect のリセットが後から走る（1 フレーム旧倍率が見える）。
+  // close 時にもリセットしておけば、再オープンは常に scale(1) から始まる。
   useEffect(() => {
-    if (open) setScale(1);
+    setScale(1);
   }, [open]);
 
   useEffect(() => {

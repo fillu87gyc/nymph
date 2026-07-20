@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { waitForFonts } from '../lib/fontReady.ts';
 import { findTextRange } from '../lib/markdown.ts';
 import { parseBlocks } from '../lib/parseBlocks.ts';
 import type { BookmarkEntry, Comment, RecentEntry } from '../types.ts';
@@ -195,11 +196,14 @@ export function ContentArea({
         });
         // フォント確定前に mermaid がテキストを計測するとノードサイズが変わり、
         // ダイアグラム高さ（ひいては下方コンテンツの位置）が描画ごとに揺れる。
-        // フォント読込完了を待ってから描画してレイアウトを決定的にする。
-        if (document.fonts?.ready) {
-          await document.fonts.ready;
-          if (cancelled) return;
-        }
+        // document.fonts.ready だけでは Google Fonts の <link> CSS 適用前に
+        // 解決するレースが残るため、mermaid が計測に使うフォントを明示的に
+        // ロードしてから描画してレイアウトを決定的にする。
+        await waitForFonts([
+          '16px "JetBrains Mono"',
+          '500 16px "JetBrains Mono"',
+        ]);
+        if (cancelled) return;
         await mermaid.run({ querySelector: '#content .mermaid' });
       } catch (e) {
         console.warn('mermaid:', e);

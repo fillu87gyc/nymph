@@ -1,12 +1,16 @@
 import { useCallback } from 'react';
 import useSWR from 'swr';
+import { generateCommentId } from '../lib/commentId.ts';
 import { commentsKey } from '../lib/comments.ts';
 import { fetcher } from '../lib/fetcher.ts';
-import type { Comment, PendingComment } from '../types.ts';
+import type { Comment, CommentsResponse, PendingComment } from '../types.ts';
+
+const EMPTY_RESPONSE: CommentsResponse = { round: 0, comments: [] };
 
 // 保存先ファイルを明示した URL に POST する。レスポンスが失敗した場合は
 // サイレントに諦めず呼び出し元に伝える（呼び出し元は SWR キャッシュを
-// 再検証して実状態に合わせる）。
+// 再検証して実状態に合わせる）。POST の body は従来どおり comments 配列の
+// ままにし、round はサーバー側（reviewStore.ts）が既存値を保持する。
 async function postComments(key: string, updated: Comment[]): Promise<boolean> {
   try {
     const res = await fetch(key, {
@@ -22,19 +26,17 @@ async function postComments(key: string, updated: Comment[]): Promise<boolean> {
 
 export function useComments(activeFile: string | null = null) {
   const key = commentsKey(activeFile);
-  const { data: comments = [], mutate } = useSWR<Comment[]>(key, fetcher, {
-    fallbackData: [],
+  const { data, mutate } = useSWR<CommentsResponse>(key, fetcher, {
+    fallbackData: EMPTY_RESPONSE,
   });
-
-  const nextId = comments.length
-    ? Math.max(...comments.map((c) => c.id)) + 1
-    : 1;
+  const comments = data?.comments ?? [];
+  const round = data?.round ?? 0;
 
   // 保存に失敗したら、ローカルの楽観的更新を実際のサーバー状態で
   // 上書きする（revalidate）ことで、消えたはずのコメントが UI 上だけ
   // 残ってしまう食い違いを防ぐ。
-  async function save(updated: Comment[]): Promise<boolean> {
-    const ok = await postComments(key, updated);
+  async function save(updatedComments: Comment[]): Promise<boolean> {
+    const ok = await postComments(key, updatedComments);
     if (!ok) await mutate();
     return ok;
   }
@@ -43,10 +45,8 @@ export function useComments(activeFile: string | null = null) {
     async (pending: PendingComment, text: string) => {
       // 関数形式で渡すことで SWR がキャッシュ現在値を渡してくれ、stale closure を回避できる
       const updated = await mutate(
-        (current: Comment[] = []) => {
-          const id = current.length
-            ? Math.max(...current.map((c) => c.id)) + 1
-            : 1;
+        (current: CommentsResponse = EMPTY_RESPONSE) => {
+          const id = generateCommentId(current.comments.map((c) => c.id));
           const c: Comment = {
             id,
             lineStart: pending.lineStart,
@@ -57,61 +57,99 @@ export function useComments(activeFile: string | null = null) {
               selection_offset: pending.selection_offset,
             }),
             text,
+            createdAt: new Date().toISOString(),
+            round: current.round,
           };
-          return [...current, c].sort((a, b) => a.lineStart - b.lineStart);
+          const nextComments = [...current.comments, c].sort(
+            (a, b) => a.lineStart - b.lineStart,
+          );
+          return { round: current.round, comments: nextComments };
         },
         { revalidate: false },
       );
-      return updated ? save(updated) : true;
+      return updated ? save(updated.comments) : true;
     },
     [mutate, key],
   );
 
   const updateComment = useCallback(
-    async (id: number, text: string) => {
+    async (id: Comment['id'], text: string) => {
       const updated = await mutate(
-        (current: Comment[] = []) =>
-          current.map((c) => (c.id === id ? { ...c, text } : c)),
+        (current: CommentsResponse = EMPTY_RESPONSE) => ({
+          round: current.round,
+          comments: current.comments.map((c) =>
+            c.id === id ? { ...c, text } : c,
+          ),
+        }),
         { revalidate: false },
       );
-      return updated ? save(updated) : true;
+      return updated ? save(updated.comments) : true;
     },
     [mutate, key],
   );
 
   const deleteComment = useCallback(
-    async (id: number) => {
+    async (id: Comment['id']) => {
       const updated = await mutate(
-        (current: Comment[] = []) => current.filter((c) => c.id !== id),
+        (current: CommentsResponse = EMPTY_RESPONSE) => ({
+          round: current.round,
+          comments: current.comments.filter((c) => c.id !== id),
+        }),
         { revalidate: false },
       );
-      return updated ? save(updated) : true;
+      return updated ? save(updated.comments) : true;
+    },
+    [mutate, key],
+  );
+
+  const toggleResolved = useCallback(
+    async (id: Comment['id']) => {
+      const updated = await mutate(
+        (current: CommentsResponse = EMPTY_RESPONSE) => ({
+          round: current.round,
+          comments: current.comments.map((c) =>
+            c.id === id ? { ...c, resolved: !c.resolved } : c,
+          ),
+        }),
+        { revalidate: false },
+      );
+      return updated ? save(updated.comments) : true;
     },
     [mutate, key],
   );
 
   const clearAll = useCallback(async () => {
-    const updated = await mutate(() => [] as Comment[], { revalidate: false });
-    return updated ? save(updated) : true;
+    const updated = await mutate(
+      (current: CommentsResponse = EMPTY_RESPONSE) => ({
+        round: current.round,
+        comments: [],
+      }),
+      { revalidate: false },
+    );
+    return updated ? save(updated.comments) : true;
   }, [mutate, key]);
 
   const clearOrphaned = useCallback(
-    async (ids: Set<number>) => {
+    async (ids: Set<Comment['id']>) => {
       const updated = await mutate(
-        (current: Comment[] = []) => current.filter((c) => !ids.has(c.id)),
+        (current: CommentsResponse = EMPTY_RESPONSE) => ({
+          round: current.round,
+          comments: current.comments.filter((c) => !ids.has(c.id)),
+        }),
         { revalidate: false },
       );
-      return updated ? save(updated) : true;
+      return updated ? save(updated.comments) : true;
     },
     [mutate, key],
   );
 
   return {
     comments,
-    nextId,
+    round,
     addComment,
     updateComment,
     deleteComment,
+    toggleResolved,
     clearAll,
     clearOrphaned,
   };

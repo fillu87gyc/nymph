@@ -42,6 +42,33 @@
   letter-spacing: 0.1em;
   color: var(--text-muted);
 }
+.filterGroup {
+  display: flex;
+  gap: 2px;
+  margin-left: 10px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+.filterBtn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.filterBtn:hover {
+  color: var(--text);
+}
+.filterBtn[data-active="true"] {
+  background: var(--accent);
+  color: #fff;
+}
 .list {
   list-style: none;
   overflow-y: auto;
@@ -58,6 +85,9 @@
 }
 .item:hover {
   background: var(--bg-hover);
+}
+.item[data-resolved="true"] {
+  opacity: 0.55;
 }
 .lineRef {
   flex-shrink: 0;
@@ -118,12 +148,26 @@
   white-space: nowrap;
   vertical-align: middle;
 }
+.roundBadge {
+  display: inline-block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 5px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
 .actions {
   flex-shrink: 0;
   display: flex;
   gap: 2px;
   align-items: center;
 }
+.resolveBtn,
 .editBtn,
 .delBtn {
   background: none;
@@ -134,6 +178,12 @@
   padding: 2px 4px;
   border-radius: 3px;
   transition: color 0.1s;
+}
+.resolveBtn:hover {
+  color: var(--success);
+}
+.resolveBtn[data-resolved="true"] {
+  color: var(--success);
 }
 .editBtn:hover {
   color: var(--accent);

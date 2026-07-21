@@ -29,7 +29,7 @@ interface ContentAreaProps {
   onOpenDrawio: (code: string) => void;
   onOpenMermaidZoom: (html: string) => void;
   onClickCommentAnchor: (c: Comment, x: number, y: number) => void;
-  onOrphanedIds?: (ids: Set<number>) => void;
+  onOrphanedIds?: (ids: Set<Comment['id']>) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
   blockRefsMapRef: React.MutableRefObject<Map<string, HTMLElement>>;
 }
@@ -95,7 +95,7 @@ export function ContentArea({
     hl.delete('comment-anchor');
     commentRangesRef.current = [];
 
-    const orphaned = new Set<number>();
+    const orphaned = new Set<Comment['id']>();
 
     // Block-level comments: orphaned if no block starts at c.lineStart
     // （selection は後段で判定、diff は App 側で diff データと突き合わせて判定）

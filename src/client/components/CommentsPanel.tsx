@@ -1,6 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
-import { ctxDisplay, isDiffContext } from '../lib/comments.ts';
-import type { Comment } from '../types.ts';
+import {
+  ctxDisplay,
+  isDiffContext,
+  matchesCommentFilter,
+} from '../lib/comments.ts';
+import type { Comment, CommentFilter } from '../types.ts';
 import styles from './CommentsPanel.module.css';
 
 // 差分への指摘は新旧どちら側の行かが分かる行表示にする（例: 新L7 / 旧L5）
@@ -17,13 +21,20 @@ function lineRef(c: Comment): string {
 const PANEL_DEFAULT_H = 210;
 const PANEL_MIN_H = 80;
 
+const FILTERS: { id: CommentFilter; label: string }[] = [
+  { id: 'all', label: 'すべて' },
+  { id: 'open', label: '未解決' },
+  { id: 'resolved', label: '解決済み' },
+];
+
 interface CommentsPanelProps {
   open: boolean;
   comments: Comment[];
-  orphanedIds?: Set<number>;
+  orphanedIds?: Set<Comment['id']>;
   onScrollToComment: (c: Comment) => void;
   onEdit: (c: Comment, x: number, y: number) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: Comment['id']) => void;
+  onToggleResolved: (id: Comment['id']) => void;
   onClose: () => void;
 }
 
@@ -34,6 +45,7 @@ export function CommentsPanel({
   onScrollToComment,
   onEdit,
   onDelete,
+  onToggleResolved,
   onClose,
 }: CommentsPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -42,6 +54,8 @@ export function CommentsPanel({
       parseInt(localStorage.getItem('nymph-panel-height') || '0', 10) ||
       PANEL_DEFAULT_H,
   );
+  // フィルタ選択はセッション内のみ（localStorage に永続化しない）。
+  const [filter, setFilter] = useState<CommentFilter>('all');
 
   const startDrag = useCallback((e: React.MouseEvent) => {
     const startY = e.clientY;
@@ -71,6 +85,9 @@ export function CommentsPanel({
   }, []);
 
   const panelStyle = open ? { height: `${height}px` } : { height: '0' };
+  const visibleComments = comments.filter((c) =>
+    matchesCommentFilter(c, filter),
+  );
 
   return (
     <div
@@ -87,6 +104,20 @@ export function CommentsPanel({
       />
       <div className={styles.head}>
         <span className={styles.title}>レビューコメント</span>
+        <div className={styles.filterGroup} data-testid="comment-filter">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={styles.filterBtn}
+              data-testid={`filter-${f.id}`}
+              data-active={String(filter === f.id)}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         <span className="spacer" />
         <button
           type="button"
@@ -99,20 +130,34 @@ export function CommentsPanel({
       </div>
       <ul id="comments-list" className={styles.list}>
         {comments.length === 0 ? (
-          <li id="no-comments" className={styles.empty}>
+          <li
+            id="no-comments"
+            data-testid="no-comments"
+            className={styles.empty}
+          >
             コメントはまだありません。ブロックにカーソルを合わせて ＋
             をクリック。
           </li>
+        ) : visibleComments.length === 0 ? (
+          <li
+            id="no-comments"
+            data-testid="no-comments"
+            className={styles.empty}
+          >
+            該当するコメントはありません。
+          </li>
         ) : (
-          comments.map((c) => {
+          visibleComments.map((c) => {
             const range = lineRef(c);
             const isOrphaned = orphanedIds?.has(c.id) ?? false;
+            const isResolved = c.resolved === true;
             return (
               <li
                 key={c.id}
                 className={styles.item}
                 data-testid="comment-item"
                 data-orphaned={String(isOrphaned)}
+                data-resolved={String(isResolved)}
                 onClick={() => onScrollToComment(c)}
               >
                 <span className={styles.lineRef}>{range}</span>
@@ -137,10 +182,28 @@ export function CommentsPanel({
                         差分への指摘
                       </span>
                     )}
+                    {!!c.round && (
+                      <span className={styles.roundBadge} data-testid="c-round">
+                        R{c.round}
+                      </span>
+                    )}
                     {ctxDisplay(c)}
                   </div>
                 </div>
                 <div className={styles.actions}>
+                  <button
+                    type="button"
+                    className={styles.resolveBtn}
+                    data-testid="c-resolve"
+                    data-resolved={String(isResolved)}
+                    title={isResolved ? '未解決に戻す' : '解決済みにする'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleResolved(c.id);
+                    }}
+                  >
+                    {isResolved ? '✓' : '○'}
+                  </button>
                   <button
                     type="button"
                     className={styles.editBtn}

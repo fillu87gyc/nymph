@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { scanMdTree, type TreeNode } from '../../src/fsTree.ts';
+import { flattenMdFiles, scanMdTree, type TreeNode } from '../../src/fsTree.ts';
 
 const ROOT = join(tmpdir(), `nymph-fstree-test-${process.pid}`);
 
@@ -78,5 +78,21 @@ describe('scanMdTree', () => {
 
   it('.md が 1 つもない root は空配列', () => {
     expect(scanMdTree(join(ROOT, 'empty-dir'))).toEqual([]);
+  });
+});
+
+describe('flattenMdFiles', () => {
+  it('ネストしたツリーから .md のパスだけを平坦化する', () => {
+    const paths = flattenMdFiles(scanMdTree(ROOT));
+    expect(paths).toEqual([
+      join(ROOT, 'sub', 'deep', 'd.md'),
+      join(ROOT, 'sub', 'c.md'),
+      join(ROOT, 'a.md'),
+      join(ROOT, 'b.md'),
+    ]);
+  });
+
+  it('空ツリーは空配列', () => {
+    expect(flattenMdFiles([])).toEqual([]);
   });
 });

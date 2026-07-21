@@ -71,3 +71,65 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.sectionLabel {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-light);
+  margin-top: 4px;
+}
+.matchItem {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.matchItem[data-selected="true"] {
+  background: var(--accent);
+}
+.matchItem[data-selected="true"] .itemName,
+.matchItem[data-selected="true"] .matchLine,
+.matchItem[data-selected="true"] .snippet,
+.matchItem[data-selected="true"] .ctxLine {
+  color: var(--bg);
+}
+.matchHead {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.matchLine {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.snippet {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.snippet mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+.matchItem[data-selected="true"] .snippet mark {
+  color: var(--bg);
+  text-decoration: underline;
+}
+.ctxLine {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

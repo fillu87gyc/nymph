@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildQuickOpenItems } from '../../src/client/lib/quickOpen.ts';
+import {
+  buildMatchItems,
+  buildQuickOpenItems,
+} from '../../src/client/lib/quickOpen.ts';
 import type {
   BookmarkEntry,
   FileEntry,
   RecentEntry,
+  SearchFileResult,
   TreeNode,
 } from '../../src/client/types.ts';
 
@@ -69,5 +73,37 @@ describe('buildQuickOpenItems', () => {
       '',
     );
     expect(items).toEqual([]);
+  });
+});
+
+describe('buildMatchItems', () => {
+  const results: SearchFileResult[] = [
+    {
+      path: '/w/a.md',
+      name: 'a.md',
+      nameMatch: false,
+      matches: [
+        { line: 3, text: 'foo bar', start: 0, end: 3, before: [], after: [] },
+        { line: 8, text: 'baz foo', start: 4, end: 7, before: [], after: [] },
+      ],
+    },
+    {
+      path: '/w/name-only.md',
+      name: 'name-only.md',
+      nameMatch: true,
+      matches: [],
+    },
+  ];
+
+  it('1マッチ=1行に平坦化し、ファイル情報を持たせる', () => {
+    const items = buildMatchItems(results);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ path: '/w/a.md', name: 'a.md', line: 3 });
+    expect(items[1]).toMatchObject({ path: '/w/a.md', line: 8, start: 4 });
+  });
+
+  it('ファイル名のみ一致（matches 空）は出さない', () => {
+    const items = buildMatchItems(results);
+    expect(items.some((i) => i.path === '/w/name-only.md')).toBe(false);
   });
 });

@@ -7,6 +7,13 @@
 
 ---
 
+## 完了（2026-07-21 セッション）
+
+- **Phase 2 — コメントのライフサイクル（PR #115）**: コメント ID を `c_` + 乱数6桁hex に変更（既存整数 ID は非破壊共存）、`resolved`/`createdAt`/`round` を Comment に追加、コメントパネルに All/Open/Resolved フィルタ、チェックポイント設定を「ラウンド境界」として round を採番
+- **全文検索（Quick Open 統合）**: mo の `/_/api/search` 相当の `GET /search?q=`（`src/search.ts`）。対象は開いているタブ + ツリー配下の .md で、ファイル名+本文を大文字小文字無視の部分一致で検索。前後1行のコンテキスト付きスニペット（長行はマッチ周辺にクリップしオフセット調整）、ファイルあたり5件・合計50件で打ち切り（`truncated`）。UI は Quick Open（Ctrl/Cmd+P）に「本文の一致」セクションとして統合し、選択すると該当ファイルを開いて対象行を含むブロックへスクロール+フラッシュ。クエリはデバウンス+2文字以上で発火（`useSearch`）
+
+---
+
 ## 完了（2026-07-20 セッション）
 
 - **Phase 1 — レビューデータの保存先移転（PR #111）**: コメント/チェックポイントをサイドカー方式から `$XDG_DATA_HOME/nymph/reviews/<key>/{comments.json, checkpoint}` へ移転。`<key>` = `sha256(ファイル絶対パス)` 先頭12桁の決定論的キー（`src/reviewStore.ts` の `reviewKey`）。comments.json は `{version: 2, file, updatedAt, comments}` のエンベロープ。書き込みは temp+rename のアトミック方式。レガシーサイドカーは読み取り/書き込み両経路で自動移行（移動方式・冪等）、破損ファイルは `*.corrupt-<timestamp>` に退避して原本を保全。`src/reviewStore.ts` が唯一の入出力窓口、`src/xdgPaths.ts` が XDG パス解決の共通ヘルパー
@@ -29,14 +36,8 @@ crit/mo 調査から得た指針。今後の機能追加でも守る。
 
 ## 次にやること（優先順）
 
-1. **Phase 2 — コメントのライフサイクル**
-   - コメント ID を整数インクリメントから `c_` + 乱数6桁hex に変更（採番衝突と削除跡の曖昧さを解消。既存整数 ID は読み込み時に非破壊で共存許容 or マイグレーション、実装時に判断）
-   - `resolved: boolean` と `createdAt` を Comment に追加
-   - コメントパネルに All / Open / Resolved フィルタ
-   - チェックポイント設定を「ラウンド境界」と位置づけ、コメントに `round` を記録（crit の ReviewRound 相当）
-2. **全文検索** — mo の `/_/api/search` 相当（ファイル名+本文、前後コンテキスト付きスニペット、ハイライト）。Quick Open（Ctrl/Cmd+P）との統合を検討
-3. **ヘッドレス CLI コメント** — `nymph comment <file>:<line[-end]> "本文"` でブラウザなしにコメント追加・一覧・削除。エージェント連携（Claude Code フック）の深化
-4. **その他候補（優先度低）** — frontmatter の折りたたみ表示 / GitHub Alerts 対応 / レビューのコピー形式選択（JSON に加え Markdown/Text）/ stdin パイプ（`cat x.md | nymph`、コンテンツハッシュ重複排除）/ スクロール位置復元・見出しディープリンク
+1. **ヘッドレス CLI コメント** — `nymph comment <file>:<line[-end]> "本文"` でブラウザなしにコメント追加・一覧・削除。エージェント連携（Claude Code フック）の深化
+2. **その他候補（優先度低）** — frontmatter の折りたたみ表示 / GitHub Alerts 対応 / レビューのコピー形式選択（JSON に加え Markdown/Text）/ stdin パイプ（`cat x.md | nymph`、コンテンツハッシュ重複排除）/ スクロール位置復元・見出しディープリンク
 
 ---
 
@@ -127,9 +128,10 @@ crit/mo 調査から得た指針。今後の機能追加でも守る。
 
 ```
 完了: npm 公開 → データ移転 (Phase 1) → UX 刷新 (Stage A/B)
-                                                ↓ 現在ここ
-次にやる: Phase 2 コメントライフサイクル → 全文検索 → ヘッドレス CLI
-                                                ↓
+      → Phase 2 コメントライフサイクル → 全文検索
+                                          ↓ 現在ここ
+次にやる: ヘッドレス CLI
+                                          ↓
 出力強化 (v0.4) → AI 統合 (v0.5) → エコシステム (v1.0)
 ```
 

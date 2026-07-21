@@ -15,7 +15,7 @@ import {
   toggleBookmark,
 } from './bookmarks.ts';
 import type { Comment } from './client/types.ts';
-import { scanMdTree } from './fsTree.ts';
+import { flattenMdFiles, scanMdTree } from './fsTree.ts';
 import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 import {
@@ -26,6 +26,7 @@ import {
   writeCheckpoint,
   writeComments,
 } from './reviewStore.ts';
+import { searchFiles } from './search.ts';
 
 // NYMPH_DICT_DIR に絶対パスを指定した場合はそのまま使い、
 // 省略時は process.cwd()/.nymph を使う（E2E ワーカー分離に対応）。
@@ -463,6 +464,27 @@ async function handleOpenDir(req: Request): Promise<Response> {
   }
 }
 
+// 全文検索の対象: 開いているタブ + ツリー（rootDir）配下の .md。
+// タブを先に並べて「開いているファイルの一致が上位に出る」ようにする。
+function collectSearchPaths(): string[] {
+  const seen = new Set<string>(activePaths());
+  if (state.rootDir) {
+    for (const p of flattenMdFiles(scanMdTree(state.rootDir))) seen.add(p);
+  }
+  return [...seen];
+}
+
+function handleSearch(url: URL): Response {
+  const query = (url.searchParams.get('q') ?? '').trim();
+  if (!query) return json({ query, results: [], truncated: false });
+  try {
+    const { results, truncated } = searchFiles(collectSearchPaths(), query);
+    return json({ query, results, truncated });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
 function handleRecent(): Response {
   const files = listRecent().map((e) => ({
     path: e.path,
@@ -780,6 +802,7 @@ export function createServer(port: number) {
         if (path === '/diff') return handleDiff();
         if (path === '/files') return handleFiles();
         if (path === '/recent') return handleRecent();
+        if (path === '/search') return handleSearch(url);
         if (path === '/tree') return handleTree();
         if (path === '/bookmarks') return handleBookmarks();
         if (path === '/checkpoint') return handleSetCheckpoint();

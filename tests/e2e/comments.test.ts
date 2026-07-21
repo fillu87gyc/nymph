@@ -685,3 +685,133 @@ test.describe('コメント入力中の外側クリック（入力破棄バグ�
     await expect(page.locator('#comment-modal')).not.toBeVisible();
   });
 });
+
+test.describe('Phase 2: コメントのライフサイクル（resolved / フィルタ / round）', () => {
+  test('解決 → Open フィルタで消え Resolved フィルタで見える → 再オープンで Open に戻る', async ({
+    page,
+  }) => {
+    // addComment 後はパネルが自動で開く（デフォルトフィルタは All）
+    await addComment(page, 'needs review');
+    await expect(
+      page.locator('#comments-panel[data-open="true"]'),
+    ).toBeVisible();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
+
+    // 解決済みにする（All 表示中なので一覧からは消えない）
+    await page.locator('[data-testid="c-resolve"]').first().click();
+    await expect(
+      page.locator('[data-testid="comment-item"][data-resolved="true"]'),
+    ).toBeVisible();
+
+    // Open フィルタでは消える
+    await page.locator('[data-testid="filter-open"]').click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0);
+
+    // Resolved フィルタでは見える
+    await page.locator('[data-testid="filter-resolved"]').click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="c-text"]')).toContainText(
+      'needs review',
+    );
+
+    // 再オープン（Resolved 表示中に解除するので一覧から消える）
+    await page.locator('[data-testid="c-resolve"]').first().click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0);
+
+    // Open フィルタで再び見える
+    await page.locator('[data-testid="filter-open"]').click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
+    await expect(
+      page.locator('[data-testid="comment-item"][data-resolved="false"]'),
+    ).toBeVisible();
+  });
+
+  test('All フィルタは resolved の有無に関わらず全件表示する', async ({
+    page,
+  }) => {
+    // addComment 後はパネルが自動で開く
+    await addComment(page, 'first');
+    await page.locator('[data-testid="c-resolve"]').first().click();
+    await expect(
+      page.locator('[data-testid="comment-item"][data-resolved="true"]'),
+    ).toBeVisible();
+
+    await page.locator('[data-testid="filter-all"]').click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
+  });
+
+  test('ツールバーのバッジは Open（未解決）件数を示す', async ({ page }) => {
+    await addComment(page, 'comment 1');
+    const mermaidBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
+      .first();
+    await mermaidBlock.hover();
+    await mermaidBlock.locator('[data-testid="comment-btn"]').click();
+    await page.locator('#comment-ta').fill('comment 2');
+    await page.locator('#btn-submit').click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(2);
+
+    // 全件未解決なので 2
+    await expect(page.locator('#comment-count')).toContainText('2');
+
+    // 1件解決すると Open 件数は 1 に減る
+    await page.locator('[data-testid="c-resolve"]').first().click();
+    await expect(
+      page.locator('[data-testid="comment-item"][data-resolved="true"]'),
+    ).toBeVisible();
+    await expect(page.locator('#comment-count')).toContainText('1');
+  });
+
+  test('resolved はリロード後も永続する', async ({ page }) => {
+    // addComment 後はパネルが自動で開く
+    await addComment(page, 'persist me');
+    await page.locator('[data-testid="c-resolve"]').first().click();
+    await expect(
+      page.locator('[data-testid="comment-item"][data-resolved="true"]'),
+    ).toBeVisible();
+
+    await page.reload();
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({ timeout: 5000 });
+
+    await page.locator('#btn-comments').click();
+    await page.locator('[data-testid="filter-resolved"]').click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="c-text"]')).toContainText(
+      'persist me',
+    );
+  });
+
+  test('チェックポイント設定後に作成したコメントには R1 が表示される', async ({
+    page,
+  }) => {
+    // チェックポイント設定前のコメントには round バッジが出ない
+    await addComment(page, 'before checkpoint');
+    await expect(page.locator('[data-testid="c-round"]')).toHaveCount(0);
+
+    await openOverflowMenu(page);
+    await page.locator('#btn-checkpoint').click();
+    // 項目クリックでメニューは閉じるため、状態確認には開き直す。
+    await openOverflowMenu(page);
+    await expect(page.locator('#btn-checkpoint')).toHaveAttribute(
+      'data-has-checkpoint',
+      'true',
+      { timeout: 5000 },
+    );
+
+    const mermaidBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
+      .first();
+    await mermaidBlock.hover();
+    await mermaidBlock.locator('[data-testid="comment-btn"]').click();
+    await page.locator('#comment-ta').fill('after checkpoint');
+    await page.locator('#btn-submit').click();
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(2);
+
+    const newItem = page
+      .locator('[data-testid="comment-item"]')
+      .filter({ hasText: 'after checkpoint' });
+    await expect(newItem.locator('[data-testid="c-round"]')).toHaveText('R1');
+  });
+});

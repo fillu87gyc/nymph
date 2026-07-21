@@ -156,10 +156,11 @@ test.describe('選択コメントのワークフロー', () => {
     });
 
     // サーバー側 JSON に block_type: 'selection' が保存されているか確認
+    // GET /comments は { round, comments } 形式を返す（src/server.ts）
     const saved = await page.evaluate(async () => {
       const res = await fetch('/comments');
       return res.json();
     });
-    expect(saved[0]?.block_type).toBe('selection');
+    expect(saved.comments[0]?.block_type).toBe('selection');
   });
 });

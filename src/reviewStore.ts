@@ -28,6 +28,10 @@ interface CommentsEnvelope {
   version: 2;
   file: string;
   updatedAt: string;
+  // チェックポイント設定を「ラウンド境界」として数える通し番号。省略時は 0
+  // 相当（未着手のレビュー）。追加の optional フィールドなので version は
+  // 上げない。
+  round?: number;
   comments: Comment[];
 }
 
@@ -123,22 +127,77 @@ export function readComments(absPath: string): Comment[] {
   return [];
 }
 
-/**
- * コメントをエンベロープ（version/file/updatedAt/comments）に包んでアトミックに保存する。
- * POST は全量置換セマンティクスのため、レガシー(`<file>.comments.json`)が
- * 残っていれば読み取りを経ていなくてもここで削除する（レビュー対象リポジトリに
- * 汚れを残さないため。中身は新store側の保存内容で意図的に上書きされたとみなす）。
- */
-export function writeComments(absPath: string, comments: Comment[]): void {
+// comments.json の round フィールドだけを覗き見る（レガシー移行は行わない。
+// レガシーには round の概念が無いため常に 0 が正しい既定値）。
+// 破損ファイルの退避は readComments 側の読み取り経路に委ねる。
+export function readRound(absPath: string): number {
+  const commentsPath = join(getReviewDir(absPath), COMMENTS_FILE);
+  if (!existsSync(commentsPath)) return 0;
+  try {
+    const raw = readFileSync(commentsPath, 'utf-8');
+    const parsed = JSON.parse(raw) as Partial<CommentsEnvelope>;
+    return typeof parsed?.round === 'number' ? parsed.round : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeEnvelope(
+  absPath: string,
+  comments: Comment[],
+  round: number,
+): void {
   const commentsPath = join(getReviewDir(absPath), COMMENTS_FILE);
   const envelope: CommentsEnvelope = {
     version: 2,
     file: resolve(absPath),
     updatedAt: new Date().toISOString(),
+    round,
     comments,
   };
   atomicWriteFileSync(commentsPath, `${JSON.stringify(envelope, null, 2)}\n`);
   removeLegacy(`${resolve(absPath)}.comments.json`);
+}
+
+/**
+ * コメントをエンベロープ（version/file/updatedAt/round/comments）に包んで
+ * アトミックに保存する。POST は全量置換セマンティクスのため、レガシー
+ * (`<file>.comments.json`)が残っていれば読み取りを経ていなくてもここで
+ * 削除する（レビュー対象リポジトリに汚れを残さないため。中身は新store側の
+ * 保存内容で意図的に上書きされたとみなす）。
+ *
+ * round はこの関数では変更しない（既存の envelope から引き継ぐ）。round を
+ * 進めるのはチェックポイント設定時の `incrementRound` の責務。
+ */
+export function writeComments(absPath: string, comments: Comment[]): void {
+  writeEnvelope(absPath, comments, readRound(absPath));
+}
+
+/**
+ * チェックポイント設定（＝レビューのラウンド境界）のたびに呼ぶ。
+ * 既存のコメントは保持したまま round だけ +1 して保存し、更新後の round を
+ * 返す。comments.json が未存在（コメント0件でチェックポイントだけ設定した
+ * 場合）でも、round だけを持つ envelope を新規作成してよい。
+ */
+export function incrementRound(absPath: string): number {
+  const commentsPath = join(getReviewDir(absPath), COMMENTS_FILE);
+  let comments: Comment[] = [];
+  let round = 0;
+  if (existsSync(commentsPath)) {
+    try {
+      const raw = readFileSync(commentsPath, 'utf-8');
+      const parsed = JSON.parse(raw) as Partial<CommentsEnvelope>;
+      if (Array.isArray(parsed?.comments)) comments = parsed.comments;
+      if (typeof parsed?.round === 'number') round = parsed.round;
+    } catch {
+      // 破損している場合は writeComments と同様、安全側に倒して
+      // 0 件・round 0 起点で上書きする（この呼び出し自体が書き込みのため
+      // quarantine はせず、次の envelope で置き換える）。
+    }
+  }
+  const next = round + 1;
+  writeEnvelope(absPath, comments, next);
+  return next;
 }
 
 /** 保存済みチェックポイント（全文テキスト）。無ければ null。

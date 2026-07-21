@@ -14,8 +14,10 @@ import type { Comment } from '../../src/client/types.ts';
 import {
   getReviewDir,
   hasCheckpoint,
+  incrementRound,
   readCheckpoint,
   readComments,
+  readRound,
   reviewKey,
   writeCheckpoint,
   writeComments,
@@ -389,6 +391,67 @@ describe('checkpoint: 書き込み経路でのレガシー掃除', () => {
   it('レガシーが存在しない場合でも writeCheckpoint は例外を投げない', () => {
     const a = makeMd('a.md');
     expect(() => writeCheckpoint(a, 'content')).not.toThrow();
+  });
+});
+
+describe('round: 未存在 → 0', () => {
+  it('comments.json が無ければ 0 を返す', () => {
+    const a = makeMd('a.md');
+    expect(readRound(a)).toBe(0);
+  });
+});
+
+describe('round: incrementRound', () => {
+  it('comments 未存在でも round だけ持つ envelope を作れる', () => {
+    const a = makeMd('a.md');
+    const next = incrementRound(a);
+    expect(next).toBe(1);
+    expect(readRound(a)).toBe(1);
+    expect(readComments(a)).toEqual([]);
+  });
+
+  it('呼ぶたびに +1 される', () => {
+    const a = makeMd('a.md');
+    expect(incrementRound(a)).toBe(1);
+    expect(incrementRound(a)).toBe(2);
+    expect(incrementRound(a)).toBe(3);
+    expect(readRound(a)).toBe(3);
+  });
+
+  it('既存のコメントを保持したまま round だけ進む', () => {
+    const a = makeMd('a.md');
+    const comments = [sampleComment({ text: 'keep me' })];
+    writeComments(a, comments);
+    incrementRound(a);
+    expect(readComments(a)).toEqual(comments);
+    expect(readRound(a)).toBe(1);
+  });
+
+  it('ディスク上は envelope の round フィールドとして保存される', () => {
+    const a = makeMd('a.md');
+    incrementRound(a);
+    const raw = JSON.parse(
+      readFileSync(join(getReviewDir(a), 'comments.json'), 'utf-8'),
+    );
+    expect(raw.round).toBe(1);
+    expect(raw.version).toBe(2);
+  });
+});
+
+describe('round: writeComments は既存の round を保持する', () => {
+  it('incrementRound の後に writeComments してもラウンドは巻き戻らない', () => {
+    const a = makeMd('a.md');
+    incrementRound(a);
+    incrementRound(a);
+    writeComments(a, [sampleComment({ text: 'new comment' })]);
+    expect(readRound(a)).toBe(2);
+    expect(readComments(a)).toEqual([sampleComment({ text: 'new comment' })]);
+  });
+
+  it('round が一度も進んでいなければ 0 のまま保存される', () => {
+    const a = makeMd('a.md');
+    writeComments(a, [sampleComment()]);
+    expect(readRound(a)).toBe(0);
   });
 });
 

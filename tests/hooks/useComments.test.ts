@@ -38,14 +38,16 @@ const wrapper = ({ children }: { children: React.ReactNode }) =>
   );
 
 // ---- ステートフル fetch モック ----
-// GET はサーバー状態を返し、POST はサーバー状態を更新する。
-// こうすることで SWR が revalidation を行っても現在の状態が返り、
-// mutate の結果がキャッシュから消えなくなる。
+// GET はサーバー状態（{round, comments}）を返し、POST は comments 配列を
+// 受け取ってサーバー状態を更新する。round は POST では変更されない
+// （reviewStore.ts の writeComments と同じく、既存の round を保持する）。
 let serverComments: Comment[] = [];
+let serverRound = 0;
 let postShouldFail = false;
 
 beforeEach(() => {
   serverComments = [];
+  serverRound = 0;
   postShouldFail = false;
   vi.spyOn(global, 'fetch').mockImplementation(
     async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -54,9 +56,10 @@ beforeEach(() => {
         serverComments = JSON.parse((init as RequestInit).body as string);
         return new Response('ok', { status: 200 });
       }
-      return new Response(JSON.stringify(serverComments), {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ round: serverRound, comments: serverComments }),
+        { headers: { 'Content-Type': 'application/json' } },
+      );
     },
   );
 });
@@ -79,31 +82,76 @@ async function waitForReady(result: {
   });
 }
 
+const ID_RE = /^c_[0-9a-f]{6}$/;
+
 describe('useComments', () => {
-  test('初期状態: fallbackData として コメント空・nextId=1', () => {
+  test('初期状態: fallbackData として コメント空・round=0', () => {
     vi.spyOn(global, 'fetch').mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useComments(), { wrapper });
     expect(result.current.comments).toEqual([]);
-    expect(result.current.nextId).toBe(1);
+    expect(result.current.round).toBe(0);
   });
 
-  test('マウント後 SWR がコメントを取得する', async () => {
+  test('マウント後 SWR がコメント・round を取得する', async () => {
     serverComments = [mockComment];
+    serverRound = 3;
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitFor(() => {
       expect(result.current.comments).toEqual([mockComment]);
-      expect(result.current.nextId).toBe(2);
+      expect(result.current.round).toBe(3);
     });
   });
 
-  test('addComment でコメントが追加される', async () => {
+  test('addComment で c_ + 6桁hex 形式の id が振られる', async () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'hello'));
     expect(result.current.comments).toHaveLength(1);
     expect(result.current.comments[0].text).toBe('hello');
-    expect(result.current.comments[0].id).toBe(1);
-    expect(result.current.nextId).toBe(2);
+    expect(result.current.comments[0].id).toMatch(ID_RE);
+  });
+
+  test('addComment は既存の数値 id と衝突しない', async () => {
+    serverComments = [mockComment]; // id: 1 (数値)
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    // GET の実フェッチが確実に完了してから addComment する（fallbackData
+    // のまま mutate すると current.comments が空になるレースを避ける）
+    await waitFor(() => expect(result.current.comments).toHaveLength(1));
+    await act(() => result.current.addComment(pending, 'new'));
+    expect(result.current.comments).toHaveLength(2);
+    const ids = result.current.comments.map((c) => c.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(result.current.comments.find((c) => c.text === 'new')?.id).toMatch(
+      ID_RE,
+    );
+  });
+
+  test('addComment は createdAt を ISO8601 で付与する', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'hello'));
+    const createdAt = result.current.comments[0].createdAt;
+    expect(createdAt).toBeDefined();
+    expect(new Date(createdAt as string).toISOString()).toBe(createdAt);
+  });
+
+  test('addComment は resolved を設定しない（未解決 = undefined）', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'hello'));
+    expect(result.current.comments[0].resolved).toBeUndefined();
+  });
+
+  test('addComment は取得済みの round をコメントに記録する', async () => {
+    serverRound = 2;
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    // GET が実際に round: 2 を反映するまで待つ（fallbackData の round: 0 の
+    // まま addComment するレースを避ける）
+    await waitFor(() => expect(result.current.round).toBe(2));
+    await act(() => result.current.addComment(pending, 'hello'));
+    expect(result.current.comments[0].round).toBe(2);
   });
 
   test('addComment は lineStart で昇順ソートされる', async () => {
@@ -145,7 +193,8 @@ describe('useComments', () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'original'));
-    await act(() => result.current.updateComment(1, 'updated'));
+    const id = result.current.comments[0].id;
+    await act(() => result.current.updateComment(id, 'updated'));
     expect(result.current.comments[0].text).toBe('updated');
   });
 
@@ -153,7 +202,7 @@ describe('useComments', () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'keep'));
-    await act(() => result.current.updateComment(99, 'ghost'));
+    await act(() => result.current.updateComment('c_ghost1', 'ghost'));
     expect(result.current.comments[0].text).toBe('keep');
   });
 
@@ -161,11 +210,40 @@ describe('useComments', () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'to delete'));
-    await act(() => result.current.deleteComment(1));
+    const id = result.current.comments[0].id;
+    await act(() => result.current.deleteComment(id));
     expect(result.current.comments).toHaveLength(0);
   });
 
-  test('clearAll で全コメントが削除されて nextId が 1 にリセットされる', async () => {
+  test('toggleResolved で resolved が反転する', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'to resolve'));
+    const id = result.current.comments[0].id;
+    expect(result.current.comments[0].resolved).toBeUndefined();
+
+    await act(() => result.current.toggleResolved(id));
+    expect(result.current.comments[0].resolved).toBe(true);
+
+    await act(() => result.current.toggleResolved(id));
+    expect(result.current.comments[0].resolved).toBe(false);
+  });
+
+  test('toggleResolved は POST /comments を呼ぶ', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'x'));
+    const id = result.current.comments[0].id;
+
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    await act(() => result.current.toggleResolved(id));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/comments',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  test('clearAll で全コメントが削除される', async () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'a'));
@@ -174,7 +252,6 @@ describe('useComments', () => {
     );
     await act(() => result.current.clearAll());
     expect(result.current.comments).toHaveLength(0);
-    expect(result.current.nextId).toBe(1);
   });
 
   test('clearOrphaned で指定 id のコメントのみ削除される', async () => {
@@ -262,11 +339,12 @@ describe('useComments', () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'to delete'));
+    const id = result.current.comments[0].id;
 
     postShouldFail = true;
     let ok: boolean | undefined;
     await act(async () => {
-      ok = await result.current.deleteComment(1);
+      ok = await result.current.deleteComment(id);
     });
     expect(ok).toBe(false);
   });

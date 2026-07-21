@@ -19,8 +19,10 @@ import { scanMdTree } from './fsTree.ts';
 import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 import {
+  incrementRound,
   readCheckpoint,
   readComments,
+  readRound,
   writeCheckpoint,
   writeComments,
 } from './reviewStore.ts';
@@ -270,9 +272,9 @@ function handleGetComments(url: URL): Response {
   if (fileParam && !allowed.has(fileParam)) return err('Forbidden', 403);
 
   const target = fileParam ?? state.activeFile;
-  if (!target) return json([]);
+  if (!target) return json({ round: 0, comments: [] });
   try {
-    return json(readComments(target));
+    return json({ round: readRound(target), comments: readComments(target) });
   } catch (e) {
     return err(String(e));
   }
@@ -565,9 +567,13 @@ function handleSetCheckpoint(): Response {
     if (!state.activeFile) return json({ ok: true, lines: 0 });
     const content = readFileSync(state.activeFile, 'utf-8');
     writeCheckpoint(state.activeFile, content);
+    // チェックポイント設定は「ラウンド境界」。以降に作られるコメントへ
+    // 記録される round をここで進める。
+    const round = incrementRound(state.activeFile);
     return json({
       ok: true,
       lines: content.split('\n').length,
+      round,
     });
   } catch (e) {
     return err(String(e));

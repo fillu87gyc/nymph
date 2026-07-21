@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { PendingComment } from '../types.ts';
+import type { Comment, PendingComment } from '../types.ts';
 import styles from './CommentModal.module.css';
 
 export interface CommentModalAnchor {
@@ -10,7 +10,7 @@ export interface CommentModalAnchor {
 interface CommentModalProps {
   open: boolean;
   pending: PendingComment | null;
-  editingId: number | null;
+  editingId: Comment['id'] | null;
   displayCtx: string;
   initialText: string;
   anchor: CommentModalAnchor | null;

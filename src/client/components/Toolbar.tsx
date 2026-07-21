@@ -9,6 +9,7 @@ import styles from './Toolbar.module.css';
 interface ToolbarProps {
   version: string;
   updateTime: string;
+  /** Open（未解決）コメント件数。全件数ではない（crit の思想）。 */
   commentCount: number;
   diffMode: boolean;
   checkpointSet: boolean;

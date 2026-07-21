@@ -1,6 +1,7 @@
 import type {
   CodeContext,
   Comment,
+  CommentFilter,
   DiffContext,
   TableContext,
 } from '../types.ts';
@@ -35,4 +36,15 @@ export function isCommentsKey(key: unknown): key is string {
     typeof key === 'string' &&
     (key === '/comments' || key.startsWith('/comments?'))
   );
+}
+
+// コメントパネルの All / Open / Resolved フィルタ判定。
+// resolved が未定義のコメント（既存データ含む）は open 扱いになる。
+export function matchesCommentFilter(
+  c: Comment,
+  filter: CommentFilter,
+): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'open') return !c.resolved;
+  return c.resolved === true;
 }

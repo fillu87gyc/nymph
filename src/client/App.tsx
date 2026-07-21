@@ -82,7 +82,9 @@ export function App() {
     null,
   );
   const [marginCollapse, setMarginCollapse] = useState(loadMarginCollapse);
-  const [blockOrphanIds, setBlockOrphanIds] = useState<Set<number>>(new Set());
+  const [blockOrphanIds, setBlockOrphanIds] = useState<Set<Comment['id']>>(
+    new Set(),
+  );
   const [diffHighlight, setDiffHighlight] =
     useState<DiffHighlightTarget | null>(null);
   const [anchorPopup, setAnchorPopup] = useState<{
@@ -107,7 +109,7 @@ export function App() {
     x: number;
     y: number;
   } | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<Comment['id'] | null>(null);
   const [editingDisplayCtx, setEditingDisplayCtx] = useState('');
   const [editingInitialText, setEditingInitialText] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -136,6 +138,7 @@ export function App() {
     addComment,
     updateComment,
     deleteComment,
+    toggleResolved,
     clearAll,
     clearOrphaned,
   } = useComments(activeFile);
@@ -166,7 +169,7 @@ export function App() {
   // 現在の diff に side + 行番号 + 行内容が一致する行がなければ「削除済み」扱い。
   // diff 未取得（null）の間は判定しない。
   const diffOrphanIds = useMemo(() => {
-    const ids = new Set<number>();
+    const ids = new Set<Comment['id']>();
     if (!diffData) return ids;
     for (const c of comments) {
       if (c.block_type !== 'diff') continue;
@@ -191,6 +194,13 @@ export function App() {
   const orphanedCommentIds = useMemo(
     () => new Set([...blockOrphanIds, ...diffOrphanIds]),
     [blockOrphanIds, diffOrphanIds],
+  );
+
+  // ツールバーのバッジは全件数ではなく Open（未解決）件数。crit の思想（未処理
+  // の指摘だけを目立たせる）に合わせる。resolved 未定義のコメントは open 扱い。
+  const openCommentCount = useMemo(
+    () => comments.filter((c) => !c.resolved).length,
+    [comments],
   );
 
   function toast(msg: string) {
@@ -491,8 +501,13 @@ export function App() {
       .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
-  async function handleDeleteComment(id: number) {
+  async function handleDeleteComment(id: Comment['id']) {
     const ok = await deleteComment(id);
+    if (!ok) toast('コメントを保存できませんでした');
+  }
+
+  async function handleToggleResolved(id: Comment['id']) {
+    const ok = await toggleResolved(id);
     if (!ok) toast('コメントを保存できませんでした');
   }
 
@@ -527,6 +542,10 @@ export function App() {
   // Checkpoint
   async function handleCheckpoint() {
     const lines = await setCheckpoint();
+    // チェックポイント設定はサーバー側で round を進める（reviewStore.ts の
+    // incrementRound）。以降に作るコメントへ新しい round を反映させるため、
+    // コメントキャッシュを再検証して round を取得し直す。
+    await mutate(isCommentsKey);
     toast(`チェックポイントを設定しました（${lines}行）`);
   }
 
@@ -699,7 +718,7 @@ export function App() {
       <Toolbar
         version={appVersion}
         updateTime={updateTime}
-        commentCount={comments.length}
+        commentCount={openCommentCount}
         diffMode={diffMode}
         checkpointSet={checkpointSet}
         isConnected={isConnected}
@@ -822,6 +841,7 @@ export function App() {
         onScrollToComment={scrollToComment}
         onEdit={openEditModal}
         onDelete={(id) => void handleDeleteComment(id)}
+        onToggleResolved={(id) => void handleToggleResolved(id)}
         onClose={() => setPanelOpen(false)}
       />
       <CommentModal

@@ -1,11 +1,20 @@
 export interface Comment {
-  id: number;
+  // 新規コメントは `c_` + 乱数6桁hex（src/client/lib/commentId.ts）。
+  // 既存データの整数 ID は非破壊で共存させるため number も許容する。
+  id: number | string;
   lineStart: number;
   lineEnd: number;
   block_type: string;
   context: string | TableContext | CodeContext | DiffContext;
   selection_offset?: number;
   text: string;
+  // 未定義 = 未解決（open）。明示的に true になったコメントのみ解決済み扱い。
+  resolved?: boolean;
+  // ISO8601。新規作成時のみ付与し、既存コメントは無しのまま有効。
+  createdAt?: string;
+  // 作成時点のレビューラウンド（0 なら省略可）。チェックポイント設定のたびに
+  // 進む「ラウンド境界」の記録。既存コメントは無しのまま有効。
+  round?: number;
 }
 
 export interface TableContext {
@@ -80,6 +89,15 @@ export interface ContentResponse {
   filename: string | null;
   mtime: number;
 }
+
+// GET /comments のレスポンス形状。version 2 のエンベロープが持つ round を
+// そのまま client に橋渡しする（新規コメント作成時に付与する round の元）。
+export interface CommentsResponse {
+  round: number;
+  comments: Comment[];
+}
+
+export type CommentFilter = 'all' | 'open' | 'resolved';
 
 export interface PendingComment {
   lineStart: number;

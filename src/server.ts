@@ -2,9 +2,9 @@ import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   type FSWatcher,
+  watch as fsWatch,
   readFileSync,
   statSync,
-  watch as fsWatch,
 } from 'node:fs';
 import {
   basename,
@@ -896,9 +896,7 @@ export const SERVER_HOSTNAME = '127.0.0.1';
 // 明示的に許可された場合のみ許容する（cli.ts の --host 判定と対応）。
 export function isLoopbackHost(hostname: string): boolean {
   return (
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname === 'localhost'
+    hostname === '127.0.0.1' || hostname === '::1' || hostname === 'localhost'
   );
 }
 

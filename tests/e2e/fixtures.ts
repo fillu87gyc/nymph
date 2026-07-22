@@ -65,16 +65,17 @@ export function reviewCheckpointPathFor(
 }
 
 const ASSETS_DIR = join(process.cwd(), 'tests/e2e/assets');
-const HLJS_STYLES_DIR = join(process.cwd(), 'node_modules/highlight.js/styles');
 
 /**
- * 外部 CDN 資産（Google Fonts / hljs CSS）をリポジトリ内のベンダリング済み
- * コピーで返し、その他の外部ホストへのリクエストは遮断する。
+ * 外部 CDN 資産（Google Fonts）をリポジトリ内のベンダリング済みコピーで返し、
+ * その他の外部ホストへのリクエストは遮断する。
  *
  * これにより E2E は常に本番と同じ Web フォントがロードされた状態で動作する
  * （ネットワーク状況次第でフォールバックフォントのまま走る、という
  * 本番非再現な状態を排除する）。想定外の外部リクエストは abort されるため、
  * 新たな外部依存が入り込むとテストが明確に失敗して顕在化する。
+ *
+ * hljs テーマ CSS は dist/ に同梱済みなので外部リクエストは発生しない。
  */
 async function routeStaticAssets(ctx: BrowserContext): Promise<void> {
   // 後に登録した route が優先されるため、遮断のキャッチオールを最初に登録する
@@ -92,14 +93,6 @@ async function routeStaticAssets(ctx: BrowserContext): Promise<void> {
     return route.fulfill({
       path: join(ASSETS_DIR, 'fonts', name),
       contentType: 'font/woff2',
-    });
-  });
-  // hljs テーマ CSS は lockfile 固定の node_modules コピーで返す
-  await ctx.route('https://cdn.jsdelivr.net/npm/highlight.js@*/**', (route) => {
-    const file = new URL(route.request().url()).pathname.split('/styles/')[1];
-    return route.fulfill({
-      path: join(HLJS_STYLES_DIR, file),
-      contentType: 'text/css',
     });
   });
 }

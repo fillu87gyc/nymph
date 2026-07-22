@@ -115,12 +115,15 @@ crit/mo 調査から得た指針。今後の機能追加でも守る。
 
 | 項目 | 内容 |
 |------|------|
-| ファイルウォッチ方式の改善 | 500ms ポーリングを `Bun.watch`（FSEvents / inotify）に置換し CPU 消費を削減 |
-| `/edit-op` フック python3 依存の除去 | フック用スクリプトを `bun` または `jq` ベースに置き換える |
 | テストカバレッジ拡充 | テキスト選択コメント・draw.io ダウンロード・ドラッグ&ドロップ系のコメント保存を E2E でカバー |
-| `marked.js` バンドル | CDN 依存をなくしオフライン利用を可能にする（`dist/` に同梱） |
 | アクセシビリティ | `aria-*` 属性の整備、キーボードのみで全操作できるようにする |
-| セキュリティ | `localhost` バインド済み。`--host` フラグで LAN 共有を opt-in 化（未実装） |
+
+### 完了済み
+
+- **ファイルウォッチ方式の改善**: `handleWatch` を `fs.watch`（Bun 内部で FSEvents / inotify）ベースに切替。500ms ポーリングを廃止し、書き込みは native 通知で即座に SSE emit。安全網として 2s 間隔の stat 比較を残す（fs.watch の取りこぼしと SSE 再接続時の flush race を補償）。既存 E2E ホットリロードテスト全通過。
+- **`/edit-op` フック python3 依存の除去**: `.claude/commands/install.md` の hook.sh を `jq` ベースに置換。同一 JSON 入力パターン（`tool_input` ラッパーあり/なし・非 JSON）をカバー。
+- **hljs テーマ CSS の同梱**: `src/client/App.tsx` の CDN 直リンクを `import '?url'` に変更し `dist/assets/{tokyo-night-dark,github}.min-<hash>.css` として bundle。オフライン利用可・E2E の CDN mock 撤去。
+- **セキュリティ / `--host` フラグ**: デフォルト loopback（127.0.0.1）を維持しつつ、`--host` で LAN 公開を opt-in 化。値なしは `0.0.0.0`、`--host <addr>` で明示指定可。非 loopback バインド時は警告表示。
 
 ---
 

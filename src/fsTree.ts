@@ -14,6 +14,16 @@ export interface TreeNode {
   children?: TreeNode[];
 }
 
+/** ツリーを深さ優先で辿り、.md ファイルのパスだけを平坦化して返す。 */
+export function flattenMdFiles(nodes: TreeNode[]): string[] {
+  const out: string[] = [];
+  for (const node of nodes) {
+    if (node.type === 'dir') out.push(...flattenMdFiles(node.children ?? []));
+    else out.push(node.path);
+  }
+  return out;
+}
+
 export function scanMdTree(root: string): TreeNode[] {
   let entries: Dirent[];
   try {

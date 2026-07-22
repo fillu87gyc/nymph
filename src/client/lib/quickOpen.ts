@@ -2,6 +2,8 @@ import type {
   BookmarkEntry,
   FileEntry,
   RecentEntry,
+  SearchFileResult,
+  SearchMatch,
   TreeNode,
 } from '../types.ts';
 
@@ -10,6 +12,24 @@ export interface QuickOpenItem {
   name: string;
   detail: string;
   type: 'file' | 'dir';
+}
+
+/** 全文検索セクションの1行 = 1マッチ（同一ファイルの複数マッチは複数行） */
+export interface QuickOpenMatchItem extends SearchMatch {
+  path: string;
+  name: string;
+}
+
+/**
+ * /search の結果をパレット表示用に平坦化する。ファイル名のみ一致
+ * （matches 空）はファイル候補側と重複するため本文セクションには出さない。
+ */
+export function buildMatchItems(
+  results: SearchFileResult[],
+): QuickOpenMatchItem[] {
+  return results.flatMap((r) =>
+    r.matches.map((m) => ({ ...m, path: r.path, name: r.name })),
+  );
 }
 
 function flattenTreeFiles(nodes: TreeNode[], out: QuickOpenItem[]): void {

@@ -107,6 +107,30 @@ export interface PendingComment {
   selection_offset: number | null;
 }
 
+// GET /search の1マッチ。text は長い行の場合マッチ周辺にクリップ済みで、
+// start/end はクリップ後の text 基準のハイライト範囲。
+export interface SearchMatch {
+  line: number;
+  text: string;
+  start: number;
+  end: number;
+  before: string[];
+  after: string[];
+}
+
+export interface SearchFileResult {
+  path: string;
+  name: string;
+  nameMatch: boolean;
+  matches: SearchMatch[];
+}
+
+export interface SearchResponse {
+  query: string;
+  results: SearchFileResult[];
+  truncated: boolean;
+}
+
 export interface DictEntry {
   term: string;
   aliases: string[];

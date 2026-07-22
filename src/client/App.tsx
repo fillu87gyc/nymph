@@ -568,6 +568,48 @@ export function App() {
     [openFile],
   );
 
+  // 全文検索の結果からファイルを開き、該当行を含むブロックへスクロールする。
+  // 開いた直後はまだブロックが描画されていないため、pendingScrollLine に積んで
+  // おき、source 更新後の effect で解決する（下の useEffect）。
+  const [pendingScrollLine, setPendingScrollLine] = useState<{
+    path: string;
+    line: number;
+  } | null>(null);
+
+  const handleOpenFileAtLine = useCallback(
+    async (path: string, line: number) => {
+      try {
+        await openFile(path);
+        setPendingScrollLine({ path, line });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        toast(message || 'ファイルを開けませんでした');
+      }
+    },
+    [openFile],
+  );
+
+  // source（本文）が描画されてから、対象行を含む最も内側のブロックへ
+  // スクロールしてフラッシュする。ブロック未描画なら次の source 更新で再試行。
+  useEffect(() => {
+    if (!pendingScrollLine || activeFile !== pendingScrollLine.path) return;
+    const id = requestAnimationFrame(() => {
+      let target: HTMLElement | null = null;
+      for (const el of blockRefsMapRef.current.values()) {
+        const ls = +(el.dataset.lineStart ?? 0);
+        const le = +(el.dataset.lineEnd ?? 0);
+        if (ls > pendingScrollLine.line || le < pendingScrollLine.line)
+          continue;
+        if (!target || ls > +(target.dataset.lineStart ?? 0)) target = el;
+      }
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      flashBlockHighlight(+(target.dataset.lineStart ?? 0));
+      setPendingScrollLine(null);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [pendingScrollLine, activeFile, source, flashBlockHighlight]);
+
   // ディレクトリを開く（ツリーのルート切替。タブは維持）
   const handleOpenDir = useCallback(
     async (path: string) => {
@@ -897,6 +939,7 @@ export function App() {
         onClose={() => setQuickOpenOpen(false)}
         onOpenFile={(path) => void handleOpenFile(path)}
         onOpenDir={(path) => void handleOpenDir(path)}
+        onOpenFileAtLine={(path, line) => void handleOpenFileAtLine(path, line)}
       />
       <DictTooltip entry={dictTooltipEntry} anchorRect={dictTooltipRect} />
       {anchorPopup &&

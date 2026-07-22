@@ -26,6 +26,7 @@ export default defineConfig({
       '/pick-file': backendOrigin,
       '/pick-dir': backendOrigin,
       '/recent': backendOrigin,
+      '/search': backendOrigin,
       '/tree': backendOrigin,
       '/bookmarks': backendOrigin,
       '/edit-op': backendOrigin,

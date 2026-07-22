@@ -1,32 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isLoopbackHost,
-  isUnderRoot,
-  SERVER_HOSTNAME,
-} from '../../src/server.ts';
+import { isUnderRoot, SERVER_HOSTNAME } from '../../src/server.ts';
 
 // レビュー対象ファイルを認証なしで公開する API のため、サーバーは
-// デフォルトでループバックにのみバインドし、LAN への公開は `--host` で
-// 明示的に opt-in する。（実バインド挙動は vitest(node) では Bun.serve を
-// 起動できないため、E2E の localhost 動作と手動確認で担保する。）
+// ループバックアドレスにのみバインドし LAN に晒さないことを保証する。
+// （実バインド挙動は vitest(node) では Bun.serve を起動できないため、
+//  E2E の localhost 動作と手動確認で担保する。）
 describe('server binding', () => {
-  it('defaults to the loopback address, never 0.0.0.0', () => {
+  it('binds to the loopback address only, never 0.0.0.0', () => {
     expect(SERVER_HOSTNAME).toBe('127.0.0.1');
-  });
-});
-
-describe('isLoopbackHost', () => {
-  it('ループバック相当のホスト名に true', () => {
-    expect(isLoopbackHost('127.0.0.1')).toBe(true);
-    expect(isLoopbackHost('::1')).toBe(true);
-    expect(isLoopbackHost('localhost')).toBe(true);
-  });
-
-  it('LAN 公開になるアドレスに false', () => {
-    expect(isLoopbackHost('0.0.0.0')).toBe(false);
-    expect(isLoopbackHost('192.168.1.5')).toBe(false);
-    expect(isLoopbackHost('10.0.0.1')).toBe(false);
-    expect(isLoopbackHost('::')).toBe(false);
   });
 });
 

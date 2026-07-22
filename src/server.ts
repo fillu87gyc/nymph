@@ -889,21 +889,14 @@ function serveStatic(url: URL): Response | null {
 }
 
 // レビュー対象ファイルを認証なしで読み書きする API を公開しているため、
-// デフォルトはループバックにバインドし、LAN 共有は `--host` で明示的に opt-in する。
+// LAN 全体に晒さないよう必ずループバックアドレスにバインドする。
+// LAN 共有は認証機構が無い以上意図的に提供しない（意図せず公開されるリスクの方が大きい）。
 export const SERVER_HOSTNAME = '127.0.0.1';
 
-// ループバック以外にバインドすると LAN の他端末から無認証で API を叩けるため、
-// 明示的に許可された場合のみ許容する（cli.ts の --host 判定と対応）。
-export function isLoopbackHost(hostname: string): boolean {
-  return (
-    hostname === '127.0.0.1' || hostname === '::1' || hostname === 'localhost'
-  );
-}
-
-export function createServer(port: number, hostname: string = SERVER_HOSTNAME) {
+export function createServer(port: number) {
   return Bun.serve({
     port,
-    hostname,
+    hostname: SERVER_HOSTNAME,
     fetch(req) {
       const url = new URL(req.url);
       const path = url.pathname;

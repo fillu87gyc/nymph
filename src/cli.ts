@@ -14,12 +14,7 @@ import {
 import { normalizePath } from './pathUtils.ts';
 import { resolvePortOverride } from './portUtils.ts';
 import { recordRecent } from './recent.ts';
-import {
-  createServer,
-  initState,
-  isLoopbackHost,
-  SERVER_HOSTNAME,
-} from './server.ts';
+import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 
 const VERSION = '1.0.0';
 
@@ -34,10 +29,6 @@ const HELP = `\
 
 オプション:
   -p, --port <番号>    使用するポート番号 (デフォルト: 6276)
-  --host [ホスト]      バインドするホスト (省略時 0.0.0.0 = LAN に公開)。
-                       未指定の場合は 127.0.0.1 (自 PC のみ)。
-                       ⚠ nymph は認証なしでファイルを公開するため信頼できる
-                       ネットワークでのみ使用してください。
   --no-open            ブラウザを自動的に開かない
   -v, --version        バージョンを表示して終了
   -h, --help           このヘルプを表示して終了
@@ -49,15 +40,12 @@ const HELP = `\
   nymph -p 8080 --no-open README.md
 `;
 
-async function findPort(
-  start = 6276,
-  hostname: string = SERVER_HOSTNAME,
-): Promise<number> {
+async function findPort(start = 6276): Promise<number> {
   for (let port = start; port < start + 20; port++) {
     try {
       const test = Bun.serve({
         port,
-        hostname,
+        hostname: SERVER_HOSTNAME,
         fetch: () => new Response(),
       });
       await test.stop(true);
@@ -186,7 +174,6 @@ async function main() {
   let paths: string[] = [];
   let portOverride: number | null = null;
   let noOpen = !!process.env.NYMPH_NO_OPEN;
-  let hostname: string = SERVER_HOSTNAME;
   const fileArgs: string[] = [];
 
   for (let i = 0; i < rawArgs.length; i++) {
@@ -209,17 +196,6 @@ async function main() {
         process.exit(1);
       }
       portOverride = n;
-    } else if (arg === '--host') {
-      // 次引数がフラグ以外なら値として、そうでなければ 0.0.0.0 として扱う
-      const next = rawArgs[i + 1];
-      if (next && !next.startsWith('-')) {
-        hostname = next;
-        i++;
-      } else {
-        hostname = '0.0.0.0';
-      }
-    } else if (arg.startsWith('--host=')) {
-      hostname = arg.slice('--host='.length) || '0.0.0.0';
     } else if (arg.startsWith('-')) {
       console.error(`エラー: 不明なオプション: ${arg}`);
       console.error('  nymph --help でヘルプを表示');
@@ -317,19 +293,14 @@ async function main() {
 
   const port =
     resolvePortOverride(portOverride, process.env.NYMPH_PORT) ??
-    (await findPort(6276, hostname));
-  const server = createServer(port, hostname);
+    (await findPort());
+  const server = createServer(port);
 
   if (lockPath) writeFileSync(lockPath, String(port));
   registerInstance(port);
 
   const url = `http://localhost:${port}`;
   console.log(`nymph   ${url}`);
-  if (!isLoopbackHost(hostname)) {
-    console.log(
-      `⚠ ${hostname}:${port} で公開中 — nymph は認証なしでファイルを配信します。信頼できるネットワークでのみ使用してください。`,
-    );
-  }
   if (rootDir) console.log(`ルート  ${rootDir}`);
   if (paths.length > 0) console.log(`監視中  ${paths.join(', ')}`);
   else if (!rootDir) console.log('ファイルをブラウザにドロップして開始');

@@ -66,6 +66,7 @@
     "dist",
     "src/cli.ts",
     "src/server.ts",
-    "src/client"
+    "src/client",
+    "THIRD_PARTY_NOTICES.md"
   ]
 }

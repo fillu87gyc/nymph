@@ -1,5 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  type FSWatcher,
+  watch as fsWatch,
+  readFileSync,
+  statSync,
+} from 'node:fs';
 import {
   basename,
   dirname,
@@ -135,15 +141,11 @@ function handleContent(url: URL): Response {
 function handleWatch(): Response {
   const dictPath = DICT_JSON_PATH;
   const encoder = new TextEncoder();
+  // fs.watch を主信号にし、mtime で「実際に内容が変わったか」を確認する。
+  // 変化がないイベント（inotify のノイズ）や、同じ mtime での連続イベントを弾く。
   const mtimes = new Map<string, number>();
-  for (const p of activePaths()) {
-    try {
-      mtimes.set(p, statSync(p).mtimeMs);
-    } catch {
-      mtimes.set(p, 0);
-    }
-  }
-  // dict.json の初期 mtime を記録
+  const watchers = new Map<string, FSWatcher>();
+  let closed = false;
   let dictMtime = 0;
   try {
     dictMtime = statSync(dictPath).mtimeMs;
@@ -151,50 +153,155 @@ function handleWatch(): Response {
     /* dict.json が存在しない場合はスキップ */
   }
 
-  let timer: ReturnType<typeof setInterval>;
+  let syncTimer: ReturnType<typeof setInterval>;
   let pingTimer: ReturnType<typeof setInterval>;
+  let dictWatcher: FSWatcher | undefined;
+  let dictRetryTimer: ReturnType<typeof setTimeout> | undefined;
+
   const stream = new ReadableStream({
     start(ctrl) {
-      timer = setInterval(() => {
-        // 接続後に /open-file で増えたファイルも監視できるよう毎回取得する。
-        // 初見のパスは配信済み mtime をベースラインにし、配信後〜初回 tick の間の
-        // 書き込みを取りこぼさない（未配信なら記録のみで発火しない）。
-        for (const p of activePaths()) {
+      const emit = (data: object) => {
+        // fs.watch のコールバックは Bun の I/O スレッドから呼ばれるため、
+        // 直接 ctrl.enqueue するとメイン event loop での flush と競合し、
+        // クライアントに届く前にストリームが閉じられることがある。
+        // queueMicrotask で JS 側の event loop に載せてから enqueue する。
+        queueMicrotask(() => {
+          if (closed) return;
           try {
-            const mtime = statSync(p).mtimeMs;
-            const prev = mtimes.get(p) ?? servedMtimes.get(p);
-            if (prev !== undefined && mtime !== prev) {
-              ctrl.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ file: p })}\n\n`),
-              );
-            }
-            mtimes.set(p, mtime);
+            ctrl.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
           } catch {
-            /* ignore deleted files */
+            /* stream already closed */
           }
-        }
-        // dict.json の変化を監視
+        });
+      };
+
+      const checkFile = (p: string) => {
         try {
-          const mtime = statSync(dictPath).mtimeMs;
-          if (mtime !== dictMtime) {
-            ctrl.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ dictUpdated: true })}\n\n`,
-              ),
-            );
-            dictMtime = mtime;
+          const mtime = statSync(p).mtimeMs;
+          const prev = mtimes.get(p);
+          // mtime 変化が無ければ何もしない（同一書き込みに対する複数 inotify
+          // イベントや no-op イベントを filter）。
+          if (prev !== undefined && mtime !== prev) {
+            emit({ file: p });
           }
+          mtimes.set(p, mtime);
         } catch {
-          /* dict.json が存在しない場合はスキップ */
+          /* deleted or transiently unavailable — ignore */
         }
-      }, 500);
+      };
+
+      const attachWatcher = (p: string) => {
+        if (watchers.has(p)) return;
+        let currentMtime = 0;
+        try {
+          currentMtime = statSync(p).mtimeMs;
+        } catch {
+          // ファイルが存在しない・権限エラー等。sync tick で再挑戦する。
+          return;
+        }
+        try {
+          const w = fsWatch(p, (eventType) => {
+            // 同期的にチェックする。デバウンスすると、SSE クライアントが
+            // 再接続してこの接続が閉じたタイミングでイベントを取りこぼす。
+            // mtime 比較で redundant なイベントは checkFile 内で filter される。
+            checkFile(p);
+            if (eventType === 'rename') {
+              // temp+rename で書かれた場合、元 inode の watcher は死んでいるため
+              // 再アタッチする（新しい inode を掴み直す）
+              const old = watchers.get(p);
+              old?.close();
+              watchers.delete(p);
+              setTimeout(() => {
+                if (!closed && activePaths().includes(p)) attachWatcher(p);
+              }, 30);
+            }
+          });
+          w.on('error', () => {
+            watchers.delete(p);
+          });
+          watchers.set(p, w);
+          // アタッチ時に「配信済み mtime との差分」があれば emit する。
+          // 例: /open-file でファイルが追加された直後、syncTimer が attach する
+          // より前に外部から書き込まれたケース。ここで拾わないと fs.watch は
+          // 以降の変化しか通知しないため、client が古い内容を握り続ける。
+          //
+          // servedMtimes は「そのファイルに対して直近で /content が返した
+          // mtime」であり、client の握っている内容と一致する。ここでは属性値の
+          // スナップショットとして 1 回だけ参照し、以降のイベント処理では
+          // 使わない（イベント処理での fallback は、並行 /content 更新で
+          // 変化なし判定になり誤検出する）。
+          const served = servedMtimes.get(p);
+          if (served !== undefined && served !== currentMtime) {
+            emit({ file: p });
+          }
+          mtimes.set(p, currentMtime);
+        } catch {
+          // ファイルが存在しない・権限エラー等。sync tick で再挑戦する。
+        }
+      };
+
+      const syncWatchers = () => {
+        const active = new Set(activePaths());
+        for (const p of active) attachWatcher(p);
+        for (const [p, w] of watchers) {
+          if (!active.has(p)) {
+            w.close();
+            watchers.delete(p);
+            mtimes.delete(p);
+          }
+        }
+        // fs.watch のイベントが取りこぼされたケース（Bun / OS レイヤーの race や、
+        // クライアント再接続と emit の flush 競合）を拾うための安全網。
+        // すべての active path を stat し、直前の mtime と違えば emit する。
+        for (const p of active) checkFile(p);
+      };
+
+      const attachDictWatcher = () => {
+        if (dictWatcher || closed) return;
+        try {
+          const w = fsWatch(dictPath, () => {
+            try {
+              const mtime = statSync(dictPath).mtimeMs;
+              if (mtime !== dictMtime) {
+                emit({ dictUpdated: true });
+                dictMtime = mtime;
+              }
+            } catch {
+              /* consumed by rename branch */
+            }
+          });
+          w.on('error', () => {
+            dictWatcher?.close();
+            dictWatcher = undefined;
+            if (!closed) dictRetryTimer = setTimeout(attachDictWatcher, 1000);
+          });
+          dictWatcher = w;
+        } catch {
+          // dict.json 未生成なら 1s 後に再試行
+          if (!closed) dictRetryTimer = setTimeout(attachDictWatcher, 1000);
+        }
+      };
+
+      syncWatchers();
+      attachDictWatcher();
+
+      // /open-file で追加された新パスを拾うため、低頻度で watcher 集合を同期する。
+      // fs.watch そのものはネイティブ通知なので、ここでの stat は行わない。
+      syncTimer = setInterval(syncWatchers, 2000);
+
       pingTimer = setInterval(() => {
-        ctrl.enqueue(encoder.encode('data: {}\n\n'));
+        emit({});
       }, 1000);
     },
     cancel() {
-      clearInterval(timer);
+      closed = true;
+      clearInterval(syncTimer);
       clearInterval(pingTimer);
+      if (dictRetryTimer) clearTimeout(dictRetryTimer);
+      for (const w of watchers.values()) w.close();
+      watchers.clear();
+      dictWatcher?.close();
+      dictWatcher = undefined;
     },
   });
 
@@ -783,6 +890,7 @@ function serveStatic(url: URL): Response | null {
 
 // レビュー対象ファイルを認証なしで読み書きする API を公開しているため、
 // LAN 全体に晒さないよう必ずループバックアドレスにバインドする。
+// LAN 共有は認証機構が無い以上意図的に提供しない（意図せず公開されるリスクの方が大きい）。
 export const SERVER_HOSTNAME = '127.0.0.1';
 
 export function createServer(port: number) {

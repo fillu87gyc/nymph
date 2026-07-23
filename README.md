@@ -221,4 +221,9 @@ Claude Code 上でフックをインストール：
 
 ## ライセンス
 
-MIT
+MIT — 詳細は [`LICENSE`](./LICENSE)。
+
+`dist/` に bundle 化して同梱しているサードパーティ・ソフトウェア（highlight.js /
+diff / DOMPurify / marked / Mermaid / KaTeX / React / SWR ほか）の帰属表示・
+ライセンス全文は [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) を参照して
+ください。

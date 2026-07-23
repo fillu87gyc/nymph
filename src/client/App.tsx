@@ -1,3 +1,5 @@
+import HLJS_LIGHT from 'highlight.js/styles/github.min.css?url';
+import HLJS_DARK from 'highlight.js/styles/tokyo-night-dark.min.css?url';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSWRConfig } from 'swr';
@@ -39,10 +41,6 @@ import { applyTermHighlights } from './lib/termHighlight.ts';
 import { extractToc } from './lib/toc.ts';
 import type { Comment, DictEntry, PendingComment } from './types.ts';
 
-const HLJS_DARK =
-  'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/tokyo-night-dark.min.css';
-const HLJS_LIGHT =
-  'https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css';
 const GOOGLE_FONTS_BASE = 'https://fonts.googleapis.com/css2?display=swap&';
 
 function applyContentFont(id: string) {

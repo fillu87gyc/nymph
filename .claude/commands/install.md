@@ -10,15 +10,7 @@ nymph の PostToolUse フックをインストールします。以下の手順�
 #!/bin/sh
 INPUT=$(cat)
 
-FILE_PATH=$(echo "$INPUT" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    ti = d.get('tool_input', d)
-    print(ti.get('file_path', ''))
-except Exception:
-    print('')
-" 2>/dev/null)
+FILE_PATH=$(printf '%s' "$INPUT" | jq -r '(.tool_input // .).file_path // ""' 2>/dev/null)
 
 [ -z "$FILE_PATH" ] && exit 0
 
@@ -27,13 +19,15 @@ LOCK="${FILE_PATH}.nymph-lock"
 
 PORT=$(cat "$LOCK")
 
-if ! echo "$INPUT" | curl -s --connect-timeout 0.1 -X POST \
+if ! printf '%s' "$INPUT" | curl -s --connect-timeout 0.1 -X POST \
      "http://localhost:${PORT}/edit-op" \
      -H "Content-Type: application/json" \
      --data-binary @- > /dev/null 2>&1; then
   rm -f "$LOCK"
 fi
 ```
+
+> `jq` は Claude Code の推奨依存に含まれます。未インストールの場合は `brew install jq` / `apt install jq` などで導入してください。
 
 書き込み後、実行権限を付与してください:
 

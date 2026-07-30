@@ -209,6 +209,42 @@ test.describe('もとの文章スナップショットの吹き出し', () => {
     await expect(balloon).toContainText('# Sample');
   });
 
+  test('Edit フック（/edit-op）の行番号リマップに吹き出しの行番号も追従する', async ({
+    page,
+    fixturePath,
+  }) => {
+    await addTableComment(page, 'リマップ確認');
+    // 表は 5〜8 行目。解決済にしてバッジ（＝吹き出しの入口）を出す。
+    const item = page.locator('[data-testid="comment-item"]').first();
+    await expect(item).toContainText('L5–8');
+    await page.locator('[data-testid="c-resolve"]').first().click();
+    await expect(item).toHaveAttribute('data-status', 'resolved');
+
+    // Claude Code の Edit フックと同じ経路で、コメントより前に 2 行挿入する。
+    // /edit-op はサーバーのキャッシュ本文を基準に判定するため先に POST し、
+    // 実ファイルの書き換え（= SSE による再取得）を後に行う。
+    const oldString = '# Sample\n';
+    const newString = '# Sample\n\n追加された行\n';
+    await page.request.post('/edit-op', {
+      data: { tool_input: { old_string: oldString, new_string: newString } },
+    });
+    writeFileSync(fixturePath, ORIGINAL.replace(oldString, newString));
+
+    // コメント自身の行表示が 2 行ぶんずれる
+    await expect(item).toContainText('L7–10', { timeout: 8000 });
+
+    // 吹き出しの行番号も同じだけずれて、本文の現在の行番号と一致する
+    await page.locator('[data-testid="c-status"]').click();
+    const balloon = page.locator('[data-testid="snapshot-balloon"]');
+    await expect(balloon).toBeVisible();
+    const targets = balloon.locator('[data-testid="snapshot-line-target"]');
+    await expect(targets).toHaveCount(4);
+    await expect(targets.first()).toHaveAttribute('data-line', '7');
+    await expect(targets.last()).toHaveAttribute('data-line', '10');
+    // 中身（もとの文章）は書き換わらない
+    await expect(targets.first()).toContainText('Name');
+  });
+
   test('スナップショットは保存され、リロード後も参照できる', async ({
     page,
     fixturePath,

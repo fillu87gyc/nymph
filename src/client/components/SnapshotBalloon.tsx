@@ -84,6 +84,7 @@ export function SnapshotBalloon({
             <li
               key={row.n}
               className={styles.line}
+              data-line={row.n}
               data-target={String(row.isTarget)}
               data-testid={row.isTarget ? 'snapshot-line-target' : undefined}
             >

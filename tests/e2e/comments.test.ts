@@ -13,6 +13,19 @@ import {
   test,
 } from './fixtures.ts';
 
+// mermaid は非同期に描画され、完了時にブロックの高さが変わる。描画完了前に
+// hover するとレイアウトのずれでポインタがブロックから外れ、コメントボタンが
+// pointer-events: none のまま（表示は :hover 依存）になりクリックが通らない。
+// mermaid ブロックを操作するテストは必ずこのヘルパーで hover する。
+async function hoverMermaidBlock(page: Page) {
+  const block = page
+    .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
+    .first();
+  await expect(block.locator('svg')).toBeVisible({ timeout: 10000 });
+  await block.hover();
+  return block;
+}
+
 async function addComment(page: Page, text: string) {
   const tableBlock = page
     .locator('#content [data-testid="md-block"][data-block-type="table"]')
@@ -540,10 +553,7 @@ test.describe('テーマ切替', () => {
 test.describe('複数コメント', () => {
   test('コメントが lineStart 順に並ぶ', async ({ page }) => {
     await addComment(page, 'first comment');
-    const mermaidBlock = page
-      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
-      .first();
-    await mermaidBlock.hover();
+    const mermaidBlock = await hoverMermaidBlock(page);
     await mermaidBlock.locator('[data-testid="comment-btn"]').click();
     await page.locator('#comment-ta').fill('second comment');
     await page.locator('#btn-submit').click();
@@ -746,10 +756,7 @@ test.describe('Phase 2: コメントのライフサイクル（resolved / フィ
 
   test('ツールバーのバッジは Open（未解決）件数を示す', async ({ page }) => {
     await addComment(page, 'comment 1');
-    const mermaidBlock = page
-      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
-      .first();
-    await mermaidBlock.hover();
+    const mermaidBlock = await hoverMermaidBlock(page);
     await mermaidBlock.locator('[data-testid="comment-btn"]').click();
     await page.locator('#comment-ta').fill('comment 2');
     await page.locator('#btn-submit').click();
@@ -804,10 +811,7 @@ test.describe('Phase 2: コメントのライフサイクル（resolved / フィ
       { timeout: 5000 },
     );
 
-    const mermaidBlock = page
-      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
-      .first();
-    await mermaidBlock.hover();
+    const mermaidBlock = await hoverMermaidBlock(page);
     await mermaidBlock.locator('[data-testid="comment-btn"]').click();
     await page.locator('#comment-ta').fill('after checkpoint');
     await page.locator('#btn-submit').click();
@@ -822,10 +826,7 @@ test.describe('Phase 2: コメントのライフサイクル（resolved / フィ
 
 test.describe('レビューのコピー（解決済みの除外）', () => {
   async function addCommentOnMermaid(page: Page, text: string) {
-    const mermaidBlock = page
-      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
-      .first();
-    await mermaidBlock.hover();
+    const mermaidBlock = await hoverMermaidBlock(page);
     await mermaidBlock.locator('[data-testid="comment-btn"]').click();
     await page.locator('#comment-ta').fill(text);
     await page.locator('#btn-submit').click();

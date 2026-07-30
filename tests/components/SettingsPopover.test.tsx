@@ -12,6 +12,8 @@ function makeProps(
     onChangeContentFont: vi.fn(),
     marginCollapse: { left: false, right: false },
     onToggleMargin: vi.fn(),
+    manualWidth: null,
+    onResetWidth: vi.fn(),
     ...overrides,
   };
 }
@@ -90,5 +92,27 @@ describe('SettingsPopover', () => {
 
     await userEvent.click(right);
     expect(onToggleMargin).toHaveBeenCalledWith('right');
+  });
+
+  test('手動幅がなければ幅リセットは無効', async () => {
+    render(<SettingsPopover {...makeProps({ manualWidth: null })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    const reset = screen.getByTestId('content-width-reset');
+    expect(reset).toBeDisabled();
+    expect(reset).toHaveTextContent('幅をリセット');
+  });
+
+  test('手動幅があれば現在値を表示してリセットできる', async () => {
+    const onResetWidth = vi.fn();
+    render(
+      <SettingsPopover {...makeProps({ manualWidth: 1180, onResetWidth })} />,
+    );
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    const reset = screen.getByTestId('content-width-reset');
+    expect(reset).toBeEnabled();
+    expect(reset).toHaveTextContent('幅をリセット（1180px）');
+
+    await userEvent.click(reset);
+    expect(onResetWidth).toHaveBeenCalledTimes(1);
   });
 });

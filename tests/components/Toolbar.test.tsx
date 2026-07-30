@@ -38,6 +38,8 @@ function makeProps(
     onChangeContentFont: vi.fn(),
     marginCollapse: { left: false, right: false },
     onToggleMargin: vi.fn(),
+    manualWidth: null,
+    onResetWidth: vi.fn(),
     ...overrides,
   };
 }

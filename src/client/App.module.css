@@ -33,7 +33,9 @@
   min-height: 0;
 }
 /* 左右ガター(var(--gutter-l/r)) + 本文列(var(--content-max)) の
-   3 カラムグリッド。ガター折りたたみ時、本文列がその分だけ広がる。 */
+   3 カラムグリッド。ガター折りたたみ時、本文列がその分だけ広がる。
+   本文列（2 カラム目 / 1 行目）には #content と ContentResizer のハンドルが
+   重なって載る（どちらも grid-row: 1 / grid-column: 2 を明示している）。 */
 .contentGrid {
   flex: 1;
   min-width: 0;
@@ -42,6 +44,12 @@
   grid-template-columns:
     var(--gutter-l, 1fr) minmax(0, var(--content-max, 960px))
     var(--gutter-r, 1fr);
+}
+/* 幅ドラッグ中はテキスト選択を殺し、カーソルを col-resize に固定する
+   （ハンドルから外れてもドラッグ中はリサイズ操作であることを示す）。 */
+.contentGrid[data-resizing="true"] {
+  cursor: col-resize;
+  user-select: none;
 }
 .dropOverlay {
   display: flex;

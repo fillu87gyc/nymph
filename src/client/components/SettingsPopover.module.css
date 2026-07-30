@@ -74,3 +74,17 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+.widthToggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.widthToggle:disabled:hover {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.widthHint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}

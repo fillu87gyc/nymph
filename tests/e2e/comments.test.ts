@@ -26,6 +26,10 @@ async function addComment(page: Page, text: string) {
   ).toBeVisible({
     timeout: 3000,
   });
+  // コメントパネルの open 用 height トランジション(0.2s)が終わるのを待つ。
+  // 終わる前に他ブロックを hover/click すると、パネル開閉によるレイアウト
+  // シフトで :hover が外れ、click が別要素に intercept されることがある。
+  await page.waitForTimeout(300);
 }
 
 test.beforeEach(async ({ page, commentsPath, reviewDir }) => {

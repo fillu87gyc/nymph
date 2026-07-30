@@ -1,0 +1,44 @@
+/* 本文列（.contentGrid の 2 カラム目）に重ねるリサイズハンドル。
+   #content と同じ grid セルを占有し、justify-self で左右いずれかの端に寄せる。
+   ネガティブマージンで本文の端をまたぐように配置し、掴みやすくしている。 */
+.handle {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: start;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  width: 14px;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+  /* 既定では透明。ホバー/フォーカス/ドラッグ時のみグリップが浮かぶ。 */
+  background: transparent;
+}
+.left {
+  justify-self: start;
+  margin-left: -7px;
+}
+.right {
+  justify-self: end;
+  margin-right: -7px;
+}
+.handle::before {
+  content: "";
+  width: 2px;
+  height: 56px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.handle:hover::before,
+.handle:focus-visible::before,
+.handle[data-dragging="true"]::before {
+  background: var(--accent);
+}
+.handle:focus-visible {
+  outline: none;
+}

@@ -41,6 +41,8 @@ interface ToolbarProps {
   isDictSyncing?: boolean;
   marginCollapse: MarginCollapse;
   onToggleMargin: (side: 'left' | 'right') => void;
+  manualWidth: number | null;
+  onResetWidth: () => void;
 }
 
 export function Toolbar({
@@ -77,6 +79,8 @@ export function Toolbar({
   isDictSyncing,
   marginCollapse,
   onToggleMargin,
+  manualWidth,
+  onResetWidth,
 }: ToolbarProps) {
   // 接続状態＋最終更新時刻はドット1個に統合し、詳細は title のツールチップに出す
   const connectionTitle = isConnected
@@ -155,6 +159,8 @@ export function Toolbar({
         onChangeContentFont={onChangeContentFont}
         marginCollapse={marginCollapse}
         onToggleMargin={onToggleMargin}
+        manualWidth={manualWidth}
+        onResetWidth={onResetWidth}
       />
       <OverflowMenu
         onPickDir={onPickDir}

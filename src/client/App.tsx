@@ -8,6 +8,7 @@ import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
 import { ConfirmModal, type DeleteMode } from './components/ConfirmModal.tsx';
 import { ContentArea } from './components/ContentArea.tsx';
+import { ContentResizer } from './components/ContentResizer.tsx';
 import { DictTooltip } from './components/DictTooltip.tsx';
 import { type DiffHighlightTarget, DiffView } from './components/DiffView.tsx';
 import { DrawioModal } from './components/DrawioModal.tsx';
@@ -31,8 +32,14 @@ import { useSSE } from './hooks/useSSE.ts';
 import { useTree } from './hooks/useTree.ts';
 import { ctxDisplay, isCommentsKey, isDiffContext } from './lib/comments.ts';
 import {
-  contentMaxWidth,
+  contentDragFactor,
+  loadContentWidth,
   loadMarginCollapse,
+  nextContentWidth,
+  resizeHandleSides,
+  resolveContentMax,
+  resolveContentWidthPx,
+  saveContentWidth,
   saveMarginCollapse,
 } from './lib/contentWidth.ts';
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
@@ -80,6 +87,13 @@ export function App() {
     null,
   );
   const [marginCollapse, setMarginCollapse] = useState(loadMarginCollapse);
+  // ドラッグで指定した本文幅（px）。null ならプリセット（折りたたみ状態）に従う。
+  const [manualWidth, setManualWidth] = useState<number | null>(
+    loadContentWidth,
+  );
+  const [isResizingWidth, setIsResizingWidth] = useState(false);
+  const resizeStartWidthRef = useRef(0);
+  const manualWidthRef = useRef<number | null>(null);
   const [blockOrphanIds, setBlockOrphanIds] = useState<Set<Comment['id']>>(
     new Set(),
   );
@@ -289,11 +303,49 @@ export function App() {
   }
 
   function toggleMargin(side: 'left' | 'right') {
+    // 折りたたみトグルは幅のプリセット。手動幅が残っているとトグルが
+    // 効かなくなるため、プリセットを選び直したものとして破棄する。
+    resetContentWidth();
     setMarginCollapse((prev) => {
       const next = { ...prev, [side]: !prev[side] };
       saveMarginCollapse(next);
       return next;
     });
+  }
+
+  function resetContentWidth() {
+    manualWidthRef.current = null;
+    setManualWidth(null);
+    saveContentWidth(null);
+  }
+
+  function handleResizeStart() {
+    // 開始時点の実幅を基準にする。プリセット由来（手動幅 null）でも
+    // 実測値からそのまま連続的にドラッグを始められる。
+    resizeStartWidthRef.current =
+      contentRef.current?.getBoundingClientRect().width ?? 0;
+    // ドラッグせずに離した場合に既存の手動幅を消さないよう現在値を控える
+    manualWidthRef.current = manualWidth;
+    setIsResizingWidth(true);
+  }
+
+  function handleResize(side: 'left' | 'right', deltaX: number) {
+    const startWidth = resizeStartWidthRef.current;
+    if (startWidth <= 0) return;
+    const next = nextContentWidth({
+      startWidth,
+      deltaX,
+      side,
+      factor: contentDragFactor(marginCollapse),
+      maxWidth: contentScrollRef.current?.clientWidth ?? startWidth,
+    });
+    manualWidthRef.current = next;
+    setManualWidth(next);
+  }
+
+  function handleResizeEnd() {
+    setIsResizingWidth(false);
+    saveContentWidth(manualWidthRef.current);
   }
 
   useEffect(() => {
@@ -789,6 +841,8 @@ export function App() {
         isDictSyncing={isDictSyncing}
         marginCollapse={marginCollapse}
         onToggleMargin={toggleMargin}
+        manualWidth={manualWidth}
+        onResetWidth={resetContentWidth}
       />
       <FileTabs
         files={files}
@@ -831,14 +885,38 @@ export function App() {
               ref={contentScrollRef}
               className={styles.contentGrid}
               data-testid="content-scroll"
+              data-resizing={String(isResizingWidth)}
               style={
                 {
                   '--gutter-l': marginCollapse.left ? '0px' : '1fr',
                   '--gutter-r': marginCollapse.right ? '0px' : '1fr',
-                  '--content-max': contentMaxWidth(marginCollapse),
+                  '--content-max': resolveContentMax(
+                    marginCollapse,
+                    manualWidth,
+                  ),
                 } as React.CSSProperties
               }
             >
+              {resizeHandleSides(marginCollapse).left && (
+                <ContentResizer
+                  side="left"
+                  width={resolveContentWidthPx(marginCollapse, manualWidth)}
+                  onResizeStart={handleResizeStart}
+                  onResize={handleResize}
+                  onResizeEnd={handleResizeEnd}
+                  onReset={resetContentWidth}
+                />
+              )}
+              {resizeHandleSides(marginCollapse).right && (
+                <ContentResizer
+                  side="right"
+                  width={resolveContentWidthPx(marginCollapse, manualWidth)}
+                  onResizeStart={handleResizeStart}
+                  onResize={handleResize}
+                  onResizeEnd={handleResizeEnd}
+                  onReset={resetContentWidth}
+                />
+              )}
               <ContentArea
                 source={source}
                 comments={comments}

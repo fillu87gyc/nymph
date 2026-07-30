@@ -9,17 +9,25 @@ interface SettingsPopoverProps {
   onChangeContentFont: (id: string) => void;
   marginCollapse: MarginCollapse;
   onToggleMargin: (side: 'left' | 'right') => void;
+  /** ドラッグで指定中の本文幅（px）。null ならプリセットに従っている。 */
+  manualWidth: number | null;
+  onResetWidth: () => void;
 }
 
 // 設定ポップオーバー。テーマ切替 / 本文フォント / 本文幅（左右マージン折り
 // たたみ）をまとめる。本文幅は本文左右にフロートしていた ‹›ボタンを廃止し、
 // ここへトグルとして移設したもの（localStorage キー・既定値は変更なし）。
+// 折りたたみトグルは 3 段階のプリセットで、その間の任意幅は本文列の左右端の
+// ハンドル（ContentResizer）をドラッグして決める。ここのリセットボタンで
+// 手動幅を捨ててプリセットに戻せる。
 export function SettingsPopover({
   onToggleTheme,
   contentFontId,
   onChangeContentFont,
   marginCollapse,
   onToggleMargin,
+  manualWidth,
+  onResetWidth,
 }: SettingsPopoverProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -120,7 +128,22 @@ export function SettingsPopover({
               >
                 右マージンを折りたたむ
               </button>
+              <button
+                type="button"
+                className={styles.widthToggle}
+                data-testid="content-width-reset"
+                disabled={manualWidth === null}
+                title="ドラッグで指定した幅を捨てて既定の幅に戻す"
+                onClick={onResetWidth}
+              >
+                {manualWidth === null
+                  ? '幅をリセット'
+                  : `幅をリセット（${manualWidth}px）`}
+              </button>
             </div>
+            <span className={styles.widthHint}>
+              本文の左右端をドラッグすると幅を自由に変えられます
+            </span>
           </div>
         </div>
       )}

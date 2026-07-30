@@ -260,9 +260,9 @@ test.describe('コメント削除モーダル', () => {
       '',
     );
     writeFileSync(fixturePath, modified);
-    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
-      { timeout: 8000 },
-    );
+    await expect(
+      page.locator('[data-testid="c-status"][data-status="deleted"]').first(),
+    ).toBeVisible({ timeout: 8000 });
 
     await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
@@ -291,9 +291,9 @@ test.describe('コメント削除モーダル', () => {
     );
     writeFileSync(fixturePath, modified);
 
-    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
-      { timeout: 8000 },
-    );
+    await expect(
+      page.locator('[data-testid="c-status"][data-status="deleted"]').first(),
+    ).toBeVisible({ timeout: 8000 });
 
     await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
@@ -322,9 +322,9 @@ test.describe('コメント削除モーダル', () => {
     );
     writeFileSync(fixturePath, modified);
 
-    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
-      { timeout: 8000 },
-    );
+    await expect(
+      page.locator('[data-testid="c-status"][data-status="deleted"]').first(),
+    ).toBeVisible({ timeout: 8000 });
 
     await openOverflowMenu(page);
     await page.locator('#btn-clear-all').click();
@@ -563,7 +563,7 @@ test.describe('複数コメント', () => {
 });
 
 test.describe('削除済みコメントの表示', () => {
-  test('対象テキストが存在しない selection コメントに「削除済み」バッジが表示される', async ({
+  test('対象テキストが存在しない selection コメントに「削除済」バッジが表示される', async ({
     page,
     fixturePath,
     reviewDir,
@@ -604,22 +604,26 @@ test.describe('削除済みコメントの表示', () => {
       page.locator('#comments-panel[data-open="true"]'),
     ).toBeVisible();
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(1);
-    await expect(page.locator('[data-testid="c-deleted"]')).toBeVisible({
+    await expect(
+      page.locator('[data-testid="c-status"][data-status="deleted"]'),
+    ).toBeVisible({
       timeout: 3000,
     });
-    await expect(page.locator('[data-testid="c-deleted"]')).toContainText(
-      '削除済み',
-    );
+    await expect(
+      page.locator('[data-testid="c-status"][data-status="deleted"]'),
+    ).toContainText('削除済');
   });
 
-  test('対象ブロックが存在する block コメントには「削除済み」バッジが表示されない', async ({
+  test('対象ブロックが存在する block コメントには「削除済」バッジが表示されない', async ({
     page,
   }) => {
     // UI 経由で block コメントを追加（lineStart/lineEnd が正しく設定され、ブロックが存在する）
     await addComment(page, '有効コメント');
     // useEffect の反映を待つ
     await page.waitForTimeout(600);
-    await expect(page.locator('[data-testid="c-deleted"]')).not.toBeVisible();
+    await expect(
+      page.locator('[data-testid="c-status"][data-status="deleted"]'),
+    ).not.toBeVisible();
   });
 });
 

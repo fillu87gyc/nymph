@@ -2,6 +2,7 @@ import type {
   CodeContext,
   Comment,
   CommentFilter,
+  CommentStatus,
   DiffContext,
   TableContext,
 } from '../types.ts';
@@ -38,15 +39,33 @@ export function isCommentsKey(key: unknown): key is string {
   );
 }
 
-// コメントパネルの All / Open / Resolved フィルタ判定。
-// resolved が未定義のコメント（既存データ含む）は open 扱いになる。
+export const COMMENT_STATUS_LABEL: Record<CommentStatus, string> = {
+  open: '未解決',
+  deleted: '削除済',
+  resolved: '解決済',
+};
+
+/**
+ * コメントの状態を求める（未解決 / 削除済 / 解決済）。
+ *
+ * `orphaned` は「コメント対象の文章が現在のファイルから消えている」こと。
+ * 削除済は実態としては未解決かつ対象が消えたコメントの状態であり、解決済みの
+ * コメントは対象が消えても解決済みのまま扱う（解決した事実の方が重要なため）。
+ * resolved が未定義のコメント（既存データ含む）は未解決扱い。
+ */
+export function commentStatus(c: Comment, orphaned: boolean): CommentStatus {
+  if (c.resolved === true) return 'resolved';
+  return orphaned ? 'deleted' : 'open';
+}
+
+// コメントパネルの すべて / 未解決 / 削除済 / 解決済 フィルタ判定。
 export function matchesCommentFilter(
   c: Comment,
   filter: CommentFilter,
+  orphaned = false,
 ): boolean {
   if (filter === 'all') return true;
-  if (filter === 'open') return !c.resolved;
-  return c.resolved === true;
+  return commentStatus(c, orphaned) === filter;
 }
 
 export interface ReviewPayloadComment {

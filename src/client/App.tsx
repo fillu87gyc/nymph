@@ -32,6 +32,7 @@ import { useSSE } from './hooks/useSSE.ts';
 import { useTree } from './hooks/useTree.ts';
 import {
   buildReviewPayload,
+  commentStatus,
   ctxDisplay,
   isCommentsKey,
   isDiffContext,
@@ -49,6 +50,7 @@ import {
 } from './lib/contentWidth.ts';
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
+import { buildCommentSnapshot } from './lib/snapshot.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import { extractToc } from './lib/toc.ts';
 import type { Comment, DictEntry, PendingComment } from './types.ts';
@@ -213,11 +215,15 @@ export function App() {
     [blockOrphanIds, diffOrphanIds],
   );
 
-  // ツールバーのバッジは全件数ではなく Open（未解決）件数。crit の思想（未処理
-  // の指摘だけを目立たせる）に合わせる。resolved 未定義のコメントは open 扱い。
+  // ツールバーのバッジは全件数ではなく未解決件数。crit の思想（未処理の指摘だけ
+  // を目立たせる）に合わせる。対象の文章が消えたコメントは「削除済」であって
+  // 未解決ではないため、パネルの未解決フィルタと同じく除外する。
   const openCommentCount = useMemo(
-    () => comments.filter((c) => !c.resolved).length,
-    [comments],
+    () =>
+      comments.filter(
+        (c) => commentStatus(c, orphanedCommentIds.has(c.id)) === 'open',
+      ).length,
+    [comments, orphanedCommentIds],
   );
 
   function toast(msg: string) {
@@ -488,7 +494,13 @@ export function App() {
       const ok = await updateComment(editingId, text);
       toast(ok ? 'コメントを更新しました' : 'コメントを保存できませんでした');
     } else {
-      const ok = await addComment(pending, text);
+      // 「もとの文章」は作成時点でしか正確に切り出せない（後で対象が削除される）。
+      // ここでスナップショットを取ってコメントと一緒に保存する。
+      const ok = await addComment(
+        pending,
+        text,
+        buildCommentSnapshot(pending, source, diffData),
+      );
       setPanelOpen(true);
       toast(ok ? 'コメントを追加しました' : 'コメントを保存できませんでした');
     }

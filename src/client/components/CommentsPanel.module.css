@@ -122,18 +122,32 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.deletedBadge {
+/* ステータスバッジ（削除済 / 解決済）。クリックでもとの文章の吹き出しを開く。 */
+.statusBadge {
   display: inline-block;
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
-  color: var(--danger);
-  background: rgba(var(--danger-rgb), 0.12);
-  border: 1px solid rgba(var(--danger-rgb), 0.25);
   padding: 1px 5px;
   border-radius: 3px;
   margin-right: 5px;
   white-space: nowrap;
   vertical-align: middle;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+.statusBadge:hover,
+.statusBadge[data-open="true"] {
+  filter: brightness(1.25);
+}
+.statusBadge[data-status="deleted"] {
+  color: var(--danger);
+  background: rgba(var(--danger-rgb), 0.12);
+  border: 1px solid rgba(var(--danger-rgb), 0.25);
+}
+.statusBadge[data-status="resolved"] {
+  color: var(--success);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
 }
 .diffBadge {
   display: inline-block;

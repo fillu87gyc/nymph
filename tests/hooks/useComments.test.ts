@@ -189,6 +189,27 @@ describe('useComments', () => {
     expect('selection_offset' in result.current.comments[0]).toBe(false);
   });
 
+  test('addComment に snapshot を渡すとコメントに含まれ、保存される', async () => {
+    const snapshot = {
+      startLine: 2,
+      before: ['b1'],
+      target: ['t1', 't2'],
+      after: ['a1'],
+    };
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'snap', snapshot));
+    expect(result.current.comments[0].snapshot).toEqual(snapshot);
+    await waitFor(() => expect(serverComments[0]?.snapshot).toEqual(snapshot));
+  });
+
+  test('addComment に snapshot を渡さない場合はプロパティが含まれない', async () => {
+    const { result } = renderHook(() => useComments(), { wrapper });
+    await waitForReady(result);
+    await act(() => result.current.addComment(pending, 'no snap'));
+    expect('snapshot' in result.current.comments[0]).toBe(false);
+  });
+
   test('updateComment でテキストが更新される', async () => {
     const { result } = renderHook(() => useComments(), { wrapper });
     await waitForReady(result);

@@ -2,11 +2,11 @@
  * フルスペック VRT
  *
  * コードブロック・Mermaid・複数コメント・テーブルの選択ハイライト・
- * selection コメント（CSS Highlight API）・孤立コメント（削除済みバッジ）を
+ * selection コメント（CSS Highlight API）・孤立コメント（削除済バッジ）を
  * 含む 1 画面を縦長スクリーンショットで比較する。
  *
  * diff 表示の見た目検証は責務過多を避けるため diff_vrt.test.ts に分離した。
- * ここではファイルを変更して「孤立コメント（削除済みバッジ）」を出すが、
+ * ここではファイルを変更して「孤立コメント（削除済バッジ）」を出すが、
  * diff モードは ON にしない。
  *
  * - lineStart/lineEnd は fullspec.md の行番号に対応（変更時は要更新）
@@ -100,7 +100,7 @@ const PRESEEDED_COMMENTS = JSON.stringify(
       lineEnd: 71,
       block_type: 'selection',
       context: ORIGINAL_LINE,
-      text: '孤立コメント: diff で変更された行への選択コメント — 削除済みバッジ確認',
+      text: '孤立コメント: diff で変更された行への選択コメント — 削除済バッジ確認',
     },
   ],
   null,
@@ -164,7 +164,7 @@ test.describe('フルスペック VRT', () => {
       },
     );
 
-    // ── 3. ファイルを変更（孤立コメントの削除済みバッジを発生させる） ──
+    // ── 3. ファイルを変更（孤立コメントの削除済バッジを発生させる） ──
     //   diff モードは ON にしない（diff の見た目検証は diff_vrt.test.ts）。
     writeFileSync(fixturePath, FULLSPEC_MODIFIED, 'utf-8');
     await expect(page.locator('#content')).toContainText(CHANGED_LINE, {
@@ -182,12 +182,12 @@ test.describe('フルスペック VRT', () => {
     await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(7, {
       timeout: 5000,
     });
-    // ORIGINAL_LINE への selection コメントが孤立して「削除済み」バッジが表示されているか確認
-    await expect(page.locator('[data-testid="c-deleted"]').first()).toBeVisible(
-      {
-        timeout: 3000,
-      },
-    );
+    // ORIGINAL_LINE への selection コメントが孤立して「削除済」バッジが表示されているか確認
+    await expect(
+      page.locator('[data-testid="c-status"][data-status="deleted"]').first(),
+    ).toBeVisible({
+      timeout: 3000,
+    });
 
     // ── 5. VRT 安定化（フォント確定 + 安定化 CSS 注入） ─────────────
     // 高さ計測より前にフォントを確定させる。フォントスワップ後に文書高さが
@@ -227,7 +227,7 @@ test.describe('フルスペック VRT', () => {
       scroll.scrollTop = 0; // 途中スクロール状態を持ち込まない
 
       // コメントパネル（高さ固定 210px・内部スクロール）も全件見えるよう
-      // 展開し、7 件のコメントと削除済みバッジを撮影対象に含める
+      // 展開し、7 件のコメントと削除済バッジを撮影対象に含める
       const panel = document.getElementById('comments-panel');
       const list = document.getElementById('comments-list');
       if (panel && list) {

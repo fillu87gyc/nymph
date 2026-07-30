@@ -1,0 +1,122 @@
+.balloon {
+  position: fixed;
+  z-index: 900;
+  max-width: calc(100vw - 16px);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  padding: 8px 10px 10px;
+  cursor: default;
+}
+
+/* 吹き出しの尻尾（下向き。バッジのすぐ上に出るため） */
+.balloon::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: 20px;
+  width: 12px;
+  height: 12px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  transform: rotate(45deg);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.status[data-status="deleted"] {
+  color: var(--danger);
+  background: rgba(var(--danger-rgb), 0.12);
+  border: 1px solid rgba(var(--danger-rgb), 0.25);
+}
+.status[data-status="resolved"] {
+  color: var(--success);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+}
+.status[data-status="open"] {
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+}
+
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* 対象行 + 前後 5 行（最大 11 行）がスクロールなしで収まる高さ */
+  max-height: 300px;
+  overflow: auto;
+}
+
+.line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.line[data-target="true"] {
+  background: var(--accent-dim);
+}
+
+.ln {
+  flex-shrink: 0;
+  width: 34px;
+  text-align: right;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.code {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1.6em;
+}
+.line[data-target="true"] .code {
+  color: var(--text);
+}
+
+.empty {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.fallbackCtx {
+  margin-top: 6px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

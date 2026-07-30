@@ -815,3 +815,74 @@ test.describe('Phase 2: コメントのライフサイクル（resolved / フィ
     await expect(newItem.locator('[data-testid="c-round"]')).toHaveText('R1');
   });
 });
+
+test.describe('レビューのコピー（解決済みの除外）', () => {
+  async function addCommentOnMermaid(page: Page, text: string) {
+    const mermaidBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="mermaid"]')
+      .first();
+    await mermaidBlock.hover();
+    await mermaidBlock.locator('[data-testid="comment-btn"]').click();
+    await page.locator('#comment-ta').fill(text);
+    await page.locator('#btn-submit').click();
+  }
+
+  test('解決済みコメントはコピーされる JSON に含まれない', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    await addComment(page, 'まだ直っていない');
+    await addCommentOnMermaid(page, 'もう直した');
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(2);
+
+    // 「もう直した」だけを解決済みにする
+    await page
+      .locator('[data-testid="comment-item"]')
+      .filter({ hasText: 'もう直した' })
+      .locator('[data-testid="c-resolve"]')
+      .click();
+    await expect(
+      page.locator('[data-testid="comment-item"][data-resolved="true"]'),
+    ).toHaveCount(1);
+
+    await page.locator('#btn-copy').click();
+    await expect(page.locator('#toast')).toContainText(
+      'レビューをコピーしました',
+      { timeout: 3000 },
+    );
+
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    const payload = JSON.parse(copied);
+    expect(payload.comment_count).toBe(1);
+    expect(payload.comments).toHaveLength(1);
+    expect(payload.comments[0].id).toBe(1);
+    expect(payload.comments[0].comment).toBe('まだ直っていない');
+    expect(copied).not.toContain('もう直した');
+  });
+
+  test('全件解決済みならコピーせず通知トーストを出す', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.evaluate(() => navigator.clipboard.writeText('sentinel'));
+
+    await addComment(page, '直った指摘');
+    await page.locator('[data-testid="c-resolve"]').first().click();
+    await expect(
+      page.locator('[data-testid="comment-item"][data-resolved="true"]'),
+    ).toHaveCount(1);
+
+    await page.locator('#btn-copy').click();
+    await expect(page.locator('#toast')).toContainText(
+      '未解決のコメントがありません',
+      { timeout: 3000 },
+    );
+
+    // クリップボードは書き換えられていない
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toBe('sentinel');
+  });
+});

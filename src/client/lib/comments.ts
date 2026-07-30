@@ -48,3 +48,42 @@ export function matchesCommentFilter(
   if (filter === 'open') return !c.resolved;
   return c.resolved === true;
 }
+
+export interface ReviewPayloadComment {
+  id: number;
+  line_start: number;
+  line_end: number;
+  block_type: string;
+  context: Comment['context'];
+  comment: string;
+}
+
+export interface ReviewPayload {
+  date: string;
+  file: string;
+  comment_count: number;
+  comments: ReviewPayloadComment[];
+}
+
+// 「レビューをコピー」でクリップボードへ渡す JSON を組み立てる。
+// 解決済みコメントは受け手（レビュイー・AI）にとってノイズなので除外し、
+// 連番 id は残った未解決コメントだけで 1 から振り直す。
+export function buildReviewPayload(
+  comments: Comment[],
+  activeFile: string | null,
+): ReviewPayload {
+  const open = comments.filter((c) => !c.resolved);
+  return {
+    date: new Date().toLocaleDateString('ja-JP'),
+    file: activeFile ? (activeFile.split('/').pop() ?? '—') : '—',
+    comment_count: open.length,
+    comments: open.map((c, i) => ({
+      id: i + 1,
+      line_start: c.lineStart,
+      line_end: c.lineEnd,
+      block_type: c.block_type || 'unknown',
+      context: c.context,
+      comment: c.text,
+    })),
+  };
+}

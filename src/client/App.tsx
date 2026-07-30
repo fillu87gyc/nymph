@@ -30,7 +30,12 @@ import { useFiles } from './hooks/useFiles.ts';
 import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
 import { useTree } from './hooks/useTree.ts';
-import { ctxDisplay, isCommentsKey, isDiffContext } from './lib/comments.ts';
+import {
+  buildReviewPayload,
+  ctxDisplay,
+  isCommentsKey,
+  isDiffContext,
+} from './lib/comments.ts';
 import {
   contentDragFactor,
   loadContentWidth,
@@ -513,25 +518,17 @@ export function App() {
     setCommentModalOpen(true);
   }
 
-  // Copy review
+  // Copy review（解決済みコメントは含めない）
   function copyReview() {
     if (!comments.length) {
       toast('コメントがありません');
       return;
     }
-    const payload = {
-      date: new Date().toLocaleDateString('ja-JP'),
-      file: activeFile ? activeFile.split('/').pop() : '—',
-      comment_count: comments.length,
-      comments: comments.map((c, i) => ({
-        id: i + 1,
-        line_start: c.lineStart,
-        line_end: c.lineEnd,
-        block_type: c.block_type || 'unknown',
-        context: c.context,
-        comment: c.text,
-      })),
-    };
+    const payload = buildReviewPayload(comments, activeFile);
+    if (!payload.comment_count) {
+      toast('未解決のコメントがありません');
+      return;
+    }
     const out = JSON.stringify(payload, null, 2);
     navigator.clipboard
       .writeText(out)

@@ -366,6 +366,57 @@ body {
   font-style: italic;
 }
 
+/* ── Mermaid ラベルへの本文タイポグラフィ漏れ防止 ── */
+/* mermaid の HTML ラベルは <foreignObject> の中に
+   <div><span class="nodeLabel"><p>テキスト</p></span></div> を生成する。
+   この <p>/<li>/<code> 等は #content 配下にあるため、上の本文用ルール
+   （#content p { font-family: var(--content-font) … } など）が当たってしまい、
+   mermaid が config.fontFamily で意図したフォントを上書きしてしまう。
+
+   これが起きると、
+     - ノード枠の寸法（mermaid が計測して foreignObject に焼き込む固定値）と
+       実際に描画される文字のフォントが食い違い、
+     - 拡大モーダルは #content の外に SVG を複製するため本文ルールが外れて
+       フォントだけ切り替わり、
+     - 設定で本文フォントを変えると描画済み図のラベルだけ再フローする、
+   といった経路でテキストが枠からはみ出す・切れる。
+
+   ラベル内は mermaid 自身が SVG 内 <style> で与えるタイポグラフィを継承させ、
+   計測時と描画時（インライン表示・拡大モーダルの双方）で常に一致させる。 */
+/* 対象は「#content 配下の本文ルールが当たる要素」だけに絞る。span 等まで
+   inherit で潰すと mermaid 自身のラベル装飾（クラス図タイトルの太字など）を
+   巻き添えにするため含めない。 */
+#content .mermaid p,
+#content .mermaid ul,
+#content .mermaid ol,
+#content .mermaid li,
+#content .mermaid a,
+#content .mermaid code,
+#content .mermaid blockquote {
+  font-family: inherit;
+  font-size: inherit;
+  font-style: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+#content .mermaid ul,
+#content .mermaid ol {
+  padding-left: 0;
+}
+#content .mermaid li {
+  margin-bottom: 0;
+}
+#content .mermaid code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+#content .mermaid blockquote {
+  border-left: none;
+  padding-left: 0;
+  margin-left: 0;
+}
+
 /* ── CSS Custom Highlight API（選択ハイライト・コメントアンカー） ── */
 ::highlight(comment-anchor) {
   background-color: rgba(var(--accent-rgb), 0.14);

@@ -220,11 +220,21 @@ body {
 
 /* ── Markdown body（#content 配下に marked が注入する HTML の体裁） ── */
 /* 幅・中央寄せは親の .contentGrid（App.module.css）が担う。
-   #content 自体は grid 内の本文カラムを占有する。 */
+   #content 自体は grid 内の本文カラムを占有する。grid-row を明示するのは
+   同じセルにリサイズハンドル（ContentResizer）を重ねるため — 省略すると
+   自動配置がハンドルの占有セルを避けて #content が次の行へ落ちてしまう。 */
 #content {
   grid-column: 2;
+  grid-row: 1;
   padding: 48px 64px 80px;
 }
+
+/* 見出しの上下マージン。
+   見出しは 1 ブロック（.block, margin-bottom: 1.35em）として描画されるため、
+   何も指定しないと本文段落と同じ間隔しか空かず、章の切れ目が読み取れない。
+   見出し自身の font-size に引きずられないよう rem（= html の 14px）で指定し、
+   上を厚く・下を薄くして見出しが直後の本文に結び付いて見えるようにする。
+   隣接ブロックの margin-bottom(1.35em) とは相殺されて大きい方が残る。 */
 #content h1 {
   font-family: var(--content-heading-font);
   font-size: 2em;
@@ -233,20 +243,24 @@ body {
   color: var(--text);
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.4em;
-  margin-bottom: 0.1em;
+  margin-top: 2.6rem;
+  margin-bottom: 1.5rem;
 }
 #content h2 {
   font-family: var(--content-heading-font);
   font-size: 1.45em;
   font-weight: 700;
   color: var(--text);
-  margin-top: 0.3em;
+  margin-top: 2.3rem;
+  margin-bottom: 1.6rem;
 }
 #content h3 {
   font-family: var(--content-font);
   font-size: 1.15em;
   font-weight: 500;
   color: var(--text);
+  margin-top: 2rem;
+  margin-bottom: 1.4rem;
 }
 #content h4,
 #content h5,
@@ -257,6 +271,12 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+  margin-top: 1.8rem;
+  margin-bottom: 1.4rem;
+}
+/* 文書先頭の見出しは #content の padding-top(48px) だけで足りる。 */
+#content > [data-block="true"]:first-child :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 0;
 }
 #content p {
   font-family: var(--content-font);

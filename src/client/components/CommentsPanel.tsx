@@ -72,6 +72,8 @@ export function CommentsPanel({
     rect: DOMRect;
   } | null>(null);
 
+  const [resizing, setResizing] = useState(false);
+
   const closeSnapshot = useCallback(() => setSnapshotTarget(null), []);
 
   // パネルを閉じたときとコメントが消えたときは吹き出しも閉じる
@@ -85,6 +87,7 @@ export function CommentsPanel({
   const startDrag = useCallback((e: React.MouseEvent) => {
     const startY = e.clientY;
     const startH = panelRef.current?.offsetHeight ?? PANEL_DEFAULT_H;
+    setResizing(true);
 
     function onDrag(ev: MouseEvent) {
       const maxH = Math.floor(window.innerHeight * 0.8);
@@ -97,6 +100,7 @@ export function CommentsPanel({
     function stopDrag() {
       document.removeEventListener('mousemove', onDrag);
       document.removeEventListener('mouseup', stopDrag);
+      setResizing(false);
       if (panelRef.current) {
         localStorage.setItem(
           'nymph-panel-height',
@@ -109,7 +113,15 @@ export function CommentsPanel({
     e.preventDefault();
   }, []);
 
-  const panelStyle = open ? { height: `${height}px` } : { height: '0' };
+  // ドラッグ中は open/close 用の height トランジション(0.2s)を止める。
+  // 有効なままだとドラッグ直後の offsetHeight がアニメーション途中の値になり、
+  // ドラッグ操作が反映されていないように見える（E2E でも実際に不安定だった）。
+  const panelStyle = open
+    ? {
+        height: `${height}px`,
+        transition: resizing ? 'none' : undefined,
+      }
+    : { height: '0' };
   const visibleComments = comments.filter((c) =>
     matchesCommentFilter(c, filter, orphanedIds?.has(c.id) ?? false),
   );

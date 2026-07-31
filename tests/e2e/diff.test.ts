@@ -487,7 +487,7 @@ test.describe('差分への指摘（diff コメント）', () => {
     await expect(page.locator('[data-testid="diff-view"]')).toBeVisible();
   });
 
-  test('checkpoint を取り直して差分が消えたコメントには「削除済み」バッジが付く', async ({
+  test('checkpoint を取り直して差分が消えたコメントには「削除済」バッジが付く', async ({
     page,
     fixturePath,
   }) => {
@@ -505,7 +505,9 @@ test.describe('差分への指摘（diff コメント）', () => {
     );
 
     const item = page.locator('[data-testid="comment-item"]').first();
-    await expect(item.locator('[data-testid="c-deleted"]')).toBeVisible({
+    await expect(
+      item.locator('[data-testid="c-status"][data-status="deleted"]'),
+    ).toBeVisible({
       timeout: 5000,
     });
     // hunk スナップショットがあるのでコメント自体は表示され続ける

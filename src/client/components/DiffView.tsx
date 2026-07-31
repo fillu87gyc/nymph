@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { renderCharDiff } from '../lib/charDiff.tsx';
 import { isDiffContext } from '../lib/comments.ts';
 import { buildSplitRows, type SplitRow } from '../lib/diffRows.ts';
+import { diffSideLines } from '../lib/snapshot.ts';
 import type { Comment, DiffContext, DiffLine, DiffResponse } from '../types.ts';
 import styles from './DiffView.module.css';
 
@@ -49,15 +50,13 @@ export function DiffView({
   const rows = useMemo(() => buildSplitRows(diffData?.lines ?? []), [diffData]);
 
   // 各サイドのファイル内容（行順）。hunk スナップショットの切り出しに使う。
-  const { oldSeq, newSeq } = useMemo(() => {
-    const oldSeq: string[] = [];
-    const newSeq: string[] = [];
-    for (const l of diffData?.lines ?? []) {
-      if (l.o != null) oldSeq[l.o - 1] = l.content;
-      if (l.n != null) newSeq[l.n - 1] = l.content;
-    }
-    return { oldSeq, newSeq };
-  }, [diffData]);
+  const { oldSeq, newSeq } = useMemo(
+    () => ({
+      oldSeq: diffSideLines(diffData?.lines ?? [], 'old'),
+      newSeq: diffSideLines(diffData?.lines ?? [], 'new'),
+    }),
+    [diffData],
+  );
 
   // 「差分への指摘」コメントをセル位置（side + 行番号）で引けるようにする。
   // 行内容まで一致するものだけ紐づけ、古い diff 由来のコメントは無視する。

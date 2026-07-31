@@ -91,21 +91,48 @@ describe('CommentsPanel', () => {
     expect(screen.getByText('second')).toBeInTheDocument();
   });
 
-  test('孤立コメントに「削除済み」バッジが表示される', () => {
+  test('孤立コメントに「削除済」ステータスバッジが表示される', () => {
     const c = makeComment({ id: 5, text: 'orphaned comment' });
     render(<Wrapper comments={[c]} orphanedIds={new Set([5])} />);
-    expect(screen.getByText('削除済み')).toBeInTheDocument();
+    const badge = screen.getByTestId('c-status');
+    expect(badge).toHaveTextContent('削除済');
+    expect(badge).toHaveAttribute('data-status', 'deleted');
   });
 
-  test('孤立していないコメントには「削除済み」バッジが表示されない', () => {
+  test('孤立していないコメントにはステータスバッジが表示されない（未解決）', () => {
     const c = makeComment({ id: 5, text: 'normal comment' });
     render(<Wrapper comments={[c]} orphanedIds={new Set()} />);
-    expect(screen.queryByText('削除済み')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('c-status')).not.toBeInTheDocument();
   });
 
-  test('orphanedIds 未指定のとき「削除済み」バッジが表示されない', () => {
+  test('orphanedIds 未指定のときステータスバッジが表示されない', () => {
     render(<Wrapper comments={[makeComment()]} />);
-    expect(screen.queryByText('削除済み')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('c-status')).not.toBeInTheDocument();
+  });
+
+  test('解決済みコメントは孤立していても「解決済」バッジになる', () => {
+    const c = makeComment({ id: 5, resolved: true });
+    render(<Wrapper comments={[c]} orphanedIds={new Set([5])} />);
+    const badge = screen.getByTestId('c-status');
+    expect(badge).toHaveTextContent('解決済');
+    expect(badge).toHaveAttribute('data-status', 'resolved');
+  });
+
+  test('アイテムに data-status が付く', () => {
+    const { container } = render(
+      <Wrapper
+        comments={[
+          makeComment({ id: 1 }),
+          makeComment({ id: 2 }),
+          makeComment({ id: 3, resolved: true }),
+        ]}
+        orphanedIds={new Set([2, 3])}
+      />,
+    );
+    const statuses = Array.from(
+      container.querySelectorAll('[data-testid="comment-item"]'),
+    ).map((el) => el.getAttribute('data-status'));
+    expect(statuses).toEqual(['open', 'deleted', 'resolved']);
   });
 
   test('孤立コメントのアイテムに data-orphaned="true" が付く', () => {
@@ -169,7 +196,7 @@ describe('CommentsPanel', () => {
     });
   });
 
-  describe('フィルタ（All / Open / Resolved）', () => {
+  describe('フィルタ（すべて / 未解決 / 削除済 / 解決済）', () => {
     function comments() {
       return [
         makeComment({ id: 1, text: 'open one' }),
@@ -210,6 +237,144 @@ describe('CommentsPanel', () => {
       await userEvent.click(screen.getByTestId('filter-open'));
       expect(screen.queryByTestId('comment-item')).not.toBeInTheDocument();
       expect(screen.getByTestId('no-comments')).toBeInTheDocument();
+    });
+
+    test('削除済を選ぶと未解決かつ元の文章が消えたものだけ表示される', async () => {
+      render(
+        <Wrapper
+          comments={[
+            makeComment({ id: 1, text: 'open one' }),
+            makeComment({ id: 2, text: 'deleted one' }),
+            makeComment({ id: 3, text: 'resolved and gone', resolved: true }),
+          ]}
+          orphanedIds={new Set([2, 3])}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('filter-deleted'));
+      expect(screen.getAllByTestId('comment-item')).toHaveLength(1);
+      expect(screen.getByText('deleted one')).toBeInTheDocument();
+    });
+
+    test('未解決フィルタからは削除済が外れる', async () => {
+      render(
+        <Wrapper
+          comments={[
+            makeComment({ id: 1, text: 'open one' }),
+            makeComment({ id: 2, text: 'deleted one' }),
+          ]}
+          orphanedIds={new Set([2])}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('filter-open'));
+      expect(screen.getAllByTestId('comment-item')).toHaveLength(1);
+      expect(screen.getByText('open one')).toBeInTheDocument();
+    });
+
+    test('解決済フィルタには元の文章が消えた解決済みも含まれる', async () => {
+      render(
+        <Wrapper
+          comments={[makeComment({ id: 3, text: 'gone', resolved: true })]}
+          orphanedIds={new Set([3])}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('filter-resolved'));
+      expect(screen.getAllByTestId('comment-item')).toHaveLength(1);
+    });
+  });
+
+  describe('もとの文章スナップショットの吹き出し', () => {
+    const SNAPSHOT = {
+      startLine: 3,
+      before: ['before 1', 'before 2'],
+      target: ['消えた本文'],
+      after: ['after 1'],
+    };
+
+    test('削除済バッジのクリックで吹き出しが開き、前後の行が行番号付きで出る', async () => {
+      render(
+        <Wrapper
+          comments={[makeComment({ id: 5, snapshot: SNAPSHOT })]}
+          orphanedIds={new Set([5])}
+        />,
+      );
+      expect(screen.queryByTestId('snapshot-balloon')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByTestId('c-status'));
+      const balloon = within(screen.getByTestId('snapshot-balloon'));
+      expect(balloon.getByText('消えた本文')).toBeInTheDocument();
+      expect(balloon.getByText('before 1')).toBeInTheDocument();
+      expect(balloon.getByText('after 1')).toBeInTheDocument();
+      // 行番号は startLine から before の行数を引いた位置から始まる
+      expect(balloon.getByText('1')).toBeInTheDocument();
+      expect(balloon.getByText('4')).toBeInTheDocument();
+      // 対象行だけがハイライト対象
+      expect(balloon.getAllByTestId('snapshot-line-target')).toHaveLength(1);
+    });
+
+    test('解決済コメントでも吹き出しを開ける', async () => {
+      render(
+        <Wrapper
+          comments={[
+            makeComment({ id: 6, resolved: true, snapshot: SNAPSHOT }),
+          ]}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('c-status'));
+      expect(screen.getByTestId('snapshot-balloon')).toBeInTheDocument();
+    });
+
+    test('もう一度バッジを押すと閉じる', async () => {
+      render(
+        <Wrapper
+          comments={[makeComment({ id: 5, snapshot: SNAPSHOT })]}
+          orphanedIds={new Set([5])}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('c-status'));
+      expect(screen.getByTestId('snapshot-balloon')).toBeInTheDocument();
+      await userEvent.click(screen.getByTestId('c-status'));
+      expect(screen.queryByTestId('snapshot-balloon')).not.toBeInTheDocument();
+    });
+
+    test('✕ ボタンで閉じる', async () => {
+      render(
+        <Wrapper
+          comments={[makeComment({ id: 5, snapshot: SNAPSHOT })]}
+          orphanedIds={new Set([5])}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('c-status'));
+      await userEvent.click(screen.getByTestId('snapshot-close'));
+      expect(screen.queryByTestId('snapshot-balloon')).not.toBeInTheDocument();
+    });
+
+    test('スナップショットが無い既存コメントでは代替メッセージを出す', async () => {
+      render(
+        <Wrapper
+          comments={[makeComment({ id: 5, context: 'Hello world' })]}
+          orphanedIds={new Set([5])}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('c-status'));
+      expect(screen.getByTestId('snapshot-empty')).toBeInTheDocument();
+      expect(screen.queryByTestId('snapshot-lines')).not.toBeInTheDocument();
+    });
+
+    test('バッジのクリックではコメントへのスクロールは起きない', async () => {
+      const onScrollToComment = vi.fn();
+      render(
+        <CommentsPanel
+          open={true}
+          comments={[makeComment({ id: 5, snapshot: SNAPSHOT })]}
+          orphanedIds={new Set([5])}
+          onScrollToComment={onScrollToComment}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onToggleResolved={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      await userEvent.click(screen.getByTestId('c-status'));
+      expect(onScrollToComment).not.toHaveBeenCalled();
     });
   });
 

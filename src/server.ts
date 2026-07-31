@@ -850,20 +850,40 @@ async function handleEditOp(req: Request): Promise<Response> {
   }
 }
 
+/**
+ * 編集による行番号のずれをコメントへ反映する（破壊的更新）。
+ *
+ * 編集範囲より後ろにあるコメントは全体を delta 行ずらし、編集範囲をまたぐ
+ * コメントは終端だけを伸縮させる。もとの文章スナップショットの行番号も
+ * lineStart と一緒にずらす（ずらさないと、コメントの行表示と吹き出しの
+ * 行番号が食い違って見えるため）。
+ */
+export function remapCommentLines(
+  comments: Comment[],
+  editLine: number,
+  oldLineCount: number,
+  delta: number,
+): void {
+  const editEnd = editLine + oldLineCount - 1;
+  for (const c of comments) {
+    if (c.lineStart > editEnd) {
+      c.lineStart += delta;
+      c.lineEnd += delta;
+      if (c.snapshot) {
+        c.snapshot.startLine = Math.max(1, c.snapshot.startLine + delta);
+      }
+    } else if (c.lineEnd > editEnd) {
+      c.lineEnd += delta;
+    }
+  }
+}
+
 function remapComments(editLine: number, oldLineCount: number, delta: number) {
   if (!state.activeFile) return;
   try {
     const comments = readComments(state.activeFile);
     if (comments.length === 0) return;
-    const editEnd = editLine + oldLineCount - 1;
-    for (const c of comments) {
-      if (c.lineStart > editEnd) {
-        c.lineStart += delta;
-        c.lineEnd += delta;
-      } else if (c.lineEnd > editEnd) {
-        c.lineEnd += delta;
-      }
-    }
+    remapCommentLines(comments, editLine, oldLineCount, delta);
     writeComments(state.activeFile, comments);
   } catch {
     /* ignore */

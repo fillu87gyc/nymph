@@ -1,11 +1,14 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  COMMENT_STATUS_LABEL,
+  commentStatus,
   ctxDisplay,
   isDiffContext,
   matchesCommentFilter,
 } from '../lib/comments.ts';
-import type { Comment, CommentFilter } from '../types.ts';
+import type { Comment, CommentFilter, CommentStatus } from '../types.ts';
 import styles from './CommentsPanel.module.css';
+import { SnapshotBalloon } from './SnapshotBalloon.tsx';
 
 // 差分への指摘は新旧どちら側の行かが分かる行表示にする（例: 新L7 / 旧L5）
 function lineRef(c: Comment): string {
@@ -23,9 +26,16 @@ const PANEL_MIN_H = 80;
 
 const FILTERS: { id: CommentFilter; label: string }[] = [
   { id: 'all', label: 'すべて' },
-  { id: 'open', label: '未解決' },
-  { id: 'resolved', label: '解決済み' },
+  { id: 'open', label: COMMENT_STATUS_LABEL.open },
+  { id: 'deleted', label: COMMENT_STATUS_LABEL.deleted },
+  { id: 'resolved', label: COMMENT_STATUS_LABEL.resolved },
 ];
+
+// もとの文章スナップショットを吹き出しで見せるステータス。未解決のコメントは
+// 対象の文章が本文にそのまま残っているため出さない。
+function hasSnapshotBalloon(status: CommentStatus): boolean {
+  return status === 'deleted' || status === 'resolved';
+}
 
 interface CommentsPanelProps {
   open: boolean;
@@ -56,6 +66,21 @@ export function CommentsPanel({
   );
   // フィルタ選択はセッション内のみ（localStorage に永続化しない）。
   const [filter, setFilter] = useState<CommentFilter>('all');
+  // 「もとの文章」吹き出しを開いているコメントとバッジ位置。
+  const [snapshotTarget, setSnapshotTarget] = useState<{
+    id: Comment['id'];
+    rect: DOMRect;
+  } | null>(null);
+
+  const closeSnapshot = useCallback(() => setSnapshotTarget(null), []);
+
+  // パネルを閉じたときとコメントが消えたときは吹き出しも閉じる
+  useEffect(() => {
+    if (!snapshotTarget) return;
+    if (!open || !comments.some((c) => c.id === snapshotTarget.id)) {
+      setSnapshotTarget(null);
+    }
+  }, [open, comments, snapshotTarget]);
 
   const startDrag = useCallback((e: React.MouseEvent) => {
     const startY = e.clientY;
@@ -86,8 +111,11 @@ export function CommentsPanel({
 
   const panelStyle = open ? { height: `${height}px` } : { height: '0' };
   const visibleComments = comments.filter((c) =>
-    matchesCommentFilter(c, filter),
+    matchesCommentFilter(c, filter, orphanedIds?.has(c.id) ?? false),
   );
+  const snapshotComment = snapshotTarget
+    ? (comments.find((c) => c.id === snapshotTarget.id) ?? null)
+    : null;
 
   return (
     <div
@@ -151,6 +179,7 @@ export function CommentsPanel({
             const range = lineRef(c);
             const isOrphaned = orphanedIds?.has(c.id) ?? false;
             const isResolved = c.resolved === true;
+            const status = commentStatus(c, isOrphaned);
             return (
               <li
                 key={c.id}
@@ -158,6 +187,7 @@ export function CommentsPanel({
                 data-testid="comment-item"
                 data-orphaned={String(isOrphaned)}
                 data-resolved={String(isResolved)}
+                data-status={status}
                 onClick={() => onScrollToComment(c)}
               >
                 <span className={styles.lineRef}>{range}</span>
@@ -166,13 +196,24 @@ export function CommentsPanel({
                     {c.text}
                   </div>
                   <div className={styles.ctx} data-testid="c-ctx">
-                    {isOrphaned && (
-                      <span
-                        className={styles.deletedBadge}
-                        data-testid="c-deleted"
+                    {hasSnapshotBalloon(status) && (
+                      <button
+                        type="button"
+                        className={styles.statusBadge}
+                        data-testid="c-status"
+                        data-status={status}
+                        data-open={String(snapshotTarget?.id === c.id)}
+                        title="もとの文章を表示"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setSnapshotTarget((prev) =>
+                            prev?.id === c.id ? null : { id: c.id, rect },
+                          );
+                        }}
                       >
-                        削除済み
-                      </span>
+                        {COMMENT_STATUS_LABEL[status]}
+                      </button>
                     )}
                     {c.block_type === 'diff' && (
                       <span
@@ -234,6 +275,17 @@ export function CommentsPanel({
           })
         )}
       </ul>
+      {snapshotTarget && snapshotComment && (
+        <SnapshotBalloon
+          comment={snapshotComment}
+          status={commentStatus(
+            snapshotComment,
+            orphanedIds?.has(snapshotComment.id) ?? false,
+          )}
+          anchorRect={snapshotTarget.rect}
+          onClose={closeSnapshot}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,12 @@ import useSWR from 'swr';
 import { generateCommentId } from '../lib/commentId.ts';
 import { commentsKey } from '../lib/comments.ts';
 import { fetcher } from '../lib/fetcher.ts';
-import type { Comment, CommentsResponse, PendingComment } from '../types.ts';
+import type {
+  Comment,
+  CommentSnapshot,
+  CommentsResponse,
+  PendingComment,
+} from '../types.ts';
 
 const EMPTY_RESPONSE: CommentsResponse = { round: 0, comments: [] };
 
@@ -42,7 +47,11 @@ export function useComments(activeFile: string | null = null) {
   }
 
   const addComment = useCallback(
-    async (pending: PendingComment, text: string) => {
+    async (
+      pending: PendingComment,
+      text: string,
+      snapshot: CommentSnapshot | null = null,
+    ) => {
       // 関数形式で渡すことで SWR がキャッシュ現在値を渡してくれ、stale closure を回避できる
       const updated = await mutate(
         (current: CommentsResponse = EMPTY_RESPONSE) => {
@@ -59,6 +68,7 @@ export function useComments(activeFile: string | null = null) {
             text,
             createdAt: new Date().toISOString(),
             round: current.round,
+            ...(snapshot && { snapshot }),
           };
           const nextComments = [...current.comments, c].sort(
             (a, b) => a.lineStart - b.lineStart,

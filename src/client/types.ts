@@ -15,6 +15,20 @@ export interface Comment {
   // 作成時点のレビューラウンド（0 なら省略可）。チェックポイント設定のたびに
   // 進む「ラウンド境界」の記録。既存コメントは無しのまま有効。
   round?: number;
+  // 作成時点の「もとの文章」（対象行 + 前後 5 行）。対象が削除・解決された
+  // 後でも何に対する指摘だったかを辿れるようにする。この機能より前に作られた
+  // コメントには無いため optional。
+  snapshot?: CommentSnapshot;
+}
+
+// コメント対象の文章を作成時点で切り出したスナップショット。
+// before / after はそれぞれ最大 SNAPSHOT_CONTEXT_LINES 行（ファイル端では
+// それ未満）。startLine は target 先頭行の行番号（1 始まり）。
+export interface CommentSnapshot {
+  startLine: number;
+  before: string[];
+  target: string[];
+  after: string[];
 }
 
 export interface TableContext {
@@ -97,7 +111,12 @@ export interface CommentsResponse {
   comments: Comment[];
 }
 
-export type CommentFilter = 'all' | 'open' | 'resolved';
+// コメントの状態。未解決のまま対象の文章が消えたものが deleted になり、
+// 解決済みは対象が消えても resolved のまま（src/client/lib/comments.ts の
+// commentStatus が唯一の判定窓口）。
+export type CommentStatus = 'open' | 'deleted' | 'resolved';
+
+export type CommentFilter = 'all' | CommentStatus;
 
 export interface PendingComment {
   lineStart: number;

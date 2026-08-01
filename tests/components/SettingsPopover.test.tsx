@@ -14,6 +14,8 @@ function makeProps(
     onToggleMargin: vi.fn(),
     manualWidth: null,
     onResetWidth: vi.fn(),
+    outlineBadgeMode: 'comments',
+    onChangeOutlineBadgeMode: vi.fn(),
     ...overrides,
   };
 }
@@ -114,5 +116,27 @@ describe('SettingsPopover', () => {
 
     await userEvent.click(reset);
     expect(onResetWidth).toHaveBeenCalledTimes(1);
+  });
+
+  test('アウトラインのバッジは現在値だけ aria-pressed が true', async () => {
+    render(<SettingsPopover {...makeProps({ outlineBadgeMode: 'diff' })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    expect(screen.getByTestId('outline-badge-diff')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByTestId('outline-badge-comments')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  test('アウトラインのバッジをクリックすると onChangeOutlineBadgeMode が呼ばれる', async () => {
+    const onChangeOutlineBadgeMode = vi.fn();
+    render(<SettingsPopover {...makeProps({ onChangeOutlineBadgeMode })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    await userEvent.click(screen.getByTestId('outline-badge-both'));
+    expect(onChangeOutlineBadgeMode).toHaveBeenCalledWith('both');
+    expect(screen.getByTestId('settings-menu')).toBeInTheDocument();
   });
 });

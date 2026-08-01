@@ -83,6 +83,37 @@
   color: var(--text-muted);
   border-color: var(--border);
 }
+.badgeModeGroup {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+.badgeModeBtn {
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.badgeModeBtn:last-child {
+  border-right: none;
+}
+.badgeModeBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.badgeModeBtn[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
 .widthHint {
   font-size: 11px;
   line-height: 1.5;

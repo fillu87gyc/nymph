@@ -40,6 +40,8 @@ function makeProps(
     onToggleMargin: vi.fn(),
     manualWidth: null,
     onResetWidth: vi.fn(),
+    outlineBadgeMode: 'comments',
+    onChangeOutlineBadgeMode: vi.fn(),
     ...overrides,
   };
 }

@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MarginCollapse } from '../lib/contentWidth.ts';
 import { CONTENT_FONT_OPTIONS } from '../lib/fonts.ts';
+import type { OutlineBadgeMode } from '../lib/outline.ts';
 import styles from './SettingsPopover.module.css';
+
+const OUTLINE_BADGE_OPTIONS: { id: OutlineBadgeMode; label: string }[] = [
+  { id: 'off', label: '非表示' },
+  { id: 'comments', label: 'コメント数' },
+  { id: 'diff', label: '差分量' },
+  { id: 'both', label: '両方' },
+];
 
 interface SettingsPopoverProps {
   onToggleTheme: () => void;
@@ -12,6 +20,8 @@ interface SettingsPopoverProps {
   /** ドラッグで指定中の本文幅（px）。null ならプリセットに従っている。 */
   manualWidth: number | null;
   onResetWidth: () => void;
+  outlineBadgeMode: OutlineBadgeMode;
+  onChangeOutlineBadgeMode: (mode: OutlineBadgeMode) => void;
 }
 
 // 設定ポップオーバー。テーマ切替 / 本文フォント / 本文幅（左右マージン折り
@@ -28,6 +38,8 @@ export function SettingsPopover({
   onToggleMargin,
   manualWidth,
   onResetWidth,
+  outlineBadgeMode,
+  onChangeOutlineBadgeMode,
 }: SettingsPopoverProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -96,6 +108,29 @@ export function SettingsPopover({
                 </option>
               ))}
             </select>
+          </div>
+          <div className={styles.section}>
+            <span className={styles.sectionTitle}>アウトラインのバッジ</span>
+            <div
+              className={styles.badgeModeGroup}
+              data-testid="outline-badge-mode"
+            >
+              {OUTLINE_BADGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  className={styles.badgeModeBtn}
+                  data-testid={`outline-badge-${opt.id}`}
+                  aria-pressed={outlineBadgeMode === opt.id}
+                  onClick={() => onChangeOutlineBadgeMode(opt.id)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <span className={styles.widthHint}>
+              見出しの右に表示するバッジを選べます
+            </span>
           </div>
           <div className={styles.section}>
             <span className={styles.sectionTitle}>本文幅</span>

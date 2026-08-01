@@ -130,6 +130,11 @@ test.describe('アウトラインパネル', () => {
     await expect(
       items.nth(1).locator('[data-testid="toc-badge-comments"]'),
     ).toHaveCount(0);
+    // ヘッダーの合計はツールバーのコメント件数（ファイル全体）と
+    // スコープが違うので、見出し配下の合計だと分かる文言にしている
+    await expect(page.locator('[data-testid="toc-header-meta"]')).toHaveText(
+      '見出しの未解決 1',
+    );
   });
 
   test('設定でバッジを非表示にすると見出しにも合計にもバッジが出ない', async ({
@@ -148,7 +153,7 @@ test.describe('アウトラインパネル', () => {
     );
   });
 
-  test('diff モードのバッジはチェックポイントからの増減を見出しごとに表示する', async ({
+  test('バッジ設定が「差分量」ならチェックポイントからの増減を見出しごとに表示する', async ({
     page,
     fixturePath,
   }) => {
@@ -167,12 +172,33 @@ test.describe('アウトラインパネル', () => {
     ).toHaveCount(0);
   });
 
-  test('diff モードでもチェックポイント未設定なら comments 表示にフォールバックする', async ({
+  test('チェックポイント未設定なら「差分量」は選べない', async ({ page }) => {
+    await openSettingsMenu(page);
+    await expect(
+      page.locator('[data-testid="outline-badge-diff"]'),
+    ).toBeDisabled();
+    await expect(
+      page.locator('[data-testid="outline-badge-both"]'),
+    ).toBeEnabled();
+  });
+
+  // 「差分量」を選んだ後に、チェックポイントの無いファイルへ切り替わった
+  // 状況の再現。バッジ設定はファイル横断（localStorage）なので起こりうる。
+  test('チェックポイントが消えると comments 表示にフォールバックし理由を出す', async ({
     page,
+    fixturePath,
+    reviewCheckpointPath,
   }) => {
     await addTableComment(page, 'テーブルへの指摘');
+    await checkpointThenEditSection(page, fixturePath);
     await openSettingsMenu(page);
     await page.locator('[data-testid="outline-badge-diff"]').click();
+
+    rmSync(reviewCheckpointPath, { force: true });
+    await page.reload();
+    await expect(
+      page.locator('#content [data-testid="md-block"]').first(),
+    ).toBeVisible({ timeout: 5000 });
 
     await page.locator('[data-testid="toc-toggle"]').click();
     await expect(
@@ -181,6 +207,10 @@ test.describe('アウトラインパネル', () => {
         .nth(0)
         .locator('[data-testid="toc-badge-comments"]'),
     ).toHaveText('1');
+    await expect(page.locator('[data-testid="toc-badge-diff"]')).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="toc-badge-fallback"]'),
+    ).toBeVisible();
   });
 
   test('バッジ設定は再読み込み後も保持される', async ({ page }) => {

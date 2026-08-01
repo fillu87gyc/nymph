@@ -83,6 +83,16 @@
   color: var(--text-muted);
   border-color: var(--border);
 }
+/* fieldset のブラウザ既定枠を消して、他の .section と同じ見た目に揃える */
+.fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.fieldset > legend {
+  padding: 0;
+}
 .badgeModeGroup {
   display: inline-flex;
   border: 1px solid var(--border);
@@ -105,9 +115,13 @@
 .badgeModeBtn:last-child {
   border-right: none;
 }
-.badgeModeBtn:hover {
+.badgeModeBtn:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text);
+}
+.badgeModeBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .badgeModeBtn[aria-pressed="true"] {
   background: var(--accent);

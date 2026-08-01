@@ -73,14 +73,24 @@ export function computeOutlineStats(
   for (const item of items) stats.set(item.key, emptyStats());
   if (items.length === 0) return stats;
 
-  // items は文書順（toc.ts の抽出順）で lineStart 昇順。
+  // items は文書順（toc.ts の抽出順）で lineStart 昇順なので、
+  // 「lineStart <= line を満たす最後の見出し」を二分探索で引ける。
+  // コメント数・変更行数はどちらも文書サイズに比例して増えるため、
+  // 見出しごとの線形走査（O(対象数 × 見出し数)）は避ける。
   function sectionKeyFor(line: number): string | null {
-    let key: string | null = null;
-    for (const item of items) {
-      if (item.lineStart > line) break;
-      key = item.key;
+    let lo = 0;
+    let hi = items.length - 1;
+    let found = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (items[mid].lineStart <= line) {
+        found = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
     }
-    return key;
+    return found === -1 ? null : items[found].key;
   }
 
   for (const c of comments) {

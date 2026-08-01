@@ -991,7 +991,7 @@ export function App() {
             onSelect={scrollToLine}
             stats={outlineStats}
             badgeMode={outlineBadgeMode}
-            hasCheckpoint={Boolean(diffData?.hasCheckpoint)}
+            hasCheckpoint={checkpointSet}
           />
         )}
       </div>

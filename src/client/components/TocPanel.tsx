@@ -28,6 +28,14 @@ export function TocPanel({
   const showComments = effectiveMode === 'comments' || effectiveMode === 'both';
   const showDiff = effectiveMode === 'diff' || effectiveMode === 'both';
 
+  // 「差分量」を選んでいてもチェックポイントが無ければコメント表示に落ちる。
+  // 設定が効いていないように見えるので、その旨をヘッダーに出す。
+  const fellBackToComments = effectiveMode !== badgeMode;
+
+  // 見出しバッジの合計。computeOutlineStats と同じスコープ（＝どの見出しにも
+  // 属さない先頭コメントと差分コメントは含まない）なので、ツールバーの
+  // 「コメント N」バッジ（ファイル全体の未解決数）とは一致しないことがある。
+  // 数字の出どころを取り違えないようラベルとツールチップで明示する。
   let totalOpen = 0;
   if (stats && showComments) {
     for (const s of stats.values()) totalOpen += s.openComments;
@@ -38,11 +46,20 @@ export function TocPanel({
       <div className={styles.header}>
         <span className={styles.headerTitle}>アウトライン</span>
         {totalOpen > 0 && (
-          <span className={styles.headerMeta} data-testid="toc-header-meta">
-            未解決 {totalOpen}
+          <span
+            className={styles.headerMeta}
+            data-testid="toc-header-meta"
+            title="見出し配下の未解決コメントの合計です。見出しより前のコメントと差分へのコメントは含みません。"
+          >
+            見出しの未解決 {totalOpen}
           </span>
         )}
       </div>
+      {fellBackToComments && (
+        <div className={styles.headerNote} data-testid="toc-badge-fallback">
+          チェックポイント未設定のためコメント数を表示中
+        </div>
+      )}
       {items.length === 0 ? (
         <div className={styles.empty}>見出しがありません</div>
       ) : (

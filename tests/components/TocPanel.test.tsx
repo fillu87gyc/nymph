@@ -71,7 +71,9 @@ describe('TocPanel', () => {
     );
     expect(screen.getByTestId('toc-badge-comments')).toHaveTextContent('3');
     expect(screen.queryByTestId('toc-badge-diff')).not.toBeInTheDocument();
-    expect(screen.getByTestId('toc-header-meta')).toHaveTextContent('未解決 3');
+    expect(screen.getByTestId('toc-header-meta')).toHaveTextContent(
+      '見出しの未解決 3',
+    );
   });
 
   test('コメント0件の見出しにはバッジを出さない', () => {
@@ -145,6 +147,27 @@ describe('TocPanel', () => {
     );
     expect(screen.getByTestId('toc-badge-comments')).toHaveTextContent('2');
     expect(screen.queryByTestId('toc-badge-diff')).not.toBeInTheDocument();
+    // 設定が効いていないように見えないよう、フォールバック中は理由を出す
+    expect(screen.getByTestId('toc-badge-fallback')).toHaveTextContent(
+      'チェックポイント未設定',
+    );
+  });
+
+  test('フォールバックしていないときは注記を出さない', () => {
+    const items = [makeItem()];
+    const stats = new Map<string, OutlineStats>([
+      ['toc-0', { openComments: 2, added: 6, deleted: 4 }],
+    ]);
+    render(
+      <TocPanel
+        items={items}
+        onSelect={vi.fn()}
+        stats={stats}
+        badgeMode="diff"
+        hasCheckpoint
+      />,
+    );
+    expect(screen.queryByTestId('toc-badge-fallback')).not.toBeInTheDocument();
   });
 
   test('both モードでは両方のバッジが同時に出る', () => {

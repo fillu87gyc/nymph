@@ -99,6 +99,34 @@ describe('computeOutlineStats', () => {
     expect(stats.get('toc-2')?.openComments).toBe(1);
   });
 
+  test('見出し行ちょうどのコメントはその見出しに属する', () => {
+    const items = makeItems();
+    const comments = [
+      makeComment({ id: 1, lineStart: 10 }), // Section の見出し行
+      makeComment({ id: 2, lineStart: 9 }), // 直前は Sample 配下
+    ];
+    const stats = computeOutlineStats(items, comments, new Set(), null);
+    expect(stats.get('toc-1')?.openComments).toBe(1);
+    expect(stats.get('toc-0')?.openComments).toBe(1);
+  });
+
+  test('見出しが多くても各コメントが正しいセクションへ入る', () => {
+    const items: TocItem[] = Array.from({ length: 16 }, (_, i) => ({
+      key: `toc-${i}`,
+      level: 2,
+      text: `H${i}`,
+      lineStart: i * 10 + 1,
+    }));
+    // 各セクションの見出し行 +5 行目に1件ずつ
+    const comments = items.map((item, i) =>
+      makeComment({ id: i + 1, lineStart: item.lineStart + 5 }),
+    );
+    const stats = computeOutlineStats(items, comments, new Set(), null);
+    for (const item of items) {
+      expect(stats.get(item.key)?.openComments).toBe(1);
+    }
+  });
+
   test('最初の見出しより前の行は集計対象外', () => {
     const items = [{ key: 'toc-0', level: 1, text: 'Only', lineStart: 5 }];
     const comments = [makeComment({ id: 1, lineStart: 1 })];

@@ -167,6 +167,7 @@ export function Toolbar({
         onResetWidth={onResetWidth}
         outlineBadgeMode={outlineBadgeMode}
         onChangeOutlineBadgeMode={onChangeOutlineBadgeMode}
+        checkpointSet={checkpointSet}
       />
       <OverflowMenu
         onPickDir={onPickDir}

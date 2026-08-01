@@ -26,6 +26,15 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.headerNote {
+  margin: 0 8px 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
 .empty {
   padding: 4px 8px;
   font-size: 12px;

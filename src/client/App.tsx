@@ -50,6 +50,12 @@ import {
 } from './lib/contentWidth.ts';
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
+import {
+  computeOutlineStats,
+  loadOutlineBadgeMode,
+  type OutlineBadgeMode,
+  saveOutlineBadgeMode,
+} from './lib/outline.ts';
 import { buildCommentSnapshot } from './lib/snapshot.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import { extractToc } from './lib/toc.ts';
@@ -76,6 +82,8 @@ export function App() {
   const { mutate } = useSWRConfig();
   const [panelOpen, setPanelOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
+  const [outlineBadgeMode, setOutlineBadgeMode] =
+    useState<OutlineBadgeMode>(loadOutlineBadgeMode);
   const [toastState, setToastState] = useState({ msg: '', v: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [hljsTheme, setHljsTheme] = useState<'dark' | 'light'>(() => {
@@ -214,6 +222,19 @@ export function App() {
     () => new Set([...blockOrphanIds, ...diffOrphanIds]),
     [blockOrphanIds, diffOrphanIds],
   );
+
+  // アウトラインパネルの見出しバッジ（未解決コメント数・diff増減）。
+  // モードに依存させず常に集計しておき、表示側（TocPanel）で
+  // badgeMode に応じて出し分ける。
+  const outlineStats = useMemo(
+    () => computeOutlineStats(tocItems, comments, orphanedCommentIds, diffData),
+    [tocItems, comments, orphanedCommentIds, diffData],
+  );
+
+  function handleChangeOutlineBadgeMode(mode: OutlineBadgeMode) {
+    setOutlineBadgeMode(mode);
+    saveOutlineBadgeMode(mode);
+  }
 
   // ツールバーのバッジは全件数ではなく未解決件数。crit の思想（未処理の指摘だけ
   // を目立たせる）に合わせる。対象の文章が消えたコメントは「削除済」であって
@@ -784,6 +805,11 @@ export function App() {
     }
   }
 
+  // 差分チェックモードでディレクトリツリーもアウトラインも出ていないときだけ、
+  // 折りたたみボタン等の追加レイアウトを挟まないシンプルな1カラムを維持する
+  // （余計な flex ネストを挟むと VRT スクリーンショットの端数ピクセルがズレるため）。
+  const diffSingleColumn = diffMode && !root && !tocOpen;
+
   return (
     <div
       id="app"
@@ -852,6 +878,8 @@ export function App() {
         onToggleMargin={toggleMargin}
         manualWidth={manualWidth}
         onResetWidth={resetContentWidth}
+        outlineBadgeMode={outlineBadgeMode}
+        onChangeOutlineBadgeMode={handleChangeOutlineBadgeMode}
       />
       <FileTabs
         files={files}
@@ -861,7 +889,7 @@ export function App() {
       />
       <div
         id="main"
-        className={diffMode && !root ? styles.main : styles.mainRow}
+        className={diffSingleColumn ? styles.main : styles.mainRow}
       >
         {root && (
           <FileTree
@@ -874,7 +902,7 @@ export function App() {
         {diffMode ? (
           <div
             ref={contentScrollRef}
-            className={root ? styles.contentCol : undefined}
+            className={diffSingleColumn ? undefined : styles.contentCol}
             data-testid="content-scroll"
           >
             <DiffView
@@ -957,8 +985,14 @@ export function App() {
             </div>
           </div>
         )}
-        {tocOpen && !diffMode && (
-          <TocPanel items={tocItems} onSelect={scrollToLine} />
+        {tocOpen && (
+          <TocPanel
+            items={tocItems}
+            onSelect={scrollToLine}
+            stats={outlineStats}
+            badgeMode={outlineBadgeMode}
+            hasCheckpoint={checkpointSet}
+          />
         )}
       </div>
       <CommentsPanel

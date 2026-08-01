@@ -1,7 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MarginCollapse } from '../lib/contentWidth.ts';
 import { CONTENT_FONT_OPTIONS } from '../lib/fonts.ts';
+import type { OutlineBadgeMode } from '../lib/outline.ts';
 import styles from './SettingsPopover.module.css';
+
+const OUTLINE_BADGE_OPTIONS: {
+  id: OutlineBadgeMode;
+  label: string;
+  title: string;
+  /** チェックポイントが無いと表示するものが無いモードか。 */
+  needsCheckpoint?: boolean;
+}[] = [
+  { id: 'off', label: '非表示', title: '見出しにバッジを出さない' },
+  {
+    id: 'comments',
+    label: 'コメント数',
+    title: '見出し配下の未解決コメント数を出す',
+  },
+  {
+    id: 'diff',
+    label: '差分量',
+    title: 'チェックポイントからの追加/削除行数を出す',
+    needsCheckpoint: true,
+  },
+  { id: 'both', label: '両方', title: 'コメント数と差分量の両方を出す' },
+];
 
 interface SettingsPopoverProps {
   onToggleTheme: () => void;
@@ -12,6 +35,10 @@ interface SettingsPopoverProps {
   /** ドラッグで指定中の本文幅（px）。null ならプリセットに従っている。 */
   manualWidth: number | null;
   onResetWidth: () => void;
+  outlineBadgeMode: OutlineBadgeMode;
+  onChangeOutlineBadgeMode: (mode: OutlineBadgeMode) => void;
+  /** チェックポイント設定済みか。未設定なら「差分量」は選ばせない。 */
+  checkpointSet: boolean;
 }
 
 // 設定ポップオーバー。テーマ切替 / 本文フォント / 本文幅（左右マージン折り
@@ -28,6 +55,9 @@ export function SettingsPopover({
   onToggleMargin,
   manualWidth,
   onResetWidth,
+  outlineBadgeMode,
+  onChangeOutlineBadgeMode,
+  checkpointSet,
 }: SettingsPopoverProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -97,6 +127,42 @@ export function SettingsPopover({
               ))}
             </select>
           </div>
+          {/* セグメントコントロールなので、見出しを legend にしてボタン群と
+              プログラム的に関連付ける（span のままだと支援技術に伝わらない） */}
+          <fieldset className={`${styles.section} ${styles.fieldset}`}>
+            <legend className={styles.sectionTitle}>
+              アウトラインのバッジ
+            </legend>
+            <div
+              className={styles.badgeModeGroup}
+              data-testid="outline-badge-mode"
+            >
+              {OUTLINE_BADGE_OPTIONS.map((opt) => {
+                const disabled = Boolean(opt.needsCheckpoint) && !checkpointSet;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={styles.badgeModeBtn}
+                    data-testid={`outline-badge-${opt.id}`}
+                    aria-pressed={outlineBadgeMode === opt.id}
+                    disabled={disabled}
+                    title={
+                      disabled
+                        ? 'チェックポイントを設定すると選べます'
+                        : opt.title
+                    }
+                    onClick={() => onChangeOutlineBadgeMode(opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span className={styles.widthHint}>
+              見出しの右に表示するバッジを選べます
+            </span>
+          </fieldset>
           <div className={styles.section}>
             <span className={styles.sectionTitle}>本文幅</span>
             <div className={styles.widthToggles}>

@@ -1,4 +1,5 @@
 import type { MarginCollapse } from '../lib/contentWidth.ts';
+import type { OutlineBadgeMode } from '../lib/outline.ts';
 import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import { OpenFileButton } from './OpenFileButton.tsx';
 import { OverflowMenu } from './OverflowMenu.tsx';
@@ -43,6 +44,8 @@ interface ToolbarProps {
   onToggleMargin: (side: 'left' | 'right') => void;
   manualWidth: number | null;
   onResetWidth: () => void;
+  outlineBadgeMode: OutlineBadgeMode;
+  onChangeOutlineBadgeMode: (mode: OutlineBadgeMode) => void;
 }
 
 export function Toolbar({
@@ -81,6 +84,8 @@ export function Toolbar({
   onToggleMargin,
   manualWidth,
   onResetWidth,
+  outlineBadgeMode,
+  onChangeOutlineBadgeMode,
 }: ToolbarProps) {
   // 接続状態＋最終更新時刻はドット1個に統合し、詳細は title のツールチップに出す
   const connectionTitle = isConnected
@@ -127,11 +132,10 @@ export function Toolbar({
         id="btn-toc"
         data-testid="toc-toggle"
         data-active={String(tocOpen)}
-        title="目次を表示"
-        disabled={diffMode}
+        title="アウトラインを表示"
         onClick={onToggleToc}
       >
-        目次
+        アウトライン
       </button>
       <button className="btn" id="btn-comments" onClick={onTogglePanel}>
         コメント{' '}
@@ -161,6 +165,9 @@ export function Toolbar({
         onToggleMargin={onToggleMargin}
         manualWidth={manualWidth}
         onResetWidth={onResetWidth}
+        outlineBadgeMode={outlineBadgeMode}
+        onChangeOutlineBadgeMode={onChangeOutlineBadgeMode}
+        checkpointSet={checkpointSet}
       />
       <OverflowMenu
         onPickDir={onPickDir}

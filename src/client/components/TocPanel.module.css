@@ -7,11 +7,32 @@
   padding: 6px 4px;
 }
 .header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
   padding: 4px 8px 8px;
+}
+.headerTitle {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  color: var(--text-muted);
+}
+.headerMeta {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.headerNote {
+  margin: 0 8px 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  font-size: 10.5px;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 .empty {
@@ -24,7 +45,9 @@
   flex-direction: column;
 }
 .item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
   padding: 3px 8px;
   border: none;
@@ -35,10 +58,53 @@
   color: var(--text);
   text-align: left;
   cursor: pointer;
+}
+.item:hover {
+  background: var(--bg-hover);
+}
+.itemText {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.item:hover {
-  background: var(--bg-hover);
+.badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.badgeComments {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: 20px;
+  padding: 1px 6px 1px 5px;
+  line-height: 1.5;
+}
+.badgeComments .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.badgeDiff {
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  gap: 5px;
+}
+.badgeDiffAdd {
+  color: var(--success);
+}
+.badgeDiffDel {
+  color: var(--danger);
 }

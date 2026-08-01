@@ -14,6 +14,9 @@ function makeProps(
     onToggleMargin: vi.fn(),
     manualWidth: null,
     onResetWidth: vi.fn(),
+    outlineBadgeMode: 'comments',
+    onChangeOutlineBadgeMode: vi.fn(),
+    checkpointSet: true,
     ...overrides,
   };
 }
@@ -114,5 +117,48 @@ describe('SettingsPopover', () => {
 
     await userEvent.click(reset);
     expect(onResetWidth).toHaveBeenCalledTimes(1);
+  });
+
+  test('アウトラインのバッジは現在値だけ aria-pressed が true', async () => {
+    render(<SettingsPopover {...makeProps({ outlineBadgeMode: 'diff' })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    expect(screen.getByTestId('outline-badge-diff')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByTestId('outline-badge-comments')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  test('アウトラインのバッジをクリックすると onChangeOutlineBadgeMode が呼ばれる', async () => {
+    const onChangeOutlineBadgeMode = vi.fn();
+    render(<SettingsPopover {...makeProps({ onChangeOutlineBadgeMode })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    await userEvent.click(screen.getByTestId('outline-badge-both'));
+    expect(onChangeOutlineBadgeMode).toHaveBeenCalledWith('both');
+    expect(screen.getByTestId('settings-menu')).toBeInTheDocument();
+  });
+
+  test('チェックポイント未設定なら「差分量」だけ選べない', async () => {
+    render(<SettingsPopover {...makeProps({ checkpointSet: false })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    expect(screen.getByTestId('outline-badge-diff')).toBeDisabled();
+    for (const id of ['off', 'comments', 'both']) {
+      expect(screen.getByTestId(`outline-badge-${id}`)).toBeEnabled();
+    }
+  });
+
+  test('チェックポイント設定済みなら「差分量」を選べる', async () => {
+    const onChangeOutlineBadgeMode = vi.fn();
+    render(
+      <SettingsPopover
+        {...makeProps({ checkpointSet: true, onChangeOutlineBadgeMode })}
+      />,
+    );
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    await userEvent.click(screen.getByTestId('outline-badge-diff'));
+    expect(onChangeOutlineBadgeMode).toHaveBeenCalledWith('diff');
   });
 });

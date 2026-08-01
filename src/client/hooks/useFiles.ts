@@ -7,14 +7,18 @@ import type { FileEntry } from '../types.ts';
 export function useFiles() {
   const { mutate } = useSWRConfig();
 
-  const { data } = useSWR<{ files: FileEntry[]; activeFile: string | null }>(
-    '/files',
-    fetcher,
-    { fallbackData: { files: [], activeFile: null } },
-  );
+  const { data } = useSWR<{
+    files: FileEntry[];
+    activeFile: string | null;
+  }>('/files', fetcher);
 
   const files = data?.files ?? [];
   const activeFile = data?.activeFile ?? null;
+  // isLoading は data 確定と別の state 更新で1テック遅れうるため使わない。
+  // data そのものの有無で判定し、filesLoaded と activeFile が必ず同じ
+  // レンダーで一致した値になるようにする（さもないと一瞬 activeFile=null
+  // 扱いのまま file 無しの /comments・/content を叩いてしまう）。
+  const filesLoaded = data !== undefined;
 
   const switchFile = useCallback(
     async (path: string) => {
@@ -71,5 +75,13 @@ export function useFiles() {
     if (path) await openFile(path);
   }, [openFile]);
 
-  return { files, activeFile, switchFile, closeFile, openFile, pickFile };
+  return {
+    files,
+    activeFile,
+    filesLoaded,
+    switchFile,
+    closeFile,
+    openFile,
+    pickFile,
+  };
 }

@@ -29,11 +29,18 @@ async function postComments(key: string, updated: Comment[]): Promise<boolean> {
   }
 }
 
-export function useComments(activeFile: string | null = null) {
-  const key = commentsKey(activeFile);
-  const { data, mutate } = useSWR<CommentsResponse>(key, fetcher, {
-    fallbackData: EMPTY_RESPONSE,
-  });
+// activeFile === undefined は /files 未解決を示すポーズ用センチネル。デフォルト
+// 引数にすると呼び出し側が明示的に undefined を渡した場合もデフォルト値に
+// 差し替わってしまいセンチネルとして機能しないため、引数を必須にする。
+export function useComments(activeFile: string | null | undefined) {
+  // key 自体は常に「確定した場合の宛先」を指す（save() の POST 先として
+  // 有効な文字列であり続ける必要があるため）。SWR への実 fetch だけを止める。
+  const key = commentsKey(activeFile ?? null);
+  const { data, mutate } = useSWR<CommentsResponse>(
+    activeFile === undefined ? null : key,
+    fetcher,
+    { fallbackData: EMPTY_RESPONSE },
+  );
   const comments = data?.comments ?? [];
   const round = data?.round ?? 0;
 

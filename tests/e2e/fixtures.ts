@@ -304,6 +304,37 @@ export async function openOverflowMenu(page: Page): Promise<void> {
 }
 
 /**
+ * コメントパネル（#comments-panel）の height トランジション（0.2s）が
+ * 終わるのを待つ。終わる前に他ブロックを hover/click すると、パネル開閉
+ * によるレイアウトシフトで :hover が外れ、click が別要素に intercept
+ * されることがある。
+ *
+ * 固定 waitForTimeout ではなく実際の transitionend を待つため、既に開いて
+ * いて高さが変化しない（トランジションが発火しない）呼び出しでも早期に
+ * 解決する。トランジションが発火しないケースの保険として短いタイムアウト
+ * にもフォールバックする。
+ */
+export async function waitForCommentsPanelSettled(page: Page): Promise<void> {
+  await page.locator('#comments-panel').evaluate((el) => {
+    return new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.removeEventListener('transitionend', onEnd);
+        resolve();
+      };
+      const onEnd = (e: Event) => {
+        if (e instanceof TransitionEvent && e.propertyName === 'height')
+          finish();
+      };
+      el.addEventListener('transitionend', onEnd);
+      setTimeout(finish, 400);
+    });
+  });
+}
+
+/**
  * 設定ポップオーバー（テーマ切替・本文フォント・本文幅）を操作する前に呼ぶ。
  * openOverflowMenu と同様、既に開いていれば何もしない。
  */

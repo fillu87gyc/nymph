@@ -7,6 +7,11 @@
  */
 import { expect, test } from './fixtures.ts';
 
+// 読み取り専用（fixturePath・reviewDir を書き換えない）テストのみのファイル
+// なので、1 ワーカーに固定せず全テストを worker プール全体に分散させる
+// （各テストは _workerServer 経由で独立したサーバー/ポートを持つため安全）。
+test.describe.configure({ mode: 'parallel' });
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   // mermaid ブロックが存在することを確認
@@ -49,9 +54,23 @@ test.describe('draw.io モーダルのコンテンツ', () => {
     expect(code?.trim().length).toBeGreaterThan(0);
   });
 
-  test('「コードをコピー」ボタンが存在する', async ({ page }) => {
+  test('「コードをコピー」ボタンをクリックするとモーダルに表示中の mermaid コードがコピーされる', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.locator('[data-testid="btn-drawio"]').first().click();
-    await expect(page.locator('#btn-copy-mermaid')).toBeVisible();
+    await expect(page.locator('#drawio-code')).toBeVisible();
+    const code = await page.locator('#drawio-code').textContent();
+
+    await page.locator('#btn-copy-mermaid').click();
+    await expect(page.locator('#toast')).toContainText(
+      'コードをコピーしました',
+      { timeout: 3000 },
+    );
+
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toBe(code);
   });
 
   test('「.drawio ダウンロード」ボタンが存在する', async ({ page }) => {

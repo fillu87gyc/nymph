@@ -87,7 +87,7 @@ const ID_RE = /^c_[0-9a-f]{6}$/;
 describe('useComments', () => {
   test('初期状態: fallbackData として コメント空・round=0', () => {
     vi.spyOn(global, 'fetch').mockReturnValue(new Promise(() => {}));
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     expect(result.current.comments).toEqual([]);
     expect(result.current.round).toBe(0);
   });
@@ -95,15 +95,27 @@ describe('useComments', () => {
   test('マウント後 SWR がコメント・round を取得する', async () => {
     serverComments = [mockComment];
     serverRound = 3;
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitFor(() => {
       expect(result.current.comments).toEqual([mockComment]);
       expect(result.current.round).toBe(3);
     });
   });
 
+  test('activeFile が undefined（/files 未解決）の間は fetch しない', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    renderHook(() => useComments(undefined), { wrapper });
+    // SWR の fetch は useEffect 経由で非同期に発火するため、setTimeout(0) 一回分の
+    // 待ちでは早すぎて発火前に判定してしまう（false negative）ことがある。
+    // act() で包んで確実にマイクロタスク/エフェクトチェーンを流し切ってから判定する。
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test('addComment で c_ + 6桁hex 形式の id が振られる', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'hello'));
     expect(result.current.comments).toHaveLength(1);
@@ -113,7 +125,7 @@ describe('useComments', () => {
 
   test('addComment は既存の数値 id と衝突しない', async () => {
     serverComments = [mockComment]; // id: 1 (数値)
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     // GET の実フェッチが確実に完了してから addComment する（fallbackData
     // のまま mutate すると current.comments が空になるレースを避ける）
@@ -128,7 +140,7 @@ describe('useComments', () => {
   });
 
   test('addComment は createdAt を ISO8601 で付与する', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'hello'));
     const createdAt = result.current.comments[0].createdAt;
@@ -137,7 +149,7 @@ describe('useComments', () => {
   });
 
   test('addComment は resolved を設定しない（未解決 = undefined）', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'hello'));
     expect(result.current.comments[0].resolved).toBeUndefined();
@@ -145,7 +157,7 @@ describe('useComments', () => {
 
   test('addComment は取得済みの round をコメントに記録する', async () => {
     serverRound = 2;
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     // GET が実際に round: 2 を反映するまで待つ（fallbackData の round: 0 の
     // まま addComment するレースを避ける）
@@ -155,7 +167,7 @@ describe('useComments', () => {
   });
 
   test('addComment は lineStart で昇順ソートされる', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() =>
       result.current.addComment(
@@ -174,7 +186,7 @@ describe('useComments', () => {
   });
 
   test('addComment に selection_offset がある場合はコメントに含まれる', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() =>
       result.current.addComment({ ...pending, selection_offset: 5 }, 'sel'),
@@ -183,7 +195,7 @@ describe('useComments', () => {
   });
 
   test('addComment に selection_offset=null の場合はプロパティが含まれない', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'no sel'));
     expect('selection_offset' in result.current.comments[0]).toBe(false);
@@ -196,7 +208,7 @@ describe('useComments', () => {
       target: ['t1', 't2'],
       after: ['a1'],
     };
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'snap', snapshot));
     expect(result.current.comments[0].snapshot).toEqual(snapshot);
@@ -204,14 +216,14 @@ describe('useComments', () => {
   });
 
   test('addComment に snapshot を渡さない場合はプロパティが含まれない', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'no snap'));
     expect('snapshot' in result.current.comments[0]).toBe(false);
   });
 
   test('updateComment でテキストが更新される', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'original'));
     const id = result.current.comments[0].id;
@@ -220,7 +232,7 @@ describe('useComments', () => {
   });
 
   test('updateComment: 存在しない id は無視される', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'keep'));
     await act(() => result.current.updateComment('c_ghost1', 'ghost'));
@@ -228,7 +240,7 @@ describe('useComments', () => {
   });
 
   test('deleteComment でコメントが削除される', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'to delete'));
     const id = result.current.comments[0].id;
@@ -237,7 +249,7 @@ describe('useComments', () => {
   });
 
   test('toggleResolved で resolved が反転する', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'to resolve'));
     const id = result.current.comments[0].id;
@@ -251,7 +263,7 @@ describe('useComments', () => {
   });
 
   test('toggleResolved は POST /comments を呼ぶ', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'x'));
     const id = result.current.comments[0].id;
@@ -265,7 +277,7 @@ describe('useComments', () => {
   });
 
   test('clearAll で全コメントが削除される', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'a'));
     await act(() =>
@@ -276,7 +288,7 @@ describe('useComments', () => {
   });
 
   test('clearOrphaned で指定 id のコメントのみ削除される', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'orphaned'));
     await act(() =>
@@ -290,7 +302,7 @@ describe('useComments', () => {
   });
 
   test('clearOrphaned に空の Set を渡すとコメントは変わらない', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'keep'));
     await act(() => result.current.clearOrphaned(new Set()));
@@ -299,7 +311,7 @@ describe('useComments', () => {
 
   test('addComment は POST /comments を呼ぶ', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch');
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'x'));
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -330,7 +342,7 @@ describe('useComments', () => {
   });
 
   test('保存に失敗すると addComment は false を返し、キャッシュを再検証する', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
 
     postShouldFail = true;
@@ -347,7 +359,7 @@ describe('useComments', () => {
   });
 
   test('保存に成功すると addComment は true を返す', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     let ok: boolean | undefined;
     await act(async () => {
@@ -357,7 +369,7 @@ describe('useComments', () => {
   });
 
   test('保存に失敗すると deleteComment は false を返す', async () => {
-    const { result } = renderHook(() => useComments(), { wrapper });
+    const { result } = renderHook(() => useComments(null), { wrapper });
     await waitForReady(result);
     await act(() => result.current.addComment(pending, 'to delete'));
     const id = result.current.comments[0].id;

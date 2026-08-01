@@ -158,8 +158,15 @@ export function App() {
     scrollEl.scrollBy(0, e.deltaY);
   }
 
-  const { files, activeFile, switchFile, closeFile, openFile, pickFile } =
-    useFiles();
+  const {
+    files,
+    activeFile,
+    filesLoaded,
+    switchFile,
+    closeFile,
+    openFile,
+    pickFile,
+  } = useFiles();
   const {
     comments,
     addComment,
@@ -168,13 +175,15 @@ export function App() {
     toggleResolved,
     clearAll,
     clearOrphaned,
-  } = useComments(activeFile);
+  } = useComments(filesLoaded ? activeFile : undefined);
   const { recentFiles } = useRecent();
   const [recentOpen, setRecentOpen] = useState(false);
   const [quickOpenOpen, setQuickOpenOpen] = useState(false);
   const { root, rootName, tree, openDir, pickDir } = useTree();
   const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
-  const { source, updateTime, welcomeMsg, contentKey } = useContent(activeFile);
+  const { source, updateTime, welcomeMsg, contentKey } = useContent(
+    filesLoaded ? activeFile : undefined,
+  );
   const tocItems = useMemo(() => extractToc(source), [source]);
   const {
     diffMode,
@@ -799,6 +808,12 @@ export function App() {
       });
       await mutate('/files');
       await mutate(isCommentsKey);
+      // activeFile が __dropped__ から __dropped__ のまま（既にドロップ済みの
+      // 状態で別ファイルを再ドロップした）場合、useContent の SWR キーは
+      // '/content'（file パラメータ無し）のまま変化しないため、mutate('/files')
+      // だけでは再フェッチされず前回ドロップ分の内容が残ってしまう。
+      // ドロップ後は常に明示的に content key を再検証する。
+      await mutate(contentKey);
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       toast(message || 'ファイルの読み込みに失敗しました');

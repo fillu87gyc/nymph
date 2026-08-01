@@ -36,11 +36,17 @@ afterEach(() => {
 });
 
 describe('useFiles', () => {
-  test('初期状態: fallbackData として files=[]・activeFile=null', () => {
+  test('初期状態: files=[]・activeFile=null・filesLoaded=false', () => {
     vi.spyOn(global, 'fetch').mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useFiles(), { wrapper });
     expect(result.current.files).toEqual([]);
     expect(result.current.activeFile).toBeNull();
+    expect(result.current.filesLoaded).toBe(false);
+  });
+
+  test('/files のフェッチが完了すると filesLoaded が true になる', async () => {
+    const { result } = renderHook(() => useFiles(), { wrapper });
+    await waitFor(() => expect(result.current.filesLoaded).toBe(true));
   });
 
   test('マウント後 SWR がファイル一覧を取得する', async () => {

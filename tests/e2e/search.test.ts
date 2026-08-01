@@ -163,8 +163,8 @@ test.describe('全文検索（Quick Open 統合）', () => {
     await gotoApp(page);
     await page.keyboard.press('Control+p');
     await page.getByTestId('quick-open-input').fill('z');
-    // デバウンス経過後も本文セクションは出ない
-    await page.waitForTimeout(400);
+    // デバウンス（useSearch.ts の DEBOUNCE_MS=120ms）経過後も本文セクションは出ない
+    await page.waitForTimeout(250);
     await expect(page.getByTestId('quick-open-match')).toHaveCount(0);
   });
 
@@ -176,7 +176,8 @@ test.describe('全文検索（Quick Open 統合）', () => {
     await expect(
       page.getByTestId('quick-open-item').filter({ hasText: 'wind.md' }),
     ).toBeVisible();
-    await page.waitForTimeout(400);
+    // デバウンス（useSearch.ts の DEBOUNCE_MS=120ms）経過後も本文セクションは出ない
+    await page.waitForTimeout(250);
     await expect(page.getByTestId('quick-open-match')).toHaveCount(0);
   });
 });

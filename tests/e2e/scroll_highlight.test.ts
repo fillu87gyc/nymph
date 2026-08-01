@@ -6,7 +6,12 @@
  * 機能しなくなる。各テストはその回帰を検出する。
  */
 import { existsSync, rmSync } from 'node:fs';
-import { expect, type Page, test } from './fixtures.ts';
+import {
+  expect,
+  type Page,
+  test,
+  waitForCommentsPanelSettled,
+} from './fixtures.ts';
 
 async function addCommentToBlock(page: Page, selector: string, text: string) {
   const block = page.locator(selector).first();
@@ -19,10 +24,7 @@ async function addCommentToBlock(page: Page, selector: string, text: string) {
   ).toBeVisible({
     timeout: 3000,
   });
-  // コメントパネルの open 用 height トランジション(0.2s)が終わるのを待つ。
-  // 終わる前に他ブロックを hover/click すると、パネル開閉によるレイアウト
-  // シフトで :hover が外れ、click が別要素に intercept されることがある。
-  await page.waitForTimeout(300);
+  await waitForCommentsPanelSettled(page);
 }
 
 test.beforeEach(async ({ page, commentsPath, reviewDir }) => {

@@ -107,7 +107,7 @@ test.describe('コンテンツ外の選択では popup が出ない', () => {
       document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })),
     );
     // SelectionPopup の setTimeout(show, 30) を待つ
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(100);
     await expect(page.locator('#selection-popup')).not.toBeVisible();
   });
 });

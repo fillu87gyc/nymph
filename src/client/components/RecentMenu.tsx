@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useOutsideDismiss } from '../hooks/useDismiss.ts';
 import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import styles from './RecentMenu.module.css';
 
@@ -21,15 +22,7 @@ export function RecentMenu({
 }: RecentMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function close(e: MouseEvent) {
-      if (rootRef.current?.contains(e.target as Node)) return;
-      onToggle(false);
-    }
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open, onToggle]);
+  useOutsideDismiss(rootRef, () => onToggle(false), { enabled: open });
 
   return (
     <div className={styles.root} ref={rootRef}>

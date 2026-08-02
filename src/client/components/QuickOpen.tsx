@@ -15,7 +15,6 @@ import type {
 import styles from './QuickOpen.module.css';
 
 interface QuickOpenProps {
-  open: boolean;
   tabs: FileEntry[];
   recentFiles: RecentEntry[];
   bookmarks: BookmarkEntry[];
@@ -26,8 +25,15 @@ interface QuickOpenProps {
   onOpenFileAtLine: (path: string, line: number) => void;
 }
 
+/**
+ * Ctrl/Cmd+P のコマンドパレット。
+ *
+ * 以前は open prop を Effect で見張って入力とカーソルを初期化していたが、これは
+ * 公式が挙げる「prop が変わったら state をリセットする」アンチパターン。開いて
+ * いる間だけ呼び出し側がマウントするようにしたので、初期化は useState の初期値
+ * で足りる（公式の「key で state をリセットする」と同じ考え方）。
+ */
 export function QuickOpen({
-  open,
   tabs,
   recentFiles,
   bookmarks,
@@ -38,7 +44,7 @@ export function QuickOpen({
   onOpenFileAtLine,
 }: QuickOpenProps) {
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -47,8 +53,8 @@ export function QuickOpen({
     [tabs, recentFiles, bookmarks, tree, query],
   );
 
-  // 本文の全文検索（/search）。パレットが開いている間だけ有効。
-  const { results: searchResults, truncated } = useSearch(query, open);
+  // 本文の全文検索（/search）。パレットが開いている間だけマウントされる。
+  const { results: searchResults, truncated } = useSearch(query);
   const matchItems = useMemo(
     () => buildMatchItems(searchResults),
     [searchResults],
@@ -57,26 +63,21 @@ export function QuickOpen({
   // ↑↓ はファイル候補 → 本文マッチの通し番号で移動する
   const totalCount = items.length + matchItems.length;
 
-  // 開くたびに初期化してフォーカス
-  useEffect(() => {
-    if (!open) return;
-    setQuery('');
-    setSelected(0);
-    inputRef.current?.focus();
-  }, [open]);
+  // 検索結果の到着で件数が減っても選択位置がはみ出さないようにする。
+  // Effect で state を詰め直すと余分な再描画が 1 往復増えるので、
+  // 公式の「レンダー中に計算できるものは state にしない」に従って導出する。
+  const selected = Math.min(selectedIndex, Math.max(0, totalCount - 1));
 
-  // 検索結果の到着で件数が減った場合に選択位置がはみ出さないようにする
+  // マウント時に入力へフォーカスする（宣言的な API が無い DOM 操作なので Effect が正しい）
   useEffect(() => {
-    setSelected((s) => Math.min(s, Math.max(0, totalCount - 1)));
-  }, [totalCount]);
+    inputRef.current?.focus();
+  }, []);
 
   // ↑↓ 移動時に選択行を画面内へ追従させる
   useEffect(() => {
     const el = listRef.current?.querySelector('[data-selected="true"]');
     el?.scrollIntoView({ block: 'nearest' });
   }, [selected]);
-
-  if (!open) return null;
 
   function pick(item: QuickOpenItem) {
     onClose();
@@ -106,10 +107,12 @@ export function QuickOpen({
       onClose();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelected((s) => Math.min(s + 1, totalCount - 1));
+      // クランプ後の selected を基準にする（生の state だと、件数が減った直後の
+      // ↑ が画面上の選択位置から連続せずに飛んでしまう）
+      setSelectedIndex(Math.min(selected + 1, totalCount - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelected((s) => Math.max(s - 1, 0));
+      setSelectedIndex(Math.max(selected - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       pickSelected();
@@ -133,7 +136,7 @@ export function QuickOpen({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setSelected(0);
+            setSelectedIndex(0);
           }}
           onKeyDown={handleKeyDown}
         />
@@ -149,7 +152,7 @@ export function QuickOpen({
               data-testid="quick-open-item"
               data-selected={String(i === selected)}
               data-type={item.type}
-              onMouseEnter={() => setSelected(i)}
+              onMouseEnter={() => setSelectedIndex(i)}
               onClick={() => pick(item)}
             >
               <span className={styles.itemName}>
@@ -171,7 +174,7 @@ export function QuickOpen({
               className={styles.matchItem}
               data-testid="quick-open-match"
               data-selected={String(items.length + i === selected)}
-              onMouseEnter={() => setSelected(items.length + i)}
+              onMouseEnter={() => setSelectedIndex(items.length + i)}
               onClick={() => pickMatch(m)}
             >
               <span className={styles.matchHead}>

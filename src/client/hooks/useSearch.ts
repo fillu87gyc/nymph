@@ -8,15 +8,18 @@ const DEBOUNCE_MS = 120;
 /**
  * /search を叩く全文検索フック。タイプ中の連打を避けるためデバウンスし、
  * 入力が進んで古くなったレスポンスは捨てる（後勝ちを保証する）。
+ *
+ * 検索が要らない間はこのフックを使うコンポーネント自体をマウントしない方針なので、
+ * enabled のような有効/無効フラグは持たない。
  */
-export function useSearch(query: string, enabled: boolean) {
+export function useSearch(query: string) {
   const [results, setResults] = useState<SearchFileResult[]>([]);
   const [truncated, setTruncated] = useState(false);
   const seqRef = useRef(0);
 
   useEffect(() => {
     const q = query.trim();
-    if (!enabled || q.length < SEARCH_MIN_QUERY) {
+    if (q.length < SEARCH_MIN_QUERY) {
       seqRef.current++;
       setResults([]);
       setTruncated(false);
@@ -38,7 +41,7 @@ export function useSearch(query: string, enabled: boolean) {
       })();
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [query, enabled]);
+  }, [query]);
 
   return { results, truncated };
 }

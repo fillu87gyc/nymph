@@ -35,7 +35,7 @@ describe('useSearch', () => {
       results: mockResults,
       truncated: false,
     });
-    const { result } = renderHook(() => useSearch('zephyr', true));
+    const { result } = renderHook(() => useSearch('zephyr'));
     await waitFor(() => {
       expect(result.current.results).toEqual(mockResults);
     });
@@ -45,24 +45,17 @@ describe('useSearch', () => {
 
   test('2文字未満のクエリでは fetch せず空結果', async () => {
     const spy = mockFetch({ query: 'z', results: [], truncated: false });
-    const { result } = renderHook(() => useSearch('z', true));
+    const { result } = renderHook(() => useSearch('z'));
     // デバウンス時間より長く待っても fetch されない
     await new Promise((r) => setTimeout(r, 250));
     expect(spy).not.toHaveBeenCalled();
     expect(result.current.results).toEqual([]);
   });
 
-  test('enabled=false では fetch しない', async () => {
-    const spy = mockFetch({ query: 'zephyr', results: [], truncated: false });
-    renderHook(() => useSearch('zephyr', false));
-    await new Promise((r) => setTimeout(r, 250));
-    expect(spy).not.toHaveBeenCalled();
-  });
-
   test('クエリを空に戻すと結果もクリアされる', async () => {
     mockFetch({ query: 'zephyr', results: mockResults, truncated: false });
     const { result, rerender } = renderHook(
-      ({ q }: { q: string }) => useSearch(q, true),
+      ({ q }: { q: string }) => useSearch(q),
       { initialProps: { q: 'zephyr' } },
     );
     await waitFor(() => {
@@ -76,7 +69,7 @@ describe('useSearch', () => {
 
   test('クエリはエンコードされる', async () => {
     const spy = mockFetch({ query: 'a b', results: [], truncated: false });
-    renderHook(() => useSearch('a b', true));
+    renderHook(() => useSearch('a b'));
     await waitFor(() => {
       expect(spy).toHaveBeenCalledWith('/search?q=a%20b');
     });

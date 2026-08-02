@@ -29,6 +29,9 @@ interface ContentAreaProps {
   onOpenDrawio: (code: string) => void;
   onOpenMermaidZoom: (html: string) => void;
   onClickCommentAnchor: (c: Comment, x: number, y: number) => void;
+  /** 用語辞書のハイライト（mark[data-dict-term]）にマウスが乗った / 外れた */
+  onTermEnter?: (term: string, rect: DOMRect) => void;
+  onTermLeave?: () => void;
   onOrphanedIds?: (ids: Set<Comment['id']>) => void;
   contentRef: React.RefObject<HTMLDivElement | null>;
   blockRefsMapRef: React.MutableRefObject<Map<string, HTMLElement>>;
@@ -48,6 +51,8 @@ export function ContentArea({
   onOpenDrawio,
   onOpenMermaidZoom,
   onClickCommentAnchor,
+  onTermEnter,
+  onTermLeave,
   onOrphanedIds,
   contentRef,
   blockRefsMapRef,
@@ -168,6 +173,26 @@ export function ContentArea({
     e.currentTarget.style.cursor = c ? 'pointer' : '';
   }
 
+  // 用語ハイライトの mark は applyTermHighlights が本文へ後から差し込むが、
+  // React のイベントは #content まで伝播するのでここで拾える。
+  // ホバーとフォーカスの両方を同じ処理につないで、キーボード操作でも辞書が引けるようにする。
+  function dictTerm(target: EventTarget | null): string | null {
+    const el = target as HTMLElement | null;
+    if (el?.tagName !== 'MARK') return null;
+    return el.getAttribute('data-dict-term');
+  }
+
+  function handleTermShow(e: React.SyntheticEvent) {
+    const term = dictTerm(e.target);
+    if (term === null) return;
+    onTermEnter?.(term, (e.target as HTMLElement).getBoundingClientRect());
+  }
+
+  function handleTermHide(e: React.SyntheticEvent) {
+    if (dictTerm(e.target) === null) return;
+    onTermLeave?.();
+  }
+
   function handleContentClick(e: React.MouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
     if (target.closest('a, button, input, textarea, select')) return;
@@ -237,6 +262,10 @@ export function ContentArea({
       id="content"
       ref={contentRef as React.RefObject<HTMLDivElement>}
       onMouseMove={handleMouseMove}
+      onMouseOver={handleTermShow}
+      onFocus={handleTermShow}
+      onMouseOut={handleTermHide}
+      onBlur={handleTermHide}
       onClick={handleContentClick}
     >
       {isEmpty && (

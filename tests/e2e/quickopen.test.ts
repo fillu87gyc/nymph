@@ -96,6 +96,21 @@ test.describe('Quick Open（Ctrl+P）', () => {
     await expect(page.getByTestId('quick-open')).not.toBeVisible();
   });
 
+  test('閉じてから開き直すと前回の検索語が残らない', async ({ page }) => {
+    await gotoApp(page);
+    await page.keyboard.press('Control+p');
+    await page.getByTestId('quick-open-input').fill('beta');
+    await expect(page.getByTestId('quick-open-input')).toHaveValue('beta');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('quick-open')).not.toBeVisible();
+
+    await page.keyboard.press('Control+p');
+    await expect(page.getByTestId('quick-open')).toBeVisible();
+    await expect(page.getByTestId('quick-open-input')).toHaveValue('');
+    // 開いた直後は入力にフォーカスがあり、そのまま絞り込みを始められる
+    await expect(page.getByTestId('quick-open-input')).toBeFocused();
+  });
+
   test('↑↓ で選択を移動して Enter で開ける', async ({ page }) => {
     await gotoApp(page);
     await page.keyboard.press('Control+p');

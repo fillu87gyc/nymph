@@ -12,7 +12,7 @@ function scaleEl(): HTMLElement {
 
 describe('MermaidZoomModal', () => {
   test('Ctrl+ホイールで拡大できる', () => {
-    render(<MermaidZoomModal open html={HTML} onClose={vi.fn()} />);
+    render(<MermaidZoomModal html={HTML} onClose={vi.fn()} />);
     const area = document.getElementById('mermaid-zoom-area');
     if (!area) throw new Error('#mermaid-zoom-area not found');
 
@@ -20,21 +20,29 @@ describe('MermaidZoomModal', () => {
     expect(scaleEl().style.transform).toBe('scale(1.1)');
   });
 
-  test('閉じた時点でスケールがリセットされ、再オープンの初回描画から原寸になる', () => {
-    const { rerender } = render(
-      <MermaidZoomModal open html={HTML} onClose={vi.fn()} />,
+  test('開き直すと初回描画から原寸に戻る', () => {
+    const { unmount } = render(
+      <MermaidZoomModal html={HTML} onClose={vi.fn()} />,
     );
     const area = document.getElementById('mermaid-zoom-area');
     if (!area) throw new Error('#mermaid-zoom-area not found');
     fireEvent.wheel(area, { ctrlKey: true, deltaY: -100 });
     expect(scaleEl().style.transform).toBe('scale(1.1)');
 
-    // close → reopen。open 時の effect で後からリセットするのではなく、
-    // close 時にリセット済みであること（= 再オープンの最初のコミットから
-    // scale(1)。前回の拡大率が 1 フレームでも見えるとテストが
-    // getComputedStyle を読むタイミング次第でフレークする）
-    rerender(<MermaidZoomModal open={false} html={HTML} onClose={vi.fn()} />);
-    rerender(<MermaidZoomModal open html={HTML} onClose={vi.fn()} />);
+    // 呼び出し側は開いている間だけマウントする。閉じる = アンマウントなので
+    // 開き直しは常に scale(1) の初回コミットから始まる（effect で後から
+    // リセットしていた頃のように、前回の拡大率が 1 フレーム見えることがない）。
+    unmount();
+    render(<MermaidZoomModal html={HTML} onClose={vi.fn()} />);
     expect(scaleEl().style.transform).toBe('scale(1)');
+  });
+
+  test('Escape で onClose が呼ばれる', () => {
+    const onClose = vi.fn();
+    render(<MermaidZoomModal html={HTML} onClose={onClose} />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalled();
   });
 });

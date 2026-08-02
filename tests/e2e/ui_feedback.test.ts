@@ -165,6 +165,21 @@ test.describe('トーストの表示と自動消滅', () => {
     // 約 2.4s 後に自動で消える
     await expect(toast).toHaveCount(0, { timeout: 4000 });
   });
+
+  test('同じ文言のトーストを続けて出しても表示し直される', async ({ page }) => {
+    const toast = page.locator('#toast');
+    await page.locator('#btn-copy').click();
+    await expect(toast).toContainText('コメントがありません', {
+      timeout: 3000,
+    });
+    await expect(toast).toHaveCount(0, { timeout: 4000 });
+
+    // 消えたあとに同じ操作をすると、同じ文言でももう一度出る
+    await page.locator('#btn-copy').click();
+    await expect(toast).toContainText('コメントがありません', {
+      timeout: 3000,
+    });
+  });
 });
 
 test.describe('ファイルパスのコピー', () => {

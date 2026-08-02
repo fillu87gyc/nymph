@@ -13,10 +13,30 @@ const pending: PendingComment = {
 };
 
 describe('CommentModal', () => {
-  test('open=false のとき何も表示しない', () => {
-    const { container } = render(
+  // 表示するかどうかは呼び出し側（開いている間だけマウントする）の責務なので、
+  // ここでは「マウントされたら初期状態が整っている」ことだけを見る。
+  test('マウント時に initialText が入力欄へ反映され、フォーカスされる', () => {
+    render(
       <CommentModal
-        open={false}
+        openSeq={1}
+        pending={pending}
+        editingId={3}
+        displayCtx="ctx"
+        initialText="existing"
+        anchor={null}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement;
+    expect(ta.value).toBe('existing');
+    expect(ta).toHaveFocus();
+  });
+
+  test('閉じずに別のコメントで開き直すと、入力中のテキストが持ち越されない', async () => {
+    const { rerender } = render(
+      <CommentModal
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -26,13 +46,33 @@ describe('CommentModal', () => {
         onClose={vi.fn()}
       />,
     );
-    expect(container.firstChild).toBeNull();
+    await userEvent.type(screen.getByRole('textbox'), '書きかけ');
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+      '書きかけ',
+    );
+
+    // 別のコメントで開き直す（openSeq が進む）
+    rerender(
+      <CommentModal
+        openSeq={2}
+        pending={{ ...pending, lineStart: 9, lineEnd: 9 }}
+        editingId={7}
+        displayCtx="other"
+        initialText="既存コメント"
+        anchor={null}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+      '既存コメント',
+    );
   });
 
   test('新規モードで「追加」ボタンを表示', () => {
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -49,7 +89,7 @@ describe('CommentModal', () => {
   test('編集モードで「更新」ボタンを表示', () => {
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={3}
         displayCtx="ctx"
@@ -67,7 +107,7 @@ describe('CommentModal', () => {
     const onSubmit = vi.fn();
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -86,7 +126,7 @@ describe('CommentModal', () => {
     const onClose = vi.fn();
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -104,7 +144,7 @@ describe('CommentModal', () => {
     const onSubmit = vi.fn();
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -121,7 +161,7 @@ describe('CommentModal', () => {
   test('ライン範囲が表示される (lineStart != lineEnd)', () => {
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={{ ...pending, lineStart: 3, lineEnd: 8 }}
         editingId={null}
         displayCtx="this context is longer than twenty chars"
@@ -137,7 +177,7 @@ describe('CommentModal', () => {
   test('anchor 指定時はその直下に表示される', () => {
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -156,7 +196,7 @@ describe('CommentModal', () => {
     const onClose = vi.fn();
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -174,7 +214,7 @@ describe('CommentModal', () => {
     const onClose = vi.fn();
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -193,7 +233,7 @@ describe('CommentModal', () => {
     const onClose = vi.fn();
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"
@@ -211,7 +251,7 @@ describe('CommentModal', () => {
   test('ヘッダーをドラッグすると位置が移動する', () => {
     render(
       <CommentModal
-        open={true}
+        openSeq={1}
         pending={pending}
         editingId={null}
         displayCtx="ctx"

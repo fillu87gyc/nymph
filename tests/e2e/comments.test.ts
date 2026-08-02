@@ -113,6 +113,49 @@ test.describe('コメントモーダルのキーボードショートカット',
   });
 });
 
+test.describe('コメントモーダルの開閉とリセット', () => {
+  test('送信ボタンで追加するとモーダルが DOM から消える', async ({ page }) => {
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await expect(page.locator('#comment-modal')).toHaveCount(1);
+
+    await page.locator('#comment-ta').fill('送信で閉じる');
+    await page.locator('#btn-submit').click();
+
+    await expect(
+      page.locator('[data-testid="comment-item"]').first(),
+    ).toBeVisible({ timeout: 3000 });
+    // 非表示になるだけでなく DOM から取り除かれる（残っていると背後の
+    // 要素へのクリックを横取りしてしまう）
+    await expect(page.locator('#comment-modal')).toHaveCount(0);
+  });
+
+  test('下書きを残したまま編集で開き直すと入力が持ち越されない', async ({
+    page,
+  }) => {
+    await addComment(page, 'original text');
+
+    // 新規コメントを書きかけにする。入力があるうちは外側クリックで閉じない
+    // （下書きを守る）ので、モーダルは開いたまま別のコメントを開くことになる。
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await page.locator('#comment-ta').fill('書きかけの下書き');
+
+    await page.locator('[data-testid="c-edit"]').first().click();
+
+    await expect(page.locator('#comment-modal')).toHaveCount(1);
+    await expect(page.locator('#btn-submit')).toContainText('更新');
+    // 書きかけではなく、編集対象のコメント本文が入る
+    await expect(page.locator('#comment-ta')).toHaveValue('original text');
+  });
+});
+
 test.describe('コメントの削除', () => {
   test('削除ボタンでコメントが消える', async ({ page }) => {
     await addComment(page, 'delete me');

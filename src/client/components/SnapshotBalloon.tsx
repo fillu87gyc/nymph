@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useEscapeDismiss, useOutsideDismiss } from '../hooks/useDismiss.ts';
 import { COMMENT_STATUS_LABEL, ctxDisplay } from '../lib/comments.ts';
 import { snapshotRows } from '../lib/snapshot.ts';
 import type { Comment, CommentStatus } from '../types.ts';
@@ -27,24 +28,13 @@ export function SnapshotBalloon({
   anchorRect,
   onClose,
 }: SnapshotBalloonProps) {
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    function onMouseDown(e: MouseEvent) {
-      const target = e.target as HTMLElement | null;
-      // バッジ自身のクリックは開閉トグル側に任せる
-      if (target?.closest('[data-testid="c-status"]')) return;
-      if (target?.closest('[data-testid="snapshot-balloon"]')) return;
-      onClose();
-    }
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('mousedown', onMouseDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('mousedown', onMouseDown);
-    };
-  }, [onClose]);
+  const balloonRef = useRef<HTMLDivElement>(null);
+
+  useEscapeDismiss(onClose);
+  useOutsideDismiss(balloonRef, onClose, {
+    // バッジ自身のクリックは開閉トグル側に任せる
+    ignore: (target) => Boolean(target?.closest('[data-testid="c-status"]')),
+  });
 
   const rows = comment.snapshot ? snapshotRows(comment.snapshot) : [];
   // コメントパネルは画面下部にあるため、バッジの上側に出す。
@@ -56,6 +46,7 @@ export function SnapshotBalloon({
 
   return createPortal(
     <div
+      ref={balloonRef}
       id="snapshot-balloon"
       data-testid="snapshot-balloon"
       className={styles.balloon}

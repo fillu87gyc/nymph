@@ -10,6 +10,8 @@ function makeProps(
     onToggleTheme: vi.fn(),
     contentFontId: 'inter',
     onChangeContentFont: vi.fn(),
+    ligaturesEnabled: true,
+    onToggleLigatures: vi.fn(),
     marginCollapse: { left: false, right: false },
     onToggleMargin: vi.fn(),
     manualWidth: null,
@@ -75,6 +77,34 @@ describe('SettingsPopover', () => {
     expect(select).toHaveAttribute('id', 'content-font-select');
     await userEvent.selectOptions(select, 'default');
     expect(onChangeContentFont).toHaveBeenCalledWith('default');
+  });
+
+  test('リガチャトグルは aria-pressed で現在値を示す', async () => {
+    const { unmount } = render(
+      <SettingsPopover {...makeProps({ ligaturesEnabled: true })} />,
+    );
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    expect(screen.getByTestId('ligature-toggle')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    unmount();
+
+    render(<SettingsPopover {...makeProps({ ligaturesEnabled: false })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    expect(screen.getByTestId('ligature-toggle')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  test('リガチャトグルのクリックで onToggleLigatures が呼ばれ、メニューは閉じない', async () => {
+    const onToggleLigatures = vi.fn();
+    render(<SettingsPopover {...makeProps({ onToggleLigatures })} />);
+    await userEvent.click(screen.getByTestId('settings-menu-btn'));
+    await userEvent.click(screen.getByTestId('ligature-toggle'));
+    expect(onToggleLigatures).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('settings-menu')).toBeInTheDocument();
   });
 
   test('本文幅トグルは既存の testid を保ち aria-pressed が marginCollapse を反映する', async () => {

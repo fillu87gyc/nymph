@@ -38,6 +38,8 @@ interface ToolbarProps {
   onToggleTheme: () => void;
   contentFontId: string;
   onChangeContentFont: (id: string) => void;
+  ligaturesEnabled: boolean;
+  onToggleLigatures: () => void;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
   marginCollapse: MarginCollapse;
@@ -78,6 +80,8 @@ export function Toolbar({
   onToggleTheme,
   contentFontId,
   onChangeContentFont,
+  ligaturesEnabled,
+  onToggleLigatures,
   onDictSync,
   isDictSyncing,
   marginCollapse,
@@ -161,6 +165,8 @@ export function Toolbar({
         onToggleTheme={onToggleTheme}
         contentFontId={contentFontId}
         onChangeContentFont={onChangeContentFont}
+        ligaturesEnabled={ligaturesEnabled}
+        onToggleLigatures={onToggleLigatures}
         marginCollapse={marginCollapse}
         onToggleMargin={onToggleMargin}
         manualWidth={manualWidth}

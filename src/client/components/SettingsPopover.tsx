@@ -31,6 +31,9 @@ interface SettingsPopoverProps {
   onToggleTheme: () => void;
   contentFontId: string;
   onChangeContentFont: (id: string) => void;
+  /** 合字を描画するか。false なら fi や `=>` を 1 文字ずつ表示する。 */
+  ligaturesEnabled: boolean;
+  onToggleLigatures: () => void;
   marginCollapse: MarginCollapse;
   onToggleMargin: (side: 'left' | 'right') => void;
   /** ドラッグで指定中の本文幅（px）。null ならプリセットに従っている。 */
@@ -42,8 +45,8 @@ interface SettingsPopoverProps {
   checkpointSet: boolean;
 }
 
-// 設定ポップオーバー。テーマ切替 / 本文フォント / 本文幅（左右マージン折り
-// たたみ）をまとめる。本文幅は本文左右にフロートしていた ‹›ボタンを廃止し、
+// 設定ポップオーバー。テーマ切替 / 本文フォント / リガチャ / 本文幅（左右
+// マージン折りたたみ）をまとめる。本文幅は本文左右にフロートしていた ‹›ボタンを廃止し、
 // ここへトグルとして移設したもの（localStorage キー・既定値は変更なし）。
 // 折りたたみトグルは 3 段階のプリセットで、その間の任意幅は本文列の左右端の
 // ハンドル（ContentResizer）をドラッグして決める。ここのリセットボタンで
@@ -52,6 +55,8 @@ export function SettingsPopover({
   onToggleTheme,
   contentFontId,
   onChangeContentFont,
+  ligaturesEnabled,
+  onToggleLigatures,
   marginCollapse,
   onToggleMargin,
   manualWidth,
@@ -114,6 +119,26 @@ export function SettingsPopover({
               ))}
             </select>
           </div>
+          <div className={styles.section}>
+            <span className={styles.sectionTitle}>リガチャ</span>
+            <button
+              type="button"
+              className={styles.toggle}
+              data-testid="ligature-toggle"
+              aria-pressed={ligaturesEnabled}
+              title={
+                ligaturesEnabled
+                  ? '合字をやめて 1 文字ずつ表示する'
+                  : '合字（fi や => の合成グリフ）を表示する'
+              }
+              onClick={onToggleLigatures}
+            >
+              リガチャを有効にする
+            </button>
+            <span className={styles.hint}>
+              オフにすると fi や =&gt; を合成せず 1 文字ずつ表示します
+            </span>
+          </div>
           {/* セグメントコントロールなので、見出しを legend にしてボタン群と
               プログラム的に関連付ける（span のままだと支援技術に伝わらない） */}
           <fieldset className={`${styles.section} ${styles.fieldset}`}>
@@ -146,16 +171,16 @@ export function SettingsPopover({
                 );
               })}
             </div>
-            <span className={styles.widthHint}>
+            <span className={styles.hint}>
               見出しの右に表示するバッジを選べます
             </span>
           </fieldset>
           <div className={styles.section}>
             <span className={styles.sectionTitle}>本文幅</span>
-            <div className={styles.widthToggles}>
+            <div className={styles.toggles}>
               <button
                 type="button"
-                className={styles.widthToggle}
+                className={styles.toggle}
                 data-testid="margin-toggle-left"
                 aria-pressed={marginCollapse.left}
                 title={
@@ -169,7 +194,7 @@ export function SettingsPopover({
               </button>
               <button
                 type="button"
-                className={styles.widthToggle}
+                className={styles.toggle}
                 data-testid="margin-toggle-right"
                 aria-pressed={marginCollapse.right}
                 title={
@@ -183,7 +208,7 @@ export function SettingsPopover({
               </button>
               <button
                 type="button"
-                className={styles.widthToggle}
+                className={styles.toggle}
                 data-testid="content-width-reset"
                 disabled={manualWidth === null}
                 title="ドラッグで指定した幅を捨てて既定の幅に戻す"
@@ -194,7 +219,7 @@ export function SettingsPopover({
                   : `幅をリセット（${manualWidth}px）`}
               </button>
             </div>
-            <span className={styles.widthHint}>
+            <span className={styles.hint}>
               本文の左右端をドラッグすると幅を自由に変えられます
             </span>
           </div>

@@ -98,4 +98,39 @@ test.describe('リガチャ設定', () => {
       'false',
     );
   });
+
+  // computed style の確認（上記）だけでは「宣言はあるがブラウザが実際に
+  // グリフを合成しているか」までは分からない。設定の効果を実描画で担保する
+  // ため、トグル前後で同じ要素をスクリーンショットしピクセル差分を見る。
+  // 固定 PNG との比較（toMatchSnapshot）ではなく同一テスト内での撮り直し
+  // 同士を比べるので、フォントレンダリング環境差によるフレーキーさが無く、
+  // 既存の VRT ベースライン運用にも影響しない。プローブ要素は body 直下に
+  // 一時追加するだけで、fixture のコード内容や行番号には手を入れない。
+  test('コードブロックで使うフォントは合字あり/なしで実際に描画が変わる（ピクセル差分）', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.id = 'ligature-pixel-probe';
+      probe.textContent = '=> != === -> <=';
+      probe.style.cssText =
+        'position:fixed;top:0;left:0;z-index:9999;background:#fff;' +
+        'color:#000;font-size:32px;font-family:"JetBrains Mono",monospace;' +
+        'white-space:pre;font-variant-ligatures:inherit';
+      document.body.appendChild(probe);
+    });
+    const probe = page.locator('#ligature-pixel-probe');
+    await expect(probe).toHaveCSS('font-variant-ligatures', 'normal');
+    const withLigatures = await probe.screenshot();
+
+    await page.getByTestId('ligature-toggle').click();
+    await expect(probe).toHaveCSS('font-variant-ligatures', 'none');
+    const withoutLigatures = await probe.screenshot();
+
+    expect(Buffer.compare(withLigatures, withoutLigatures)).not.toBe(0);
+
+    await page.evaluate(() =>
+      document.getElementById('ligature-pixel-probe')?.remove(),
+    );
+  });
 });

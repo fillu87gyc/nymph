@@ -88,11 +88,56 @@ test.describe('smoke: 起動 → コンテンツ表示', () => {
     // 起動直後は接続中
     await expect(connectionDot).toHaveAttribute('data-connected', 'true');
     await expect(connectionStatus).toHaveAttribute('data-connected', 'true');
+  });
 
-    // 3秒後もハートビートで接続を維持していること
-    await page.waitForTimeout(3000);
+  test('ハートビートが 2 秒途絶えると切断表示になり、再開すると復帰する', async ({
+    page,
+  }) => {
+    // 実サーバーの SSE 接続を外部から意図的に切断する手段がないため、
+    // useSSE.ts が使う window.EventSource をテスト用の差し替え可能な
+    // フェイクに置き換え、onmessage の発火を直接コントロールする。
+    // フェイクは自発的にメッセージを出さないため、何もしなければ
+    // useConnectionStatus.ts の「2秒間ハートビート無し→切断」判定が
+    // 自然に働く。
+    await page.addInitScript(() => {
+      class FakeEventSource {
+        onmessage: ((e: MessageEvent) => void) | null = null;
+        constructor() {
+          Object.defineProperty(window, '__fakeSSE', {
+            value: this,
+            configurable: true,
+          });
+        }
+        close() {}
+      }
+      Object.defineProperty(window, 'EventSource', {
+        value: FakeEventSource,
+        writable: true,
+        configurable: true,
+      });
+    });
+    await page.goto('/');
+    const connectionDot = page.locator('[data-testid="connection-dot"]');
+
+    // マウント直後は isConnected の初期値 true のまま
     await expect(connectionDot).toHaveAttribute('data-connected', 'true');
-    await expect(connectionStatus).toHaveAttribute('data-connected', 'true');
+
+    // フェイク EventSource は何もメッセージを送らないため、2 秒後に
+    // 「ハートビート途絶」判定で切断表示に切り替わる
+    await expect(connectionDot).toHaveAttribute('data-connected', 'false', {
+      timeout: 3000,
+    });
+
+    // ハートビート相当のメッセージが届くと再度接続中に戻る
+    await page.evaluate(() => {
+      const sse = (
+        window as unknown as {
+          __fakeSSE: { onmessage: ((e: MessageEvent) => void) | null };
+        }
+      ).__fakeSSE;
+      sse.onmessage?.(new MessageEvent('message', { data: '{}' }));
+    });
+    await expect(connectionDot).toHaveAttribute('data-connected', 'true');
   });
 });
 

@@ -1,6 +1,6 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, openOverflowMenu, test } from './fixtures.ts';
+import { expect, openOverflowMenu, type Page, test } from './fixtures.ts';
 
 const ORIGINAL = readFileSync(
   join(process.cwd(), 'tests/fixtures/sample.md'),
@@ -34,6 +34,11 @@ test.afterEach(async ({ page, fixturePath, commentsPath, reviewDir }) => {
   // ドロップファイルのタブ系テストは元ファイルをサーバーから close するため、
   // 同一 worker の後続テストに影響しないよう active file を復元する。
   await page.request.post('/open-file', { data: { path: fixturePath } });
+  // switch-file で設定した droppedContent/droppedName はサーバー側に残り続ける
+  // ため、明示的に破棄しないと同一 worker の後続テストに漏れて汚染する。
+  await page.request
+    .post('/close-file', { data: { path: '__dropped__' } })
+    .catch(() => {});
 });
 
 test.describe('ドラッグ＆ドロップのオーバーレイ', () => {
@@ -92,6 +97,59 @@ test.describe('ドロップファイルのタブ', () => {
     await expect(
       page.locator('#content [data-testid="md-block"]').first(),
     ).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe('ドロップで実際にファイル内容が切り替わる（実 drop イベント）', () => {
+  // dragover/dragleave のオーバーレイ表示や /switch-file への直接 POST は
+  // 上のテストで別途検証済みだが、DataTransfer に File を積んだ本物の
+  // 'drop' イベントを発火して最後まで通す E2E がどこにも無かったため追加する。
+  async function dropFile(
+    page: Page,
+    name: string,
+    content: string,
+  ): Promise<void> {
+    const dataTransfer = await page.evaluateHandle(
+      ({ name, content }: { name: string; content: string }) => {
+        const dt = new DataTransfer();
+        dt.items.add(new File([content], name, { type: 'text/plain' }));
+        return dt;
+      },
+      { name, content },
+    );
+    await page.dispatchEvent('#app', 'dragover', { dataTransfer });
+    await page.dispatchEvent('#app', 'drop', { dataTransfer });
+  }
+
+  test('welcome 画面（ファイル未選択）で .md を drop すると内容が反映される', async ({
+    page,
+    fixturePath,
+  }) => {
+    // ファイル未選択の状態を作る（この worker には他にファイルが無いため
+    // 唯一のファイルを閉じると welcome 画面になる）
+    await page.request.post('/close-file', { data: { path: fixturePath } });
+    await page.reload();
+    await expect(page.locator('#file-tabs')).not.toBeVisible();
+
+    await dropFile(page, 'dropped.md', '# Dropped Heading\n\nDropped body.\n');
+
+    await expect(page.locator('#drop-overlay')).toHaveCount(0);
+    await expect(page.locator('#content h1')).toContainText('Dropped Heading', {
+      timeout: 3000,
+    });
+  });
+
+  test('.md 以外を drop すると内容は変わらずトーストで拒否される', async ({
+    page,
+  }) => {
+    await dropFile(page, 'notes.txt', 'plain text');
+
+    await expect(page.locator('#toast')).toContainText(
+      'Markdownファイルをドロップしてください',
+      { timeout: 3000 },
+    );
+    // 元のコンテンツのまま（拒否されて切り替わっていない）
+    await expect(page.locator('#content h1')).toContainText('Sample');
   });
 });
 

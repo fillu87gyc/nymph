@@ -11,6 +11,7 @@ import {
   openSettingsMenu,
   type Page,
   test,
+  waitForCommentsPanelSettled,
 } from './fixtures.ts';
 
 // mermaid は非同期に描画され、完了時にブロックの高さが変わる。描画完了前に
@@ -39,10 +40,7 @@ async function addComment(page: Page, text: string) {
   ).toBeVisible({
     timeout: 3000,
   });
-  // コメントパネルの open 用 height トランジション(0.2s)が終わるのを待つ。
-  // 終わる前に他ブロックを hover/click すると、パネル開閉によるレイアウト
-  // シフトで :hover が外れ、click が別要素に intercept されることがある。
-  await page.waitForTimeout(300);
+  await waitForCommentsPanelSettled(page);
 }
 
 test.beforeEach(async ({ page, commentsPath, reviewDir }) => {
@@ -89,6 +87,29 @@ test.describe('コメントパネルの開閉', () => {
     await expect(
       page.locator('#comments-panel[data-open="true"]'),
     ).toBeVisible();
+  });
+});
+
+test.describe('コメントモーダルのキーボードショートカット', () => {
+  test('Ctrl/Cmd+Enter で送信ボタンを押さずにコメントを送信できる', async ({
+    page,
+  }) => {
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await page.locator('#comment-ta').fill('via ctrl+enter');
+    await page.locator('#comment-ta').press('ControlOrMeta+Enter');
+
+    await expect(
+      page.locator('[data-testid="comment-item"]').first(),
+    ).toBeVisible({ timeout: 3000 });
+    await expect(
+      page.locator('[data-testid="comment-item"]').first(),
+    ).toContainText('via ctrl+enter');
+    // 送信と同時にモーダルが閉じている
+    await expect(page.locator('#comment-ta')).not.toBeVisible();
   });
 });
 
@@ -446,9 +467,8 @@ test.describe('コメントパネルのリサイズ', () => {
   });
 
   test('パネル高さが localStorage に保存される', async ({ page }) => {
+    // addComment はパネル open トランジションの完了を待ち終えてから返る
     await addComment(page, 'height persist');
-    // Wait for the 0.2s panel-open CSS transition to finish
-    await page.waitForTimeout(300);
 
     const handle = page.locator('#panel-resize-handle');
     const handleBox = await handle.boundingBox();
@@ -489,8 +509,7 @@ test.describe('コメントパネルのリサイズ', () => {
     await expect(
       page.locator('#comments-panel[data-open="true"]'),
     ).toBeVisible();
-    // open 用の height トランジション(0.2s)が終わるのを待つ
-    await page.waitForTimeout(300);
+    await waitForCommentsPanelSettled(page);
 
     const height = await page
       .locator('#comments-panel')
@@ -893,5 +912,35 @@ test.describe('レビューのコピー（解決済みの除外）', () => {
     // クリップボードは書き換えられていない
     const copied = await page.evaluate(() => navigator.clipboard.readText());
     expect(copied).toBe('sentinel');
+  });
+});
+
+test.describe('コメント保存失敗時のロールバック', () => {
+  // useComments.ts の save() は POST が失敗すると mutate() でサーバーの
+  // 実状態を再取得し、楽観的更新をロールバックする。この経路は UI 経由で
+  // 一度も検証されていなかった。
+  test('POST /comments が失敗すると楽観的に追加したコメントが消える', async ({
+    page,
+  }) => {
+    await page.route('**/comments?file=*', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({ status: 500, body: 'save failed' });
+      }
+      return route.continue();
+    });
+
+    const tableBlock = page
+      .locator('#content [data-testid="md-block"][data-block-type="table"]')
+      .first();
+    await tableBlock.hover();
+    await tableBlock.locator('[data-testid="comment-btn"]').click();
+    await page.locator('#comment-ta').fill('保存に失敗するコメント');
+    await page.locator('#btn-submit').click();
+
+    // 楽観的更新で一瞬パネルに現れるが、保存失敗の revalidate でサーバー側の
+    // 実状態（このテストでは 0 件）に戻り消える。
+    await expect(page.locator('[data-testid="comment-item"]')).toHaveCount(0, {
+      timeout: 3000,
+    });
   });
 });

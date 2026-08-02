@@ -1,6 +1,11 @@
 import { CONTENT_FONT_OPTIONS } from '../../src/client/lib/fonts.ts';
 import { expect, openSettingsMenu, test } from './fixtures.ts';
 
+// 読み取り専用（fixturePath・reviewDir を書き換えない）テストのみのファイル
+// なので、1 ワーカーに固定せず全テストを worker プール全体に分散させる
+// （各テストは _workerServer 経由で独立したサーバー/ポートを持つため安全）。
+test.describe.configure({ mode: 'parallel' });
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(

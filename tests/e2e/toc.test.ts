@@ -6,6 +6,7 @@ import {
   openSettingsMenu,
   type Page,
   test,
+  waitForCommentsPanelSettled,
 } from './fixtures.ts';
 
 const ORIGINAL = readFileSync(
@@ -25,8 +26,7 @@ async function addTableComment(page: Page, text: string) {
   await expect(
     page.locator('[data-testid="comment-item"]').first(),
   ).toBeVisible({ timeout: 3000 });
-  // コメントパネルの開閉トランジション待ち（他ブロックの hover が外れないように）
-  await page.waitForTimeout(300);
+  await waitForCommentsPanelSettled(page);
 }
 
 // checkpoint → Section 見出し配下（L12）の行を編集、まで行う。

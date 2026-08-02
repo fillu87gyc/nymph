@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import { SWRConfig } from 'swr';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
@@ -75,4 +75,15 @@ test('activeFile が __dropped__ のとき /content（パラメータなし）�
   const { result } = renderHook(() => useContent('__dropped__'), { wrapper });
   await waitFor(() => expect(result.current.source).toBe('# dropped'));
   expect(result.current.contentKey).toBe('/content');
+});
+
+test('activeFile が undefined（/files 未解決）の間は fetch しない', async () => {
+  const fetchMock = vi.mocked(fetch);
+  renderHook(() => useContent(undefined), { wrapper });
+  // SWR の fetch は useEffect 経由で非同期に発火するため、setTimeout(0) 一回分の
+  // 待ちでは早すぎて発火前に判定してしまう（false negative）ことがある。
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 50));
+  });
+  expect(fetchMock).not.toHaveBeenCalled();
 });

@@ -12,6 +12,11 @@
  */
 import { expect, openSettingsMenu, test } from './fixtures.ts';
 
+// 読み取り専用（fixturePath・reviewDir を書き換えない）テストのみのファイル
+// なので、1 ワーカーに固定せず全テストを worker プール全体に分散させる
+// （各テストは _workerServer 経由で独立したサーバー/ポートを持つため安全）。
+test.describe.configure({ mode: 'parallel' });
+
 // bundle 後の hljs テーマ CSS を href 文字列で判別するセレクタ。
 // dark = tokyo-night-dark.min, light = github.min。
 const HLJS_LINK_SELECTOR =

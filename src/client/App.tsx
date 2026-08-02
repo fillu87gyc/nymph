@@ -17,7 +17,7 @@ import { FileTree } from './components/FileTree.tsx';
 import { MermaidZoomModal } from './components/MermaidZoomModal.tsx';
 import { QuickOpen } from './components/QuickOpen.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
-import { Toast } from './components/Toast.tsx';
+import { TOAST_DURATION_MS, Toast } from './components/Toast.tsx';
 import { TocPanel } from './components/TocPanel.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 import { useBookmarks } from './hooks/useBookmarks.ts';
@@ -26,6 +26,7 @@ import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
 import { useContent } from './hooks/useContent.ts';
 import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
+import { useOutsideDismiss } from './hooks/useDismiss.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
@@ -63,6 +64,17 @@ import type { Comment, DictEntry, PendingComment } from './types.ts';
 
 const GOOGLE_FONTS_BASE = 'https://fonts.googleapis.com/css2?display=swap&';
 
+/** コメントモーダルが開いている間だけ存在する状態。null なら閉じている。 */
+interface CommentModalState {
+  /** 開くたびに増える通し番号。開き直しを CommentModal 側が検知するのに使う。 */
+  seq: number;
+  pending: PendingComment;
+  editingId: Comment['id'] | null;
+  displayCtx: string;
+  initialText: string;
+  anchor: { x: number; y: number } | null;
+}
+
 function applyContentFont(id: string) {
   const font = getContentFontOption(id);
   document.documentElement.style.setProperty('--content-font', font.bodyFont);
@@ -84,7 +96,9 @@ export function App() {
   const [tocOpen, setTocOpen] = useState(false);
   const [outlineBadgeMode, setOutlineBadgeMode] =
     useState<OutlineBadgeMode>(loadOutlineBadgeMode);
-  const [toastState, setToastState] = useState({ msg: '', v: 0 });
+  // 表示中のトースト。出すたびに新しいオブジェクトにして、同じ文言を連続で
+  // 出したときもタイマーが張り直されるようにする（null なら非表示）。
+  const [toastState, setToastState] = useState<{ msg: string } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hljsTheme, setHljsTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('nymph-theme');
@@ -130,22 +144,21 @@ export function App() {
   const [dictTooltipRect, setDictTooltipRect] = useState<DOMRect | null>(null);
 
   // Modal state
-  const [commentModalOpen, setCommentModalOpen] = useState(false);
-  const [pending, setPending] = useState<PendingComment | null>(null);
-  const [modalAnchor, setModalAnchor] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [editingId, setEditingId] = useState<Comment['id'] | null>(null);
-  const [editingDisplayCtx, setEditingDisplayCtx] = useState('');
-  const [editingInitialText, setEditingInitialText] = useState('');
+  // コメントモーダルの状態は「開いている間だけ存在する 1 個のオブジェクト」にまとめる。
+  // 常に一括で更新される値を別々の state に散らすと、開き直しのたびに
+  // 子側で Effect による初期化が必要になっていた（公式が挙げるアンチパターン）。
+  // seq は開くたびに増える通し番号で、閉じずに開き直したときに CommentModal が
+  // 入力内容をリセットするための目印。
+  const [commentModal, setCommentModal] = useState<CommentModalState | null>(
+    null,
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [drawioOpen, setDrawioOpen] = useState(false);
   const [drawioCode, setDrawioCode] = useState<string | null>(null);
-  const [mermaidZoomOpen, setMermaidZoomOpen] = useState(false);
   const [mermaidZoomHtml, setMermaidZoomHtml] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const anchorPopupRef = useRef<HTMLDivElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const blockRefsMapRef = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -257,8 +270,16 @@ export function App() {
   );
 
   function toast(msg: string) {
-    setToastState((s) => ({ msg, v: s.v + 1 }));
+    setToastState({ msg });
   }
+
+  // 一定時間で自動的に消す。タイマーという外部システムの管理なので Effect が正しい用途。
+  // toast は出すたびに新しいオブジェクトになるため、同じ文言を続けて出しても張り直る。
+  useEffect(() => {
+    if (!toastState) return;
+    const timeoutId = setTimeout(() => setToastState(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timeoutId);
+  }, [toastState]);
 
   // SSE: ファイル変更と dict 更新を処理
   useSSE((changedFile, dictUpdated) => {
@@ -289,36 +310,19 @@ export function App() {
     return () => cancelAnimationFrame(id);
   }, [source, dictEntries, diffMode]);
 
-  // mark ホバーでツールチップを表示
-  useEffect(() => {
-    const container = contentRef.current;
-    if (!container) return;
+  // 用語 mark のホバーでツールチップを表示・非表示にする。
+  // 以前は Effect で contentRef へ直接 addEventListener していたが、React の
+  // イベントハンドラで足りる（＝Effect が要らない）うえ、辞書が更新されるたびに
+  // 購読し直していた。ハンドラなら毎レンダー作り直されるので dictEntries も常に最新。
+  function handleTermEnter(term: string, rect: DOMRect) {
+    setDictTooltipEntry(dictEntries.find((en) => en.term === term) ?? null);
+    setDictTooltipRect(rect);
+  }
 
-    function onMouseEnter(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (target.tagName !== 'MARK' || !target.hasAttribute('data-dict-term'))
-        return;
-      const termName = target.getAttribute('data-dict-term') ?? '';
-      const entry = dictEntries.find((en) => en.term === termName) ?? null;
-      setDictTooltipEntry(entry);
-      setDictTooltipRect(target.getBoundingClientRect());
-    }
-
-    function onMouseLeave(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (target.tagName !== 'MARK' || !target.hasAttribute('data-dict-term'))
-        return;
-      setDictTooltipEntry(null);
-      setDictTooltipRect(null);
-    }
-
-    container.addEventListener('mouseover', onMouseEnter);
-    container.addEventListener('mouseout', onMouseLeave);
-    return () => {
-      container.removeEventListener('mouseover', onMouseEnter);
-      container.removeEventListener('mouseout', onMouseLeave);
-    };
-  }, [dictEntries]);
+  function handleTermLeave() {
+    setDictTooltipEntry(null);
+    setDictTooltipRect(null);
+  }
 
   async function handleDictSync() {
     setIsDictSyncing(true);
@@ -389,16 +393,9 @@ export function App() {
     saveContentWidth(manualWidthRef.current);
   }
 
-  useEffect(() => {
-    if (!anchorPopup) return;
-    function close(e: MouseEvent) {
-      const popup = document.getElementById('anchor-comment-popup');
-      if (popup?.contains(e.target as Node)) return;
-      setAnchorPopup(null);
-    }
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [anchorPopup]);
+  useOutsideDismiss(anchorPopupRef, () => setAnchorPopup(null), {
+    enabled: anchorPopup !== null,
+  });
 
   function handleClickCommentAnchor(c: Comment, x: number, y: number) {
     setAnchorPopup({ comment: c, x, y });
@@ -478,6 +475,11 @@ export function App() {
   );
 
   // Comment modal
+  /** 開くたびに seq を進めて「別インスタンス」として作り直させる。 */
+  function openCommentModalWith(state: Omit<CommentModalState, 'seq'>) {
+    setCommentModal((prev) => ({ ...state, seq: (prev?.seq ?? 0) + 1 }));
+  }
+
   function openCommentModal(
     lineStart: number,
     lineEnd: number,
@@ -488,54 +490,55 @@ export function App() {
     x: number,
     y: number,
   ) {
-    setPending({
-      lineStart,
-      lineEnd,
-      block_type: blockType,
-      context,
-      selection_offset: selectionOffset,
+    openCommentModalWith({
+      pending: {
+        lineStart,
+        lineEnd,
+        block_type: blockType,
+        context,
+        selection_offset: selectionOffset,
+      },
+      editingId: null,
+      displayCtx,
+      initialText: '',
+      anchor: { x, y },
     });
-    setModalAnchor({ x, y });
-    setEditingId(null);
-    setEditingDisplayCtx(displayCtx);
-    setEditingInitialText('');
-    setCommentModalOpen(true);
   }
 
   function openEditModal(c: Comment, x?: number, y?: number) {
-    setPending({
-      lineStart: c.lineStart,
-      lineEnd: c.lineEnd,
-      block_type: c.block_type,
-      context: c.context,
-      selection_offset: c.selection_offset ?? null,
+    openCommentModalWith({
+      pending: {
+        lineStart: c.lineStart,
+        lineEnd: c.lineEnd,
+        block_type: c.block_type,
+        context: c.context,
+        selection_offset: c.selection_offset ?? null,
+      },
+      editingId: c.id,
+      displayCtx: ctxDisplay(c),
+      initialText: c.text,
+      anchor: x != null && y != null ? { x, y } : null,
     });
-    setModalAnchor(x != null && y != null ? { x, y } : null);
-    setEditingId(c.id);
-    setEditingDisplayCtx(ctxDisplay(c));
-    setEditingInitialText(c.text);
-    setCommentModalOpen(true);
   }
 
   async function handleCommentSubmit(text: string) {
-    if (!pending) return;
-    setCommentModalOpen(false);
-    if (editingId !== null) {
-      const ok = await updateComment(editingId, text);
+    const modal = commentModal;
+    if (!modal) return;
+    setCommentModal(null);
+    if (modal.editingId !== null) {
+      const ok = await updateComment(modal.editingId, text);
       toast(ok ? 'コメントを更新しました' : 'コメントを保存できませんでした');
     } else {
       // 「もとの文章」は作成時点でしか正確に切り出せない（後で対象が削除される）。
       // ここでスナップショットを取ってコメントと一緒に保存する。
       const ok = await addComment(
-        pending,
+        modal.pending,
         text,
-        buildCommentSnapshot(pending, source, diffData),
+        buildCommentSnapshot(modal.pending, source, diffData),
       );
       setPanelOpen(true);
       toast(ok ? 'コメントを追加しました' : 'コメントを保存できませんでした');
     }
-    setPending(null);
-    setEditingId(null);
   }
 
   function handleSelectionComment(
@@ -546,18 +549,19 @@ export function App() {
     x: number,
     y: number,
   ) {
-    setPending({
-      lineStart,
-      lineEnd,
-      block_type: 'selection',
-      context: ctx,
-      selection_offset: selectionOffset,
+    openCommentModalWith({
+      pending: {
+        lineStart,
+        lineEnd,
+        block_type: 'selection',
+        context: ctx,
+        selection_offset: selectionOffset,
+      },
+      editingId: null,
+      displayCtx: ctx,
+      initialText: '',
+      anchor: { x, y },
     });
-    setModalAnchor({ x, y });
-    setEditingId(null);
-    setEditingDisplayCtx(ctx);
-    setEditingInitialText('');
-    setCommentModalOpen(true);
   }
 
   // Copy review（解決済みコメントは含めない）
@@ -981,9 +985,10 @@ export function App() {
                 }}
                 onOpenMermaidZoom={(html) => {
                   setMermaidZoomHtml(html);
-                  setMermaidZoomOpen(true);
                 }}
                 onClickCommentAnchor={handleClickCommentAnchor}
+                onTermEnter={handleTermEnter}
+                onTermLeave={handleTermLeave}
                 onOrphanedIds={setBlockOrphanIds}
                 contentRef={contentRef}
                 blockRefsMapRef={blockRefsMapRef}
@@ -1020,27 +1025,29 @@ export function App() {
         onToggleResolved={(id) => void handleToggleResolved(id)}
         onClose={() => setPanelOpen(false)}
       />
-      <CommentModal
-        open={commentModalOpen}
-        pending={pending}
-        editingId={editingId}
-        displayCtx={editingDisplayCtx}
-        initialText={editingInitialText}
-        anchor={modalAnchor}
-        onSubmit={handleCommentSubmit}
-        onClose={() => {
-          setCommentModalOpen(false);
-          setPending(null);
-          setEditingId(null);
-          setModalAnchor(null);
-        }}
-      />
-      <ConfirmModal
-        open={confirmOpen}
-        orphanedCount={orphanedCommentIds.size}
-        onConfirm={confirmAction}
-        onClose={() => setConfirmOpen(false)}
-      />
+      {/* 開いている間だけマウントする（閉じている間の state を持たせない）。
+          key を使わないのは、この children リストで key を付け替えると、同じ
+          コミットで消える兄弟の DOM が残ることがあったため。開き直しの
+          リセットは seq を見て CommentModal 側がレンダー中に行う。 */}
+      {commentModal && (
+        <CommentModal
+          openSeq={commentModal.seq}
+          pending={commentModal.pending}
+          editingId={commentModal.editingId}
+          displayCtx={commentModal.displayCtx}
+          initialText={commentModal.initialText}
+          anchor={commentModal.anchor}
+          onSubmit={handleCommentSubmit}
+          onClose={() => setCommentModal(null)}
+        />
+      )}
+      {confirmOpen && (
+        <ConfirmModal
+          orphanedCount={orphanedCommentIds.size}
+          onConfirm={confirmAction}
+          onClose={() => setConfirmOpen(false)}
+        />
+      )}
       <DrawioModal
         open={drawioOpen}
         code={drawioCode}
@@ -1050,35 +1057,37 @@ export function App() {
         }}
         onToast={toast}
       />
-      <MermaidZoomModal
-        open={mermaidZoomOpen}
-        html={mermaidZoomHtml}
-        onClose={() => {
-          setMermaidZoomOpen(false);
-          setMermaidZoomHtml(null);
-        }}
-      />
+      {mermaidZoomHtml !== null && (
+        <MermaidZoomModal
+          html={mermaidZoomHtml}
+          onClose={() => setMermaidZoomHtml(null)}
+        />
+      )}
       {!diffMode && (
         <SelectionPopup
           contentRef={contentRef}
           onComment={handleSelectionComment}
         />
       )}
-      <QuickOpen
-        open={quickOpenOpen}
-        tabs={files}
-        recentFiles={recentFiles}
-        bookmarks={bookmarks}
-        tree={tree}
-        onClose={() => setQuickOpenOpen(false)}
-        onOpenFile={(path) => void handleOpenFile(path)}
-        onOpenDir={(path) => void handleOpenDir(path)}
-        onOpenFileAtLine={(path, line) => void handleOpenFileAtLine(path, line)}
-      />
+      {quickOpenOpen && (
+        <QuickOpen
+          tabs={files}
+          recentFiles={recentFiles}
+          bookmarks={bookmarks}
+          tree={tree}
+          onClose={() => setQuickOpenOpen(false)}
+          onOpenFile={(path) => void handleOpenFile(path)}
+          onOpenDir={(path) => void handleOpenDir(path)}
+          onOpenFileAtLine={(path, line) =>
+            void handleOpenFileAtLine(path, line)
+          }
+        />
+      )}
       <DictTooltip entry={dictTooltipEntry} anchorRect={dictTooltipRect} />
       {anchorPopup &&
         createPortal(
           <div
+            ref={anchorPopupRef}
             id="anchor-comment-popup"
             className={styles.anchorPopup}
             style={{
@@ -1127,7 +1136,7 @@ export function App() {
           </div>,
           document.body,
         )}
-      <Toast message={toastState.msg} version={toastState.v} />
+      {toastState && <Toast message={toastState.msg} />}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useEscapeDismiss, useOutsideDismiss } from '../hooks/useDismiss.ts';
 import { OpenDirButton } from './OpenDirButton.tsx';
 import styles from './OverflowMenu.module.css';
 
@@ -44,22 +45,8 @@ export function OverflowMenu({
     action();
   }
 
-  useEffect(() => {
-    if (!open) return;
-    function closeOnOutside(e: MouseEvent) {
-      if (rootRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    }
-    function closeOnEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', closeOnOutside);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutside);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [open]);
+  useOutsideDismiss(rootRef, () => setOpen(false), { enabled: open });
+  useEscapeDismiss(() => setOpen(false), open);
 
   return (
     <div className={styles.root} ref={rootRef}>

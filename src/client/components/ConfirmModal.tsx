@@ -1,17 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import styles from './ConfirmModal.module.css';
 
 export type DeleteMode = 'orphaned' | 'all';
 
 interface ConfirmModalProps {
-  open: boolean;
   orphanedCount: number;
   onConfirm: (mode: DeleteMode) => void;
   onClose: () => void;
 }
 
+/**
+ * コメント削除の確認ダイアログ。
+ *
+ * 以前は open prop を Effect で見張って初期選択をやり直していたが、これは公式が
+ * 挙げる「prop が変わったら state をリセットする」アンチパターン。開いている間
+ * だけ呼び出し側がマウントするようにしたので、初期選択は useState の初期値で足りる。
+ */
 export function ConfirmModal({
-  open,
   orphanedCount,
   onConfirm,
   onClose,
@@ -20,11 +25,13 @@ export function ConfirmModal({
     orphanedCount > 0 ? 'orphaned' : 'all',
   );
 
-  useEffect(() => {
-    if (open) setMode(orphanedCount > 0 ? 'orphaned' : 'all');
-  }, [open, orphanedCount]);
-
-  if (!open) return null;
+  // 開いている最中に SSE などで削除済みコメントが 0 件になると「削除済みのみ削除」
+  // が disabled になる。選択が無効な選択肢に残らないよう、ここで詰め直す。
+  // Effect で追従させると 1 コミットぶん無効な選択が描画されてしまうため、
+  // 公式の「レンダー中に state を調整する」に従ってレンダー中に直す。
+  if (mode === 'orphaned' && orphanedCount === 0) {
+    setMode('all');
+  }
 
   function handleConfirm() {
     onConfirm(mode);

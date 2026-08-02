@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   COMMENT_STATUS_LABEL,
   commentStatus,
@@ -76,13 +76,15 @@ export function CommentsPanel({
 
   const closeSnapshot = useCallback(() => setSnapshotTarget(null), []);
 
-  // パネルを閉じたときとコメントが消えたときは吹き出しも閉じる
-  useEffect(() => {
-    if (!snapshotTarget) return;
-    if (!open || !comments.some((c) => c.id === snapshotTarget.id)) {
-      setSnapshotTarget(null);
-    }
-  }, [open, comments, snapshotTarget]);
+  // パネルを閉じたときとコメントが消えたときは吹き出しも閉じる。
+  // Effect で追従させると閉じたパネルの上に吹き出しが 1 コミットぶん残るので、
+  // 公式の「レンダー中に state を調整する」に従ってレンダー中に直す。
+  if (
+    snapshotTarget &&
+    (!open || !comments.some((c) => c.id === snapshotTarget.id))
+  ) {
+    setSnapshotTarget(null);
+  }
 
   const startDrag = useCallback((e: React.MouseEvent) => {
     const startY = e.clientY;

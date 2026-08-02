@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useEscapeDismiss } from '../hooks/useDismiss.ts';
 import styles from './MermaidZoomModal.module.css';
 
 interface MermaidZoomModalProps {
-  open: boolean;
-  html: string | null;
+  html: string;
   onClose: () => void;
 }
 
@@ -11,34 +11,25 @@ const MIN_SCALE = 0.2;
 const MAX_SCALE = 6;
 const ZOOM_STEP = 1.1;
 
-export function MermaidZoomModal({
-  open,
-  html,
-  onClose,
-}: MermaidZoomModalProps) {
+/**
+ * mermaid 図の拡大表示。
+ *
+ * 開閉のたびに拡大率を原寸へ戻す必要があるが、以前は open prop の変化を
+ * Effect で拾って setScale(1) していた。これは公式が挙げる
+ * 「prop が変わったら state をリセットする」アンチパターンで、
+ * 再オープンの最初のコミットが前回の拡大率のまま描画されてしまう。
+ * 現在は呼び出し側が開いている間だけこのコンポーネントをマウントするので、
+ * 拡大率は毎回 useState の初期値から始まり、リセット用の Effect は要らない。
+ */
+export function MermaidZoomModal({ html, onClose }: MermaidZoomModalProps) {
   const [scale, setScale] = useState(1);
   const areaRef = useRef<HTMLDivElement | null>(null);
 
-  // 開閉のたびに「拡大も縮小もしていない」原寸表示に戻す。
-  // open 時だけにすると、再オープンの最初のコミットは前回の拡大率のまま
-  // 描画され effect のリセットが後から走る（1 フレーム旧倍率が見える）。
-  // close 時にもリセットしておけば、再オープンは常に scale(1) から始まる。
-  useEffect(() => {
-    setScale(1);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  useEscapeDismiss(onClose);
 
   useEffect(() => {
     const area = areaRef.current;
-    if (!area || !open) return;
+    if (!area) return;
     // ブラウザのページズームと競合させないため、React の onWheel（passive）
     // ではなく addEventListener({ passive: false }) で preventDefault する。
     function handleWheel(e: WheelEvent) {
@@ -53,9 +44,7 @@ export function MermaidZoomModal({
     }
     area.addEventListener('wheel', handleWheel, { passive: false });
     return () => area.removeEventListener('wheel', handleWheel);
-  }, [open]);
-
-  if (!open || html === null) return null;
+  }, []);
 
   return (
     <div

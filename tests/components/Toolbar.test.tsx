@@ -36,6 +36,8 @@ function makeProps(
     onToggleTheme: vi.fn(),
     contentFontId: 'inter',
     onChangeContentFont: vi.fn(),
+    ligaturesEnabled: true,
+    onToggleLigatures: vi.fn(),
     marginCollapse: { left: false, right: false },
     onToggleMargin: vi.fn(),
     manualWidth: null,

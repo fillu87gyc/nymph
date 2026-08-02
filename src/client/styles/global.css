@@ -31,6 +31,10 @@
   --sb: #262b3d;
   --content-font: "Inter", sans-serif;
   --content-heading-font: "Inter", sans-serif;
+  /* 合字の有効/無効（設定ポップオーバーから App が上書きする）。
+     既定の normal は font-variant-ligatures の初期値そのものなので、
+     設定を触らないかぎり描画は従来どおり。 */
+  --ligatures: normal;
   --danger: #f7768e;
   --danger-hover: #e0607a;
   --danger-rgb: 247, 118, 142;
@@ -83,6 +87,10 @@ body {
   color: var(--text);
   font-family: "DM Sans", sans-serif;
   font-size: 14px;
+  /* font-variant-ligatures は継承プロパティ。ここ 1 箇所で宣言すれば、
+     本文（#content）・差分ビュー・コメントのスニペット・ポータル配下の
+     モーダルまで、フォント指定がどこにあっても同じ設定が行き渡る。 */
+  font-variant-ligatures: var(--ligatures);
 }
 ::-webkit-scrollbar {
   width: 5px;

@@ -50,6 +50,11 @@ import {
   saveMarginCollapse,
 } from './lib/contentWidth.ts';
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
+import {
+  applyLigatures,
+  loadLigatures,
+  saveLigatures,
+} from './lib/ligatures.ts';
 import { highlightSelectionText } from './lib/markdown.ts';
 import {
   computeOutlineStats,
@@ -110,6 +115,13 @@ export function App() {
     const saved =
       localStorage.getItem('nymph-content-font') ?? DEFAULT_CONTENT_FONT_ID;
     applyContentFont(saved);
+    return saved;
+  });
+  // 合字の有無は本文フォントと同じく「描画前に確定していてほしい」設定なので、
+  // Effect ではなく初期化中に CSS 変数へ流しておく（初回描画のちらつき防止）。
+  const [ligaturesEnabled, setLigaturesEnabled] = useState<boolean>(() => {
+    const saved = loadLigatures();
+    applyLigatures(saved);
     return saved;
   });
   const [highlightedBlockLs, setHighlightedBlockLs] = useState<number | null>(
@@ -345,6 +357,13 @@ export function App() {
     setContentFontId(id);
     applyContentFont(id);
     localStorage.setItem('nymph-content-font', id);
+  }
+
+  function handleToggleLigatures() {
+    const next = !ligaturesEnabled;
+    setLigaturesEnabled(next);
+    applyLigatures(next);
+    saveLigatures(next);
   }
 
   function toggleMargin(side: 'left' | 'right') {
@@ -891,6 +910,8 @@ export function App() {
         onToggleTheme={handleToggleTheme}
         contentFontId={contentFontId}
         onChangeContentFont={handleChangeContentFont}
+        ligaturesEnabled={ligaturesEnabled}
+        onToggleLigatures={handleToggleLigatures}
         onDictSync={handleDictSync}
         isDictSyncing={isDictSyncing}
         marginCollapse={marginCollapse}

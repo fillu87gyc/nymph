@@ -1,10 +1,5 @@
 import type { MarginCollapse } from '../lib/contentWidth.ts';
 import type { OutlineBadgeMode } from '../lib/outline.ts';
-import type {
-  WidgetId,
-  WidgetLayout,
-  WidgetPlacement,
-} from '../lib/widgets.ts';
 import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import { OpenFileButton } from './OpenFileButton.tsx';
 import { OverflowMenu } from './OverflowMenu.tsx';
@@ -53,8 +48,8 @@ interface ToolbarProps {
   onResetWidth: () => void;
   outlineBadgeMode: OutlineBadgeMode;
   onChangeOutlineBadgeMode: (mode: OutlineBadgeMode) => void;
-  widgetLayout: WidgetLayout;
-  onPlaceWidget: (id: WidgetId, placement: WidgetPlacement) => void;
+  /** ウィジェット配置画面を開く。 */
+  onOpenWidgetArrange: () => void;
 }
 
 export function Toolbar({
@@ -97,8 +92,7 @@ export function Toolbar({
   onResetWidth,
   outlineBadgeMode,
   onChangeOutlineBadgeMode,
-  widgetLayout,
-  onPlaceWidget,
+  onOpenWidgetArrange,
 }: ToolbarProps) {
   // 接続状態＋最終更新時刻はドット1個に統合し、詳細は title のツールチップに出す
   const connectionTitle = isConnected
@@ -183,8 +177,7 @@ export function Toolbar({
         outlineBadgeMode={outlineBadgeMode}
         onChangeOutlineBadgeMode={onChangeOutlineBadgeMode}
         checkpointSet={checkpointSet}
-        widgetLayout={widgetLayout}
-        onPlaceWidget={onPlaceWidget}
+        onOpenWidgetArrange={onOpenWidgetArrange}
       />
       <OverflowMenu
         onPickDir={onPickDir}

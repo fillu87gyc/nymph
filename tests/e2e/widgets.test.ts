@@ -10,33 +10,26 @@
  * context フィクスチャがテストごとに作り直されるためテスト間で漏れない。
  */
 import {
+  arrangeColumnWidgets,
   closeSecondFile,
+  closeWidgetArrange,
+  dragWidget,
   expect,
   openSecondFile,
-  openSettingsMenu,
+  openWidgetArrange,
   type Page,
   test,
 } from './fixtures.ts';
 
 test.describe.configure({ mode: 'parallel' });
 
-/** 設定ポップオーバーからウィジェットの配置先を変える。 */
+/** 配置画面でウィジェットを目的の場所（末尾）へドラッグする。 */
 async function placeWidget(
   page: Page,
   id: 'tabs' | 'explorer' | 'outline' | 'comments',
   placement: 'left' | 'right' | 'default',
 ): Promise<void> {
-  await openSettingsMenu(page);
-  await page.getByTestId(`widget-place-${id}-${placement}`).click();
-  await expect(
-    page.getByTestId(`widget-place-${id}-${placement}`),
-  ).toHaveAttribute('aria-pressed', 'true');
-}
-
-/** 設定ポップオーバーを閉じて、下の UI を操作できるようにする。 */
-async function closeSettingsMenu(page: Page): Promise<void> {
-  await page.keyboard.press('Escape');
-  await expect(page.getByTestId('settings-menu')).toBeHidden();
+  await dragWidget(page, id, placement === 'default' ? 'available' : placement);
 }
 
 /** 枠に積まれているウィジェットを上から順に返す。 */
@@ -93,7 +86,7 @@ test.describe('タブウィジェット', () => {
     const second = await openSecondFile(page, fixturePath);
     try {
       await placeWidget(page, 'tabs', 'left');
-      await closeSettingsMenu(page);
+      await closeWidgetArrange(page);
 
       await expect(page.getByTestId('widget-slot-left')).toBeVisible();
       await expect(page.getByTestId('tabs-widget')).toBeVisible();
@@ -111,7 +104,7 @@ test.describe('タブウィジェット', () => {
     const second = await openSecondFile(page, fixturePath);
     try {
       await placeWidget(page, 'tabs', 'left');
-      await closeSettingsMenu(page);
+      await closeWidgetArrange(page);
 
       await page
         .getByTestId('tabs-widget')
@@ -133,7 +126,7 @@ test.describe('タブウィジェット', () => {
   test('1ファイルでも縦タブは表示される（横行は出ない）', async ({ page }) => {
     await expect(page.locator('#file-tabs')).toBeHidden();
     await placeWidget(page, 'tabs', 'left');
-    await closeSettingsMenu(page);
+    await closeWidgetArrange(page);
     await expect(page.getByTestId('tabs-widget')).toBeVisible();
   });
 
@@ -142,7 +135,7 @@ test.describe('タブウィジェット', () => {
     try {
       await placeWidget(page, 'tabs', 'left');
       await placeWidget(page, 'tabs', 'default');
-      await closeSettingsMenu(page);
+      await closeWidgetArrange(page);
 
       await expect(page.getByTestId('tabs-widget')).toBeHidden();
       await expect(page.locator('#file-tabs')).toHaveAttribute(
@@ -166,7 +159,7 @@ test.describe('複数ウィジェットを積む', () => {
       await page.locator('#btn-toc').click();
       await placeWidget(page, 'tabs', 'left');
       await placeWidget(page, 'outline', 'left');
-      await closeSettingsMenu(page);
+      await closeWidgetArrange(page);
 
       // 置いた順に上から積まれる
       expect(await slotWidgets(page, 'left')).toEqual(['tabs', 'outline']);
@@ -186,7 +179,7 @@ test.describe('複数ウィジェットを積む', () => {
   test('アウトラインは同時に 2 箇所へは出ない', async ({ page }) => {
     await page.locator('#btn-toc').click();
     await placeWidget(page, 'outline', 'left');
-    await closeSettingsMenu(page);
+    await closeWidgetArrange(page);
     await expect(page.getByTestId('toc-panel')).toHaveCount(1);
   });
 });
@@ -202,7 +195,7 @@ test.describe('コメントウィジェット', () => {
     );
 
     await placeWidget(page, 'comments', 'right');
-    await closeSettingsMenu(page);
+    await closeWidgetArrange(page);
 
     await expect(page.locator('#comments-panel')).toHaveAttribute(
       'data-variant',
@@ -217,7 +210,7 @@ test.describe('コメントウィジェット', () => {
   test('枠に置いたまま閉じると枠ごと消える', async ({ page }) => {
     await page.locator('#btn-comments').click();
     await placeWidget(page, 'comments', 'right');
-    await closeSettingsMenu(page);
+    await closeWidgetArrange(page);
     await expect(page.getByTestId('widget-slot-right')).toBeVisible();
 
     await page.locator('#btn-close-panel').click();
@@ -232,7 +225,7 @@ test.describe('配置の永続化', () => {
     try {
       await placeWidget(page, 'tabs', 'left');
       await placeWidget(page, 'outline', 'left');
-      await closeSettingsMenu(page);
+      await closeWidgetArrange(page);
 
       await page.reload();
       await expect(
@@ -244,15 +237,14 @@ test.describe('配置の永続化', () => {
       // 開き直すと、保存済みの配置どおり左枠のタブの下に戻る。
       await page.locator('#btn-toc').click();
       expect(await slotWidgets(page, 'left')).toEqual(['tabs', 'outline']);
-      // 設定 UI 側にも保存済みの配置が反映されている
-      await openSettingsMenu(page);
-      await expect(page.getByTestId('widget-place-tabs-left')).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      await expect(
-        page.getByTestId('widget-place-outline-left'),
-      ).toHaveAttribute('aria-pressed', 'true');
+      // 配置画面側にも保存済みの配置が反映されている（画面に出ていない
+      // エクスプローラーも、配置としては左枠に入ったまま並んでいる）
+      await openWidgetArrange(page);
+      expect(await arrangeColumnWidgets(page, 'left')).toEqual([
+        'explorer',
+        'tabs',
+        'outline',
+      ]);
     } finally {
       await closeSecondFile(page, second.path);
     }

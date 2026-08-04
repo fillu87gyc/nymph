@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
 import { Toolbar } from '../../src/client/components/Toolbar.tsx';
-import { DEFAULT_WIDGET_LAYOUT } from '../../src/client/lib/widgets.ts';
 
 function makeProps(
   overrides: Partial<React.ComponentProps<typeof Toolbar>> = {},
@@ -45,8 +44,7 @@ function makeProps(
     onResetWidth: vi.fn(),
     outlineBadgeMode: 'comments',
     onChangeOutlineBadgeMode: vi.fn(),
-    widgetLayout: DEFAULT_WIDGET_LAYOUT,
-    onPlaceWidget: vi.fn(),
+    onOpenWidgetArrange: vi.fn(),
     ...overrides,
   };
 }

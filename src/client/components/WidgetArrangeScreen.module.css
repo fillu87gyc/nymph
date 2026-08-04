@@ -1,0 +1,201 @@
+/* ウィジェット配置画面。メイン画面の上に敷く独立した設定画面なので、
+   半透明のモーダルではなく背景まで塗りつぶした 1 枚の画面にする。 */
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  overflow: auto;
+}
+.head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.lead {
+  grid-column: 1;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+/* 「保存ボタンが無い」ことが伝わらないと『完了』が apply に見えるので、
+   即時反映＋保存であることを説明文の中で立てる。 */
+.leadStrong {
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--text);
+}
+.headActions {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: flex;
+  gap: 7px;
+}
+.body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  min-height: 0;
+  padding: 18px;
+}
+/* 「利用可能」一覧。配置先（左｜本文｜右）のプレビューとは見た目で切り分ける。 */
+.palette {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
+/* 左枠 / 本文 / 右枠 を実際の画面と同じ並びで見せる。 */
+.preview {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.column {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.canvas {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border: 1px dashed var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+.canvasLabel {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.colTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: none;
+}
+.list {
+  flex: 1;
+  min-height: 96px;
+  list-style: none;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+/* 落とせない列（スロット専用ウィジェットを掴んでいるときの「利用可能」）は
+   受け付けないことを見た目でも示す。 */
+.screen[data-dragging="true"] .list[data-droppable="false"] {
+  opacity: 0.5;
+}
+.screen[data-dragging="true"] .list[data-droppable="true"] {
+  border-color: var(--border-light);
+}
+.row {
+  display: block;
+}
+/* 左右の枠は差し込み位置（gap）が行間を作るが、「利用可能」には gap が
+   無いのでここで間隔を持たせる。 */
+.list[data-column="available"] .row + .row {
+  margin-top: 6px;
+}
+.empty {
+  padding: 10px 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  background: var(--bg-surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: grab;
+}
+.chip:hover {
+  background: var(--bg-hover);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chip[data-dragging="true"] {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+.grip {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1;
+}
+.chipLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chipNote {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+/* 差し込み位置。高さはドラッグ中も変えない（掴んだ先で行がずれないように）。 */
+.gap {
+  height: 8px;
+  margin: 0 2px;
+  border-radius: 2px;
+}
+.screen[data-dragging="true"] .gap {
+  background: var(--accent-glow);
+}
+.gap[data-active="true"] {
+  background: var(--accent);
+}
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.status {
+  font-size: 11px;
+  color: var(--accent);
+}

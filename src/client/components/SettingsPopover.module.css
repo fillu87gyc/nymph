@@ -129,24 +129,6 @@
   color: #fff;
   font-weight: 700;
 }
-/* ウィジェット配置。1 行 = 1 ウィジェットで、左に名前・右に配置先の
-   セグメントコントロールを置く。 */
-.widgetRows {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.widgetRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.widgetName {
-  font-size: 12px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
 .hint {
   font-size: 11px;
   line-height: 1.5;

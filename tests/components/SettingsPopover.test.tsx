@@ -2,10 +2,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
 import { SettingsPopover } from '../../src/client/components/SettingsPopover.tsx';
-import {
-  DEFAULT_WIDGET_LAYOUT,
-  WIDGET_IDS,
-} from '../../src/client/lib/widgets.ts';
 
 function makeProps(
   overrides: Partial<React.ComponentProps<typeof SettingsPopover>> = {},
@@ -22,8 +18,7 @@ function makeProps(
     onResetWidth: vi.fn(),
     outlineBadgeMode: 'comments',
     onChangeOutlineBadgeMode: vi.fn(),
-    widgetLayout: DEFAULT_WIDGET_LAYOUT,
-    onPlaceWidget: vi.fn(),
+    onOpenWidgetArrange: vi.fn(),
     checkpointSet: true,
     ...overrides,
   };
@@ -198,89 +193,20 @@ describe('SettingsPopover', () => {
     expect(onChangeOutlineBadgeMode).toHaveBeenCalledWith('diff');
   });
   describe('ウィジェット配置', () => {
-    test('すべてのウィジェットに配置の選択肢が出る', async () => {
+    test('配置画面を開くボタンが出る', async () => {
       render(<SettingsPopover {...makeProps()} />);
       await userEvent.click(screen.getByTestId('settings-menu-btn'));
-      for (const id of WIDGET_IDS) {
-        expect(screen.getByTestId(`widget-row-${id}`)).toBeInTheDocument();
-        expect(
-          screen.getByTestId(`widget-place-${id}-left`),
-        ).toBeInTheDocument();
-        expect(
-          screen.getByTestId(`widget-place-${id}-right`),
-        ).toBeInTheDocument();
-      }
+      expect(screen.getByTestId('widget-arrange-open')).toBeInTheDocument();
     });
 
-    test('既定位置を持つウィジェットだけ枠の外に戻せる', async () => {
-      render(<SettingsPopover {...makeProps()} />);
+    test('押すと onOpenWidgetArrange が呼ばれ、ポップオーバーは閉じる', async () => {
+      const onOpenWidgetArrange = vi.fn();
+      render(<SettingsPopover {...makeProps({ onOpenWidgetArrange })} />);
       await userEvent.click(screen.getByTestId('settings-menu-btn'));
-      // タブ（横行）とコメント（下ドック）は既定位置に戻せる
-      expect(
-        screen.getByTestId('widget-place-tabs-default'),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByTestId('widget-place-comments-default'),
-      ).toBeInTheDocument();
-      // エクスプローラーとアウトラインは必ずどちらかの枠に入る
-      expect(
-        screen.queryByTestId('widget-place-explorer-default'),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByTestId('widget-place-outline-default'),
-      ).not.toBeInTheDocument();
-    });
-
-    test('現在の配置が aria-pressed に反映される', async () => {
-      render(<SettingsPopover {...makeProps()} />);
-      await userEvent.click(screen.getByTestId('settings-menu-btn'));
-      // 既定は 左=エクスプローラー / 右=アウトライン、タブは横行
-      expect(screen.getByTestId('widget-place-explorer-left')).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      expect(screen.getByTestId('widget-place-outline-right')).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      expect(screen.getByTestId('widget-place-tabs-default')).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      expect(screen.getByTestId('widget-place-tabs-left')).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
-    });
-
-    test('選ぶと onPlaceWidget が配置先つきで呼ばれる', async () => {
-      const onPlaceWidget = vi.fn();
-      render(<SettingsPopover {...makeProps({ onPlaceWidget })} />);
-      await userEvent.click(screen.getByTestId('settings-menu-btn'));
-      await userEvent.click(screen.getByTestId('widget-place-tabs-left'));
-      expect(onPlaceWidget).toHaveBeenCalledWith('tabs', 'left');
-    });
-
-    test('既定位置を選ぶと placement は null で呼ばれる', async () => {
-      const onPlaceWidget = vi.fn();
-      render(
-        <SettingsPopover
-          {...makeProps({
-            onPlaceWidget,
-            widgetLayout: { left: ['explorer', 'tabs'], right: ['outline'] },
-          })}
-        />,
-      );
-      await userEvent.click(screen.getByTestId('settings-menu-btn'));
-      await userEvent.click(screen.getByTestId('widget-place-tabs-default'));
-      expect(onPlaceWidget).toHaveBeenCalledWith('tabs', null);
-    });
-
-    test('配置を変えてもポップオーバーは開いたまま（続けて調整できる）', async () => {
-      render(<SettingsPopover {...makeProps()} />);
-      await userEvent.click(screen.getByTestId('settings-menu-btn'));
-      await userEvent.click(screen.getByTestId('widget-place-tabs-left'));
-      expect(screen.getByTestId('settings-menu')).toBeInTheDocument();
+      await userEvent.click(screen.getByTestId('widget-arrange-open'));
+      expect(onOpenWidgetArrange).toHaveBeenCalledTimes(1);
+      // 別画面へ移るので、下に残っていても邪魔になるだけ
+      expect(screen.queryByTestId('settings-menu')).not.toBeInTheDocument();
     });
   });
 });

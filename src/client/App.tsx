@@ -20,6 +20,7 @@ import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { TOAST_DURATION_MS, Toast } from './components/Toast.tsx';
 import { TocPanel } from './components/TocPanel.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
+import { WidgetArrangeScreen } from './components/WidgetArrangeScreen.tsx';
 import { WidgetSlot } from './components/WidgetSlot.tsx';
 import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
@@ -67,8 +68,9 @@ import { buildCommentSnapshot } from './lib/snapshot.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import { extractToc } from './lib/toc.ts';
 import {
+  DEFAULT_WIDGET_LAYOUT,
   loadWidgetLayout,
-  placeWidget,
+  moveWidget,
   type SlotId,
   saveWidgetLayout,
   type WidgetId,
@@ -112,8 +114,10 @@ export function App() {
   const [outlineBadgeMode, setOutlineBadgeMode] =
     useState<OutlineBadgeMode>(loadOutlineBadgeMode);
   // 左右のウィジェット枠に何を積むか。テーマや本文幅と同じ表示設定なので
-  // localStorage に持つ（設定ポップオーバーから変更する）。
+  // localStorage に持つ（配置画面から変更する）。
   const [widgetLayout, setWidgetLayout] = useState(loadWidgetLayout);
+  // ウィジェット配置画面を開いているか。設定ポップオーバーから開く。
+  const [widgetArrangeOpen, setWidgetArrangeOpen] = useState(false);
   // 表示中のトースト。出すたびに新しいオブジェクトにして、同じ文言を連続で
   // 出したときもタイマーが張り直されるようにする（null なら非表示）。
   const [toastState, setToastState] = useState<{ msg: string } | null>(null);
@@ -856,12 +860,25 @@ export function App() {
     }
   }
 
-  function handlePlaceWidget(id: WidgetId, placement: WidgetPlacement) {
+  function handleMoveWidget(
+    id: WidgetId,
+    placement: WidgetPlacement,
+    index: number,
+  ) {
     setWidgetLayout((prev) => {
-      const next = placeWidget(prev, id, placement);
+      const next = moveWidget(prev, id, placement, index);
       saveWidgetLayout(next);
       return next;
     });
+  }
+
+  function handleResetWidgetLayout() {
+    const next = {
+      left: [...DEFAULT_WIDGET_LAYOUT.left],
+      right: [...DEFAULT_WIDGET_LAYOUT.right],
+    };
+    saveWidgetLayout(next);
+    setWidgetLayout(next);
   }
 
   // ウィジェットを出す条件。配置（どの枠に置くか）とは別軸で、従来どおり
@@ -1005,8 +1022,7 @@ export function App() {
         onResetWidth={resetContentWidth}
         outlineBadgeMode={outlineBadgeMode}
         onChangeOutlineBadgeMode={handleChangeOutlineBadgeMode}
-        widgetLayout={widgetLayout}
-        onPlaceWidget={handlePlaceWidget}
+        onOpenWidgetArrange={() => setWidgetArrangeOpen(true)}
       />
       {widgetPlacement(widgetLayout, 'tabs') === null && (
         <FileTabs
@@ -1172,6 +1188,14 @@ export function App() {
         <SelectionPopup
           contentRef={contentRef}
           onComment={handleSelectionComment}
+        />
+      )}
+      {widgetArrangeOpen && (
+        <WidgetArrangeScreen
+          layout={widgetLayout}
+          onMove={handleMoveWidget}
+          onReset={handleResetWidgetLayout}
+          onClose={() => setWidgetArrangeOpen(false)}
         />
       )}
       {quickOpenOpen && (

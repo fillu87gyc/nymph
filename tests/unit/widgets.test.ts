@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  availableWidgets,
   DEFAULT_WIDGET_LAYOUT,
   loadWidgetLayout,
+  moveWidget,
   normalizeWidgetLayout,
   placeWidget,
   saveWidgetLayout,
@@ -98,6 +100,112 @@ describe('placeWidget', () => {
     };
     placeWidget(layout, 'explorer', 'right');
     expect(layout).toEqual({ left: ['explorer'], right: [] });
+  });
+});
+
+describe('moveWidget', () => {
+  it('指定した位置に差し込む（先頭）', () => {
+    const layout = { left: ['explorer' as const, 'tabs' as const], right: [] };
+    const next = moveWidget(layout, 'comments', 'left', 0);
+    expect(next.left).toEqual(['comments', 'explorer', 'tabs']);
+  });
+
+  it('指定した位置に差し込む（途中）', () => {
+    const layout = { left: ['explorer' as const, 'tabs' as const], right: [] };
+    const next = moveWidget(layout, 'comments', 'left', 1);
+    expect(next.left).toEqual(['explorer', 'comments', 'tabs']);
+  });
+
+  it('同じ枠の中で順番を入れ替えられる（下から上へ）', () => {
+    const layout = { left: ['explorer' as const, 'tabs' as const], right: [] };
+    const next = moveWidget(layout, 'tabs', 'left', 0);
+    expect(next.left).toEqual(['tabs', 'explorer']);
+  });
+
+  it('同じ枠の中で順番を入れ替えられる（上から下へ）', () => {
+    const layout = {
+      left: ['tabs' as const, 'explorer' as const, 'comments' as const],
+      right: [],
+    };
+    // index は「自分を抜いた後の配列」での位置なので、末尾は 2
+    const next = moveWidget(layout, 'tabs', 'left', 2);
+    expect(next.left).toEqual(['explorer', 'comments', 'tabs']);
+  });
+
+  it('同じ位置に落としても並びは変わらない', () => {
+    const layout = { left: ['explorer' as const, 'tabs' as const], right: [] };
+    expect(moveWidget(layout, 'explorer', 'left', 0).left).toEqual([
+      'explorer',
+      'tabs',
+    ]);
+  });
+
+  it('別の枠へ移すと元の枠からは外れる', () => {
+    const next = moveWidget(DEFAULT_WIDGET_LAYOUT, 'outline', 'left', 0);
+    expect(next.left).toEqual(['outline', 'explorer']);
+    expect(next.right).toEqual([]);
+  });
+
+  it('範囲外の index は端に丸める', () => {
+    const layout = { left: ['explorer' as const], right: [] };
+    expect(moveWidget(layout, 'tabs', 'left', 99).left).toEqual([
+      'explorer',
+      'tabs',
+    ]);
+    expect(moveWidget(layout, 'tabs', 'left', -3).left).toEqual([
+      'tabs',
+      'explorer',
+    ]);
+  });
+
+  it('既定位置（null）へ移すとどちらの枠からも外れる', () => {
+    const layout = { left: ['explorer' as const, 'tabs' as const], right: [] };
+    const next = moveWidget(layout, 'tabs', null, 0);
+    expect(widgetPlacement(next, 'tabs')).toBeNull();
+    expect(next.left).toEqual(['explorer']);
+  });
+
+  it('スロット専用 widget は既定位置へ移せない（配置を変えない）', () => {
+    const next = moveWidget(DEFAULT_WIDGET_LAYOUT, 'outline', null, 0);
+    expect(next).toEqual(DEFAULT_WIDGET_LAYOUT);
+  });
+
+  it('引数の layout を破壊しない', () => {
+    const layout: { left: ('tabs' | 'explorer')[]; right: never[] } = {
+      left: ['explorer', 'tabs'],
+      right: [],
+    };
+    moveWidget(layout, 'tabs', 'left', 0);
+    expect(layout).toEqual({ left: ['explorer', 'tabs'], right: [] });
+  });
+});
+
+describe('availableWidgets', () => {
+  it('既定位置にいる（枠に入っていない）widget を返す', () => {
+    expect(availableWidgets(DEFAULT_WIDGET_LAYOUT)).toEqual([
+      'tabs',
+      'comments',
+    ]);
+  });
+
+  it('枠に置いた widget は一覧から消える', () => {
+    const layout = placeWidget(DEFAULT_WIDGET_LAYOUT, 'tabs', 'left');
+    expect(availableWidgets(layout)).toEqual(['comments']);
+  });
+
+  it('スロット専用 widget は既定位置を持たないので現れない', () => {
+    // normalize 前提が崩れた（両方とも枠にいない）レイアウトでも出さない
+    const broken = { left: [], right: [] };
+    expect(availableWidgets(broken)).toEqual(['tabs', 'comments']);
+  });
+
+  it('WIDGET_IDS の順に並ぶ（配置順に依存しない）', () => {
+    const layout = placeWidget(
+      placeWidget(DEFAULT_WIDGET_LAYOUT, 'comments', 'right'),
+      'comments',
+      null,
+    );
+    expect(availableWidgets(layout)).toEqual(['tabs', 'comments']);
   });
 });
 

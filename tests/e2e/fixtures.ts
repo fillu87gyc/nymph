@@ -345,4 +345,73 @@ export async function openSettingsMenu(page: Page): Promise<void> {
   await menu.waitFor({ state: 'visible' });
 }
 
+/** 配置画面の列。`available` は枠に入れない＝ウィジェット本来の既定位置。 */
+export type ArrangeColumn = 'available' | 'left' | 'right';
+
+/**
+ * ウィジェット配置画面を開く。設定ポップオーバー →「配置を編集」の順で、
+ * 既に開いていれば何もしない。
+ */
+export async function openWidgetArrange(page: Page): Promise<void> {
+  const screen = page.getByTestId('widget-arrange');
+  if (await screen.isVisible().catch(() => false)) return;
+  await openSettingsMenu(page);
+  await page.getByTestId('widget-arrange-open').click();
+  await screen.waitFor({ state: 'visible' });
+}
+
+/** 配置画面を閉じて、メイン画面を操作できるようにする。 */
+export async function closeWidgetArrange(page: Page): Promise<void> {
+  const screen = page.getByTestId('widget-arrange');
+  if (!(await screen.isVisible().catch(() => false))) return;
+  await page.getByTestId('widget-arrange-close').click();
+  await screen.waitFor({ state: 'hidden' });
+}
+
+/** 配置画面の列に並んでいるウィジェットを上から順に返す。 */
+export async function arrangeColumnWidgets(
+  page: Page,
+  col: ArrangeColumn,
+): Promise<string[]> {
+  return page
+    .getByTestId(`widget-arrange-list-${col}`)
+    .locator('[data-widget]')
+    .evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-widget') ?? ''),
+    );
+}
+
+/**
+ * 配置画面でウィジェットをドラッグして動かす。配置画面が開いていなければ開く。
+ *
+ * `index` は落とす差し込み位置（左右の枠のみ・省略すると末尾）。「利用可能」
+ * には並び順が無いので列そのものへ落とす。
+ */
+export async function dragWidget(
+  page: Page,
+  id: string,
+  col: ArrangeColumn,
+  index?: number,
+): Promise<void> {
+  await openWidgetArrange(page);
+  const chip = page.getByTestId(`widget-chip-${id}`);
+  if (col === 'available') {
+    await chip.dragTo(page.getByTestId('widget-arrange-list-available'));
+  } else {
+    const at =
+      index ??
+      (await page
+        .getByTestId(`widget-arrange-list-${col}`)
+        .locator('[data-widget]')
+        .count());
+    await chip.dragTo(page.getByTestId(`widget-drop-${col}-${at}`));
+  }
+  // ドロップ結果が描画される（チップが目的の列に移る）まで待つ
+  await expect(
+    page
+      .getByTestId(`widget-arrange-list-${col}`)
+      .locator(`[data-widget="${id}"]`),
+  ).toBeVisible();
+}
+
 export { expect, type Page };

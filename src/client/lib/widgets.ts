@@ -109,16 +109,21 @@ export function widgetPlacement(
 }
 
 /**
- * ウィジェットの配置を変える。元のスロットからは必ず外れるので、同じ
- * ウィジェットが 2 箇所に出ることはない。引数の layout は破壊しない。
+ * ウィジェットを配置先の指定した位置へ移す。元のスロットからは必ず外れるので、
+ * 同じウィジェットが 2 箇所に出ることはない。引数の layout は破壊しない。
+ *
+ * `index` は「そのウィジェットを抜いたあとの配置先の配列」での挿入位置。
+ * 同じスロット内の並べ替え（下から上・上から下）も、別のスロットへの移動も
+ * この 1 つの規則で説明できる。範囲外の値は端に丸める。
  *
  * スロット専用ウィジェット（エクスプローラー・アウトライン）を既定位置
  * （null）へ動かそうとした場合は、行き先が無いので配置を変えない。
  */
-export function placeWidget(
+export function moveWidget(
   layout: WidgetLayout,
   id: WidgetId,
   placement: WidgetPlacement,
+  index: number,
 ): WidgetLayout {
   if (placement === null && WIDGET_META[id].slotOnly) {
     return { left: [...layout.left], right: [...layout.right] };
@@ -127,8 +132,37 @@ export function placeWidget(
     left: layout.left.filter((w) => w !== id),
     right: layout.right.filter((w) => w !== id),
   };
-  if (placement !== null) next[placement].push(id);
+  if (placement !== null) {
+    const list = next[placement];
+    const at = Number.isNaN(index)
+      ? list.length
+      : Math.max(0, Math.min(Math.trunc(index), list.length));
+    list.splice(at, 0, id);
+  }
   return next;
+}
+
+/**
+ * ウィジェットを配置先の末尾へ移す（`moveWidget` の index 省略版）。
+ * 既定位置（null）へ戻すときは末尾もなにも無いので単に枠から外れる。
+ */
+export function placeWidget(
+  layout: WidgetLayout,
+  id: WidgetId,
+  placement: WidgetPlacement,
+): WidgetLayout {
+  return moveWidget(layout, id, placement, Number.POSITIVE_INFINITY);
+}
+
+/**
+ * 今どちらの枠にも入っていない＝既定位置に出ているウィジェット。
+ * 配置画面の「利用可能」一覧はこれを並べる。スロット専用ウィジェットは
+ * 既定位置を持たないので、（正規化前の壊れた配置であっても）ここには出さない。
+ */
+export function availableWidgets(layout: WidgetLayout): WidgetId[] {
+  return WIDGET_IDS.filter(
+    (id) => !WIDGET_META[id].slotOnly && widgetPlacement(layout, id) === null,
+  );
 }
 
 /**

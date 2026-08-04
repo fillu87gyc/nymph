@@ -51,7 +51,7 @@
 }
 /* 「利用可能」一覧。配置先（左｜本文｜右）のプレビューとは見た目で切り分ける。 */
 .palette {
-  flex: 0 0 200px;
+  flex: 0 0 240px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -100,7 +100,10 @@
 }
 .list {
   flex: 1;
+  /* ウィジェットが増えても列の高さは画面内に収め、あふれた分だけ列の中で
+     スクロールさせる（画面全体が伸びると左右の枠との対応が見えなくなる）。 */
   min-height: 96px;
+  overflow-y: auto;
   list-style: none;
   padding: 6px;
   border: 1px solid var(--border);
@@ -167,6 +170,11 @@
   white-space: nowrap;
 }
 .chipNote {
+  flex: 0 1 auto;
+  max-width: 48%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 10px;
   color: var(--text-muted);
 }

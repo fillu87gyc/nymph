@@ -23,6 +23,7 @@ import {
 import type { Comment } from './client/types.ts';
 import { resolveFrontendUrl } from './frontendUrl.ts';
 import { flattenMdFiles, scanMdTree } from './fsTree.ts';
+import { checkLinkTargets } from './linkCheck.ts';
 import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 import {
@@ -593,6 +594,30 @@ function handleSearch(url: URL): Response {
   }
 }
 
+/**
+ * 本文中の相対リンクが実在するかを返す（「リンク / 画像」ウィジェット用）。
+ *
+ * 基準は開いているファイルのディレクトリ。判定してよい範囲はルートが
+ * あればルート配下、無ければ基準ディレクトリ配下で、外に出る行き先は
+ * exists: null（未確認）を返す。任意パスの存在を答える窓口にはしない。
+ */
+async function handleLinkCheck(req: Request): Promise<Response> {
+  try {
+    const { targets } = (await req.json()) as { targets?: unknown };
+    if (!Array.isArray(targets)) return json({ error: 'invalid targets' }, 400);
+    if (!state.activeFile) return json({ results: [] });
+    const baseDir = dirname(state.activeFile);
+    const results = checkLinkTargets(
+      targets.filter((t): t is string => typeof t === 'string'),
+      baseDir,
+      state.rootDir ?? baseDir,
+    );
+    return json({ results });
+  } catch (e) {
+    return err(String(e));
+  }
+}
+
 function handleRecent(): Response {
   const files = listRecent().map((e) => ({
     path: e.path,
@@ -956,6 +981,7 @@ export function createServer(port: number) {
         if (path === '/pick-file') return handlePickFile();
         if (path === '/pick-dir') return handlePickDir();
         if (path === '/bookmarks/toggle') return handleToggleBookmark(req);
+        if (path === '/link-check') return handleLinkCheck(req);
         if (path === '/close-file') return handleCloseFile(req);
         if (path === '/dict/sync') return handleDictSync();
       }

@@ -21,19 +21,34 @@ describe('WIDGET_META', () => {
     }
   });
 
-  it('スロット外に置けない widget は既定位置ラベルを持たない', () => {
+  it('枠から出せない widget は既定位置ラベルを持たない', () => {
     for (const id of WIDGET_IDS) {
       const meta = WIDGET_META[id];
-      if (meta.slotOnly) expect(meta.defaultLabel).toBeNull();
-      else expect(meta.defaultLabel).not.toBeNull();
+      if (meta.required) expect(meta.defaultLabel).toBeNull();
     }
   });
 
-  it('エクスプローラーとアウトラインはスロット専用、タブとコメントは既定位置を持つ', () => {
-    expect(WIDGET_META.explorer.slotOnly).toBe(true);
-    expect(WIDGET_META.outline.slotOnly).toBe(true);
-    expect(WIDGET_META.tabs.slotOnly).toBe(false);
-    expect(WIDGET_META.comments.slotOnly).toBe(false);
+  it('エクスプローラーとアウトラインは枠から出せない', () => {
+    expect(WIDGET_META.explorer.required).toBe(true);
+    expect(WIDGET_META.outline.required).toBe(true);
+  });
+
+  it('タブとコメントは枠から出すと既定位置に出る', () => {
+    expect(WIDGET_META.tabs.required).toBe(false);
+    expect(WIDGET_META.tabs.defaultLabel).not.toBeNull();
+    expect(WIDGET_META.comments.required).toBe(false);
+    expect(WIDGET_META.comments.defaultLabel).not.toBeNull();
+  });
+
+  it('第2弾のウィジェットは既定位置を持たず、枠から出すこともできる', () => {
+    for (const id of ['search', 'minimap', 'tasks', 'stats'] as const) {
+      expect(WIDGET_META[id].required).toBe(false);
+      expect(WIDGET_META[id].defaultLabel).toBeNull();
+    }
+  });
+
+  it('すべての widget に配置画面用の説明がある', () => {
+    for (const id of WIDGET_IDS) expect(WIDGET_META[id].hint).not.toBe('');
   });
 });
 
@@ -88,9 +103,17 @@ describe('placeWidget', () => {
     expect(back.right).toEqual(['outline']);
   });
 
-  it('スロット専用 widget は既定位置に戻せない（配置を変えない）', () => {
+  it('枠から出せない widget は枠の外へ戻せない（配置を変えない）', () => {
     const next = placeWidget(DEFAULT_WIDGET_LAYOUT, 'outline', null);
     expect(next).toEqual(DEFAULT_WIDGET_LAYOUT);
+  });
+
+  it('第2弾の widget は枠から出せる（＝画面から消える）', () => {
+    const placed = placeWidget(DEFAULT_WIDGET_LAYOUT, 'tasks', 'right');
+    expect(placed.right).toEqual(['outline', 'tasks']);
+    const back = placeWidget(placed, 'tasks', null);
+    expect(widgetPlacement(back, 'tasks')).toBeNull();
+    expect(back.right).toEqual(['outline']);
   });
 
   it('引数の layout を破壊しない', () => {
@@ -165,7 +188,7 @@ describe('moveWidget', () => {
     expect(next.left).toEqual(['explorer']);
   });
 
-  it('スロット専用 widget は既定位置へ移せない（配置を変えない）', () => {
+  it('枠から出せない widget は枠の外へ移せない（配置を変えない）', () => {
     const next = moveWidget(DEFAULT_WIDGET_LAYOUT, 'outline', null, 0);
     expect(next).toEqual(DEFAULT_WIDGET_LAYOUT);
   });
@@ -181,22 +204,23 @@ describe('moveWidget', () => {
 });
 
 describe('availableWidgets', () => {
-  it('既定位置にいる（枠に入っていない）widget を返す', () => {
-    expect(availableWidgets(DEFAULT_WIDGET_LAYOUT)).toEqual([
-      'tabs',
-      'comments',
-    ]);
+  /** 枠に入れられるすべての widget（＝枠から出せるもの全部）。 */
+  const ALL_AVAILABLE = WIDGET_IDS.filter((id) => !WIDGET_META[id].required);
+
+  it('枠に入っていない widget をすべて返す', () => {
+    expect(availableWidgets(DEFAULT_WIDGET_LAYOUT)).toEqual(ALL_AVAILABLE);
   });
 
   it('枠に置いた widget は一覧から消える', () => {
     const layout = placeWidget(DEFAULT_WIDGET_LAYOUT, 'tabs', 'left');
-    expect(availableWidgets(layout)).toEqual(['comments']);
+    expect(availableWidgets(layout)).not.toContain('tabs');
+    expect(availableWidgets(layout)).toContain('comments');
   });
 
-  it('スロット専用 widget は既定位置を持たないので現れない', () => {
+  it('枠から出せない widget は行き先が無いので現れない', () => {
     // normalize 前提が崩れた（両方とも枠にいない）レイアウトでも出さない
     const broken = { left: [], right: [] };
-    expect(availableWidgets(broken)).toEqual(['tabs', 'comments']);
+    expect(availableWidgets(broken)).toEqual(ALL_AVAILABLE);
   });
 
   it('WIDGET_IDS の順に並ぶ（配置順に依存しない）', () => {
@@ -205,7 +229,7 @@ describe('availableWidgets', () => {
       'comments',
       null,
     );
-    expect(availableWidgets(layout)).toEqual(['tabs', 'comments']);
+    expect(availableWidgets(layout)).toEqual(ALL_AVAILABLE);
   });
 });
 
@@ -218,10 +242,28 @@ describe('normalizeWidgetLayout', () => {
 
   it('未知の widget id を捨てる', () => {
     const out = normalizeWidgetLayout({
-      left: ['explorer', 'minimap'],
+      left: ['explorer', 'nonexistent'],
       right: ['outline'],
     });
     expect(out.left).toEqual(['explorer']);
+  });
+
+  it('枠に入れた第2弾のウィジェットはそのまま残る', () => {
+    const out = normalizeWidgetLayout({
+      left: ['explorer', 'minimap'],
+      right: ['outline', 'tasks'],
+    });
+    expect(out.left).toEqual(['explorer', 'minimap']);
+    expect(out.right).toEqual(['outline', 'tasks']);
+  });
+
+  it('枠に入っていない第2弾のウィジェットは補完しない（画面に出ない）', () => {
+    const out = normalizeWidgetLayout({
+      left: ['explorer'],
+      right: ['outline'],
+    });
+    expect(widgetPlacement(out, 'minimap')).toBeNull();
+    expect(widgetPlacement(out, 'stats')).toBeNull();
   });
 
   it('両方のスロットに現れた widget は左を優先して重複を解消する', () => {

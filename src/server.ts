@@ -21,6 +21,7 @@ import {
   toggleBookmark,
 } from './bookmarks.ts';
 import type { Comment } from './client/types.ts';
+import { resolveFrontendUrl } from './frontendUrl.ts';
 import { flattenMdFiles, scanMdTree } from './fsTree.ts';
 import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
@@ -914,6 +915,10 @@ function serveStatic(url: URL): Response | null {
 export const SERVER_HOSTNAME = '127.0.0.1';
 
 export function createServer(port: number) {
+  // 後から `nymph <file>` を実行した CLI が「開くべき URL」を問い合わせられる
+  // よう、このインスタンスのフロント URL を /version で公開する。
+  const frontendUrl = resolveFrontendUrl(port, process.env.NYMPH_FRONTEND_URL);
+
   return Bun.serve({
     port,
     hostname: SERVER_HOSTNAME,
@@ -923,7 +928,7 @@ export function createServer(port: number) {
 
       if (req.method === 'GET') {
         if (path === '/version')
-          return json({ nymph: true, version: APP_VERSION });
+          return json({ nymph: true, version: APP_VERSION, frontendUrl });
         if (path === '/content') return handleContent(url);
         if (path === '/watch') return handleWatch();
         if (path === '/comments') return handleGetComments(url);

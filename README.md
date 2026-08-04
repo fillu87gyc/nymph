@@ -189,6 +189,17 @@ bun run test:e2e   # E2E テスト (Playwright)
 bun run build      # プロダクションビルド (Vite 7)
 ```
 
+dev ではフロントのアセットを配っているのは Vite dev server（:5173）で、API サーバー（:6276）を開いてもビルド済みの古い `dist/` が返るだけです。そのため CLI は「開くべき URL」としてフロント側を表示し、API のポートは補助的に添えます。
+
+```
+nymph   http://localhost:5173
+API     http://localhost:6276
+```
+
+この案内先は `NYMPH_FRONTEND_URL` で決まります（未指定なら API サーバー自身が `dist/` を配る前提でそのポート）。dev では起動済みインスタンスが `/version` でこの値を公開するので、**別の端末から `nymph <file>` を実行して既存インスタンスに委譲したときも、API のポートではなくフロントの URL が表示・オープンされます。**
+
+`NYMPH_FRONTEND_URL` を指定すると Vite はそのポートを `strictPort` で確保します（案内した URL と実際の待受がズレないようにするため。埋まっていれば黙って別ポートに逃げずに失敗します）。
+
 **ghq を使っている場合の開発用ショートカット（`~/.zshrc`）**
 
 ```zsh
@@ -208,7 +219,10 @@ nymphx() {
   done
   local port=6276
   while (: < /dev/tcp/127.0.0.1/$port) 2>/dev/null; do ((port++)); done
-  (cd "$nymph_dir" && NYMPH_PORT="$port" NYMPH_FILES="${a[*]}" bun run dev)
+  # API のポートをずらしたぶん Vite 側もずらす（strictPort で固定されるため）
+  local front=$((5173 + port - 6276))
+  (cd "$nymph_dir" && NYMPH_PORT="$port" NYMPH_FRONTEND_URL="http://localhost:$front" \
+    NYMPH_FILES="${a[*]}" bun run dev)
 }
 ```
 

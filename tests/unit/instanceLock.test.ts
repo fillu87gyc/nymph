@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   computeLockPath,
   delegateOpenFiles,
+  fetchFrontendUrl,
   findExistingServer,
   probeNymphServer,
   readLockPort,
@@ -152,6 +153,76 @@ describe('probeNymphServer / findExistingServer', () => {
     expect(
       await findExistingServer(join(TMP_DIR, 'missing.nymph-lock')),
     ).toBeNull();
+  });
+});
+
+describe('fetchFrontendUrl', () => {
+  function versionServer(payload: unknown) {
+    return listen((req, res) => {
+      if (req.url === '/version') {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(payload));
+        return;
+      }
+      res.statusCode = 404;
+      res.end('not found');
+    });
+  }
+
+  it('/version が返すフロント URL を使う（dev の Vite dev server）', async () => {
+    const { server, port } = await versionServer({
+      nymph: true,
+      version: 'x',
+      frontendUrl: 'http://localhost:5173',
+    });
+    try {
+      expect(await fetchFrontendUrl(port)).toBe('http://localhost:5173');
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('frontendUrl を返さない旧バージョンではバックエンドの URL に落とす', async () => {
+    const { server, port } = await versionServer({ nymph: true, version: 'x' });
+    try {
+      expect(await fetchFrontendUrl(port)).toBe(`http://localhost:${port}`);
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('frontendUrl が不正な値ならバックエンドの URL に落とす', async () => {
+    const { server, port } = await versionServer({
+      nymph: true,
+      frontendUrl: 'not a url',
+    });
+    try {
+      expect(await fetchFrontendUrl(port)).toBe(`http://localhost:${port}`);
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('/version がエラーを返してもバックエンドの URL に落とす', async () => {
+    const { server, port } = await listen((_req, res) => {
+      res.statusCode = 500;
+      res.end('boom');
+    });
+    try {
+      expect(await fetchFrontendUrl(port)).toBe(`http://localhost:${port}`);
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('応答が無いポートでもバックエンドの URL に落とす', async () => {
+    const { server: probe, port: deadPort } = await listen((_req, res) =>
+      res.end(),
+    );
+    await close(probe);
+    expect(await fetchFrontendUrl(deadPort, 300)).toBe(
+      `http://localhost:${deadPort}`,
+    );
   });
 });
 

@@ -19,12 +19,21 @@
   background: transparent;
   transition: none;
 }
+/* 枠は横幅が狭いのでヘッダーは 2 行に畳む。1 行目に見出しと閉じるボタン、
+   2 行目にフィルタ。放っておくと閉じるボタンだけが 3 行目に落ちて、
+   ただでさえ限られた枠の縦幅を 1 行ぶん無駄にする。 */
 .slotPanel .head {
   flex-wrap: wrap;
   padding: 6px 8px;
   gap: 4px;
 }
+.slotPanel .title {
+  flex: 1;
+  white-space: nowrap;
+}
 .slotPanel .filterGroup {
+  order: 1;
+  flex-basis: 100%;
   margin-left: 0;
 }
 .slotPanel .filterBtn {

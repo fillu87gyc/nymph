@@ -28,6 +28,13 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+/* 「保存ボタンが無い」ことが伝わらないと『完了』が apply に見えるので、
+   即時反映＋保存であることを説明文の中で立てる。 */
+.leadStrong {
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--text);
+}
 .headActions {
   grid-column: 2;
   grid-row: 1 / 3;

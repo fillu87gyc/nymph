@@ -270,29 +270,32 @@ export function WidgetArrangeScreen({
         <p className={styles.lead}>
           利用可能なウィジェットを左右の枠へドラッグして並べます。枠の中では
           上下の順番も入れ替えられます。
+          <strong className={styles.leadStrong}>
+            変更はすぐに画面に反映され、そのまま保存されます。
+          </strong>
         </p>
         <div className={styles.headActions}>
           <button
             type="button"
             className="btn"
             data-testid="widget-arrange-reset"
-            title="既定の配置（左＝エクスプローラー / 右＝アウトライン）に戻す"
+            title="今の配置を捨てて、初期配置（左＝エクスプローラー / 右＝アウトライン）にする"
             onClick={() => {
               onReset();
-              setStatus('既定の配置に戻しました');
+              setStatus('初期配置にリセットしました');
             }}
           >
-            既定に戻す
+            初期配置にリセット
           </button>
           <button
             type="button"
             className="btn"
             id="btn-widget-arrange-close"
             data-testid="widget-arrange-close"
-            title="配置画面を閉じる（Esc）"
+            title="配置画面を閉じてレビュー画面に戻る（Esc）"
             onClick={onClose}
           >
-            ✕ 閉じる
+            ✓ 完了
           </button>
         </div>
       </header>

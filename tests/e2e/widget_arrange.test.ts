@@ -231,8 +231,8 @@ test.describe('キーボード操作', () => {
   });
 });
 
-test.describe('既定に戻す / 永続化', () => {
-  test('既定に戻すと元の配置になる', async ({ page }) => {
+test.describe('初期配置にリセット / 永続化', () => {
+  test('初期配置にリセットすると元の配置になる', async ({ page }) => {
     await dragWidget(page, 'tabs', 'left');
     await dragWidget(page, 'outline', 'left');
     await page.getByTestId('widget-arrange-reset').click();

@@ -249,7 +249,7 @@ describe('WidgetArrangeScreen', () => {
     });
   });
 
-  describe('閉じる / 既定に戻す', () => {
+  describe('閉じる / 初期配置にリセット', () => {
     test('✕ で閉じる', async () => {
       const onClose = vi.fn();
       render(<WidgetArrangeScreen {...makeProps({ onClose })} />);
@@ -264,13 +264,13 @@ describe('WidgetArrangeScreen', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    test('既定に戻すと onReset が呼ばれる', async () => {
+    test('初期配置にリセットすると onReset が呼ばれる', async () => {
       const onReset = vi.fn();
       render(<WidgetArrangeScreen {...makeProps({ onReset })} />);
       await userEvent.click(screen.getByTestId('widget-arrange-reset'));
       expect(onReset).toHaveBeenCalledTimes(1);
       expect(screen.getByTestId('widget-arrange-status')).toHaveTextContent(
-        '既定の配置に戻しました',
+        '初期配置にリセットしました',
       );
     });
   });

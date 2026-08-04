@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { backendUrl, normalizeFrontendUrl } from './frontendUrl.ts';
 import { SERVER_HOSTNAME } from './server.ts';
 
 /**
@@ -66,6 +67,33 @@ export async function findExistingServer(
   if (port === null) return null;
   const alive = await probeNymphServer(port);
   return alive ? port : null;
+}
+
+/**
+ * 既存インスタンスが案内しているフロント URL を `/version` から取得する。
+ *
+ * 委譲する側の CLI は「バックエンドのポート」しか知らないが、開発時は
+ * フロントを配っているのが Vite dev server なので、そのポートを表示・
+ * オープンしても目的の画面は出ない。実際にアセットを配っている URL は
+ * 起動済みインスタンスだけが知っているため、そこから受け取る。
+ * 応答が無い・古いバージョンで frontendUrl を返さない場合は、従来どおり
+ * バックエンドの URL にフォールバックする。
+ */
+export async function fetchFrontendUrl(
+  port: number,
+  timeoutMs = 1000,
+): Promise<string> {
+  try {
+    const res = await fetch(`http://${SERVER_HOSTNAME}:${port}/version`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return backendUrl(port);
+    const data = (await res.json()) as { frontendUrl?: unknown };
+    if (typeof data?.frontendUrl !== 'string') return backendUrl(port);
+    return normalizeFrontendUrl(data.frontendUrl) ?? backendUrl(port);
+  } catch {
+    return backendUrl(port);
+  }
 }
 
 /**

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
-import { Glob } from 'bun';
+import { unlinkSync, writeFileSync } from 'node:fs';
 import { backendUrl, resolveFrontendUrl } from './frontendUrl.ts';
+import { globScan } from './globScan.ts';
 import {
   computeLockPath,
   delegateOpenFiles,
@@ -13,9 +13,9 @@ import {
   registerInstance,
   unregisterInstance,
 } from './instanceRegistry.ts';
-import { normalizePath } from './pathUtils.ts';
 import { resolvePortOverride } from './portUtils.ts';
 import { recordRecent } from './recent.ts';
+import { resolveInputs } from './resolveInputs.ts';
 import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 
 const VERSION = '1.0.0';
@@ -59,6 +59,23 @@ async function findPort(start = 6276): Promise<number> {
   return start;
 }
 
+/**
+ * `--config <値>` のような値付きオプションの値を読む。
+ * 値が無いまま次のオプションや行末に来たら、undefined を持ち回らずここで落とす。
+ */
+function requireOptionValue(
+  args: string[],
+  index: number,
+  flag: string,
+): string {
+  const value = args[index];
+  if (value === undefined || value.startsWith('-')) {
+    console.error(`エラー: ${flag} には値を指定してください`);
+    process.exit(1);
+  }
+  return value;
+}
+
 async function main() {
   const rawArgs = process.argv.slice(2);
 
@@ -70,8 +87,9 @@ async function main() {
       // nymph dict allow — config.yml のコマンドを承認する（direnv allow 相当）
       let configPath = '.nymph/config.yml';
       for (let i = 1; i < subArgs.length; i++) {
-        if (subArgs[i] === '--config' || subArgs[i] === '-c') {
-          configPath = subArgs[++i];
+        const arg = subArgs[i];
+        if (arg === '--config' || arg === '-c') {
+          configPath = requireOptionValue(subArgs, ++i, arg);
         }
       }
       try {
@@ -129,13 +147,13 @@ async function main() {
       for (let i = 1; i < subArgs.length; i++) {
         const arg = subArgs[i];
         if (arg === '--config' || arg === '-c') {
-          configPath = subArgs[++i];
+          configPath = requireOptionValue(subArgs, ++i, arg);
         } else if (arg === '--out' || arg === '-o') {
-          outPath = subArgs[++i];
+          outPath = requireOptionValue(subArgs, ++i, arg);
         } else if (arg === '--debug') {
           debug = true;
         } else if (arg === '--debug-dir') {
-          debugDir = subArgs[++i];
+          debugDir = requireOptionValue(subArgs, ++i, arg);
         }
       }
 
@@ -173,7 +191,6 @@ async function main() {
     process.exit(0);
   }
 
-  let paths: string[] = [];
   let portOverride: number | null = null;
   let noOpen = !!process.env.NYMPH_NO_OPEN;
   const fileArgs: string[] = [];
@@ -207,46 +224,24 @@ async function main() {
     }
   }
 
-  let rootDir: string | null = null;
-  let hasFileArgs = false;
+  const { paths, dirs, missing } = await resolveInputs(fileArgs, {
+    scan: globScan,
+  });
 
-  if (fileArgs.length > 0) {
-    for (const filePath of fileArgs) {
-      // symlink 経由でも実体パスに正規化し、同じファイルを別表記で開いても
-      // 別ファイル扱いにならないようにする
-      const abs = normalizePath(filePath);
-      // ディレクトリ指定はツリーのルートにする（glob フォールバックより先に判定）
-      if (existsSync(abs) && statSync(abs).isDirectory()) {
-        if (rootDir) {
-          console.error('エラー: ディレクトリは1つだけ指定できます');
-          process.exit(1);
-        }
-        rootDir = abs;
-        continue;
-      }
-      hasFileArgs = true;
-      if (existsSync(abs) && abs.endsWith('.md')) {
-        paths.push(abs);
-      } else {
-        // already-expanded glob from shell
-        const glob = new Glob(filePath);
-        const expanded: string[] = [];
-        for await (const f of glob.scan('.')) {
-          if (f.endsWith('.md')) expanded.push(normalizePath(f));
-        }
-        if (expanded.length > 0) paths.push(...expanded.sort());
-        else if (!paths.length) {
-          const single = normalizePath(filePath);
-          if (existsSync(single)) paths.push(single);
-        }
-      }
+  // 存在しないファイル/ディレクトリを指定されたら、サーバを起動する前に落とす。
+  // 一部だけ存在するケース（nymph README.md typo.md）も黙って無視せずエラーにする。
+  if (missing.length > 0) {
+    for (const arg of missing) {
+      console.error(`エラー: 指定されたパスが存在しません: ${arg}`);
     }
-    paths = [...new Set(paths)].filter((p) => existsSync(p));
-    if (paths.length === 0 && hasFileArgs && !rootDir) {
-      console.error('エラー: Markdownファイルが見つかりません');
-      process.exit(1);
-    }
+    console.error('  nymph --help でヘルプを表示');
+    process.exit(1);
   }
+  if (dirs.length > 1) {
+    console.error('エラー: ディレクトリは1つだけ指定できます');
+    process.exit(1);
+  }
+  const rootDir: string | null = dirs[0] ?? null;
 
   // 既に同じファイル/ルートを開いている生きた nymph インスタンスがあれば、
   // 新規プロセス・新規ポートを起動せずそちらへ委譲する

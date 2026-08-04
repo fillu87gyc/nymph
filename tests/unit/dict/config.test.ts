@@ -1,5 +1,18 @@
 import { describe, expect, test } from 'vitest';
-import { parseConfig } from '../../../src/dict/config.ts';
+import { loadConfig, parseConfig } from '../../../src/dict/config.ts';
+
+describe('loadConfig', () => {
+  test('存在しない設定ファイルは何が無いか分かるメッセージでエラーになる', () => {
+    expect(() => loadConfig('tests/fixtures/dict/no-such-config.yml')).toThrow(
+      '設定ファイルが存在しません: tests/fixtures/dict/no-such-config.yml',
+    );
+  });
+
+  test('存在する設定ファイルは読み込める', () => {
+    const config = loadConfig('tests/fixtures/dict/nymph.yml');
+    expect(config.sources.length).toBeGreaterThan(0);
+  });
+});
 
 describe('parseConfig', () => {
   test('正しい YAML をパースできる', () => {

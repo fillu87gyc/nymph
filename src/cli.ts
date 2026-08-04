@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 import { existsSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { Glob } from 'bun';
+import { backendUrl, resolveFrontendUrl } from './frontendUrl.ts';
 import {
   computeLockPath,
   delegateOpenFiles,
+  fetchFrontendUrl,
   findExistingServer,
 } from './instanceLock.ts';
 import {
@@ -277,8 +279,13 @@ async function main() {
       }
     }
 
-    const existingUrl = `http://localhost:${existingPort}`;
+    // 既存インスタンスのフロント URL（dev では Vite の URL）を案内する。
+    // バックエンドのポートを出しても、そこでは開発中の画面は配られていない。
+    const existingUrl = await fetchFrontendUrl(existingPort);
+    const existingApiUrl = backendUrl(existingPort);
     console.log(`nymph   既存のインスタンスで開きます   ${existingUrl}`);
+    if (existingUrl !== existingApiUrl)
+      console.log(`API     ${existingApiUrl}`);
     if (paths.length > 0) console.log(`開いた  ${paths.join(', ')}`);
 
     if (!noOpen) {
@@ -299,8 +306,10 @@ async function main() {
   if (lockPath) writeFileSync(lockPath, String(port));
   registerInstance(port);
 
-  const url = `http://localhost:${port}`;
+  const url = resolveFrontendUrl(port, process.env.NYMPH_FRONTEND_URL);
+  const apiUrl = backendUrl(port);
   console.log(`nymph   ${url}`);
+  if (url !== apiUrl) console.log(`API     ${apiUrl}`);
   if (rootDir) console.log(`ルート  ${rootDir}`);
   if (paths.length > 0) console.log(`監視中  ${paths.join(', ')}`);
   else if (!rootDir) console.log('ファイルをブラウザにドロップして開始');

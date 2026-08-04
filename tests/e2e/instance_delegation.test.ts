@@ -108,7 +108,13 @@ test.describe('既存インスタンスへの委譲', () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('既存のインスタンスで開きます');
+    // dev（Vite dev server）でない通常起動では、バックエンド自身がアセットを
+    // 配るので案内 URL はそのポートのまま。API 行も出さない
+    // （dev 時の挙動は tests/e2e/frontend_url.test.ts）。
+    expect(stdout).toContain(
+      `既存のインスタンスで開きます   http://localhost:${portA}`,
+    );
+    expect(stdout).not.toContain('API     ');
 
     // B は自分のポートで listen していない（新規サーバーを起動していない証拠）
     await expect(async () => {

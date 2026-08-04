@@ -8,6 +8,44 @@
   display: flex;
   flex-direction: column;
 }
+/* ウィジェット枠に置いたとき。枠が幅・背景・区切り線を持つので、ドック用の
+   高さアニメーションと境界線を打ち消し、枠の縦幅いっぱいに広がる。
+   横幅が狭くなるぶん、余白とヘッダーを詰めてフィルタを折り返す。 */
+.slotPanel {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: none;
+  background: transparent;
+  transition: none;
+}
+/* 枠は横幅が狭いのでヘッダーは 2 行に畳む。1 行目に見出しと閉じるボタン、
+   2 行目にフィルタ。放っておくと閉じるボタンだけが 3 行目に落ちて、
+   ただでさえ限られた枠の縦幅を 1 行ぶん無駄にする。 */
+.slotPanel .head {
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  gap: 4px;
+}
+.slotPanel .title {
+  flex: 1;
+  white-space: nowrap;
+}
+.slotPanel .filterGroup {
+  order: 1;
+  flex-basis: 100%;
+  margin-left: 0;
+}
+.slotPanel .filterBtn {
+  padding: 2px 6px;
+}
+.slotPanel .item {
+  padding: 8px;
+  gap: 6px;
+}
+.slotPanel .empty {
+  padding: 10px 8px;
+}
 .resizeHandle {
   flex-shrink: 0;
   height: 8px;

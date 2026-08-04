@@ -20,6 +20,7 @@ import { SelectionPopup } from './components/SelectionPopup.tsx';
 import { TOAST_DURATION_MS, Toast } from './components/Toast.tsx';
 import { TocPanel } from './components/TocPanel.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
+import { WidgetSlot } from './components/WidgetSlot.tsx';
 import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
@@ -65,6 +66,15 @@ import {
 import { buildCommentSnapshot } from './lib/snapshot.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import { extractToc } from './lib/toc.ts';
+import {
+  loadWidgetLayout,
+  placeWidget,
+  type SlotId,
+  saveWidgetLayout,
+  type WidgetId,
+  type WidgetPlacement,
+  widgetPlacement,
+} from './lib/widgets.ts';
 import type { Comment, DictEntry, PendingComment } from './types.ts';
 
 const GOOGLE_FONTS_BASE = 'https://fonts.googleapis.com/css2?display=swap&';
@@ -101,6 +111,9 @@ export function App() {
   const [tocOpen, setTocOpen] = useState(false);
   const [outlineBadgeMode, setOutlineBadgeMode] =
     useState<OutlineBadgeMode>(loadOutlineBadgeMode);
+  // 左右のウィジェット枠に何を積むか。テーマや本文幅と同じ表示設定なので
+  // localStorage に持つ（設定ポップオーバーから変更する）。
+  const [widgetLayout, setWidgetLayout] = useState(loadWidgetLayout);
   // 表示中のトースト。出すたびに新しいオブジェクトにして、同じ文言を連続で
   // 出したときもタイマーが張り直されるようにする（null なら非表示）。
   const [toastState, setToastState] = useState<{ msg: string } | null>(null);
@@ -843,10 +856,82 @@ export function App() {
     }
   }
 
-  // 差分チェックモードでディレクトリツリーもアウトラインも出ていないときだけ、
-  // 折りたたみボタン等の追加レイアウトを挟まないシンプルな1カラムを維持する
+  function handlePlaceWidget(id: WidgetId, placement: WidgetPlacement) {
+    setWidgetLayout((prev) => {
+      const next = placeWidget(prev, id, placement);
+      saveWidgetLayout(next);
+      return next;
+    });
+  }
+
+  // ウィジェットを出す条件。配置（どの枠に置くか）とは別軸で、従来どおり
+  // それぞれのトグルや状態で決まる。タブは横行だと2ファイル以上でのみ出るが、
+  // 枠に置いた縦置きは1ファイルでも出す（FileTabs 側の分岐と合わせる）。
+  const widgetVisible: Record<WidgetId, boolean> = {
+    tabs: files.length > 0,
+    explorer: !!root,
+    outline: tocOpen,
+    comments: panelOpen,
+  };
+
+  function slotHasContent(side: SlotId): boolean {
+    return widgetLayout[side].some((id) => widgetVisible[id]);
+  }
+
+  function renderWidget(id: WidgetId) {
+    if (!widgetVisible[id]) return null;
+    switch (id) {
+      case 'tabs':
+        return (
+          <FileTabs
+            files={files}
+            activeFile={activeFile}
+            orientation="vertical"
+            onSwitch={handleSwitchFile}
+            onClose={handleCloseFile}
+          />
+        );
+      case 'explorer':
+        return (
+          <FileTree
+            rootName={rootName}
+            tree={tree}
+            activeFile={activeFile}
+            onOpenFile={(path) => void handleOpenFile(path)}
+          />
+        );
+      case 'outline':
+        return (
+          <TocPanel
+            items={tocItems}
+            onSelect={scrollToLine}
+            stats={outlineStats}
+            badgeMode={outlineBadgeMode}
+            hasCheckpoint={checkpointSet}
+          />
+        );
+      case 'comments':
+        return (
+          <CommentsPanel
+            open
+            variant="slot"
+            comments={comments}
+            orphanedIds={orphanedCommentIds}
+            onScrollToComment={scrollToComment}
+            onEdit={openEditModal}
+            onDelete={(cid) => void handleDeleteComment(cid)}
+            onToggleResolved={(cid) => void handleToggleResolved(cid)}
+            onClose={() => setPanelOpen(false)}
+          />
+        );
+    }
+  }
+
+  // 差分チェックモードで左右の枠がどちらも空のときだけ、折りたたみボタン等の
+  // 追加レイアウトを挟まないシンプルな1カラムを維持する
   // （余計な flex ネストを挟むと VRT スクリーンショットの端数ピクセルがズレるため）。
-  const diffSingleColumn = diffMode && !root && !tocOpen;
+  const diffSingleColumn =
+    diffMode && !slotHasContent('left') && !slotHasContent('right');
 
   return (
     <div
@@ -920,25 +1005,26 @@ export function App() {
         onResetWidth={resetContentWidth}
         outlineBadgeMode={outlineBadgeMode}
         onChangeOutlineBadgeMode={handleChangeOutlineBadgeMode}
+        widgetLayout={widgetLayout}
+        onPlaceWidget={handlePlaceWidget}
       />
-      <FileTabs
-        files={files}
-        activeFile={activeFile}
-        onSwitch={handleSwitchFile}
-        onClose={handleCloseFile}
-      />
+      {widgetPlacement(widgetLayout, 'tabs') === null && (
+        <FileTabs
+          files={files}
+          activeFile={activeFile}
+          onSwitch={handleSwitchFile}
+          onClose={handleCloseFile}
+        />
+      )}
       <div
         id="main"
         className={diffSingleColumn ? styles.main : styles.mainRow}
       >
-        {root && (
-          <FileTree
-            rootName={rootName}
-            tree={tree}
-            activeFile={activeFile}
-            onOpenFile={(path) => void handleOpenFile(path)}
-          />
-        )}
+        <WidgetSlot
+          side="left"
+          widgets={widgetLayout.left}
+          render={renderWidget}
+        />
         {diffMode ? (
           <div
             ref={contentScrollRef}
@@ -1026,26 +1112,24 @@ export function App() {
             </div>
           </div>
         )}
-        {tocOpen && (
-          <TocPanel
-            items={tocItems}
-            onSelect={scrollToLine}
-            stats={outlineStats}
-            badgeMode={outlineBadgeMode}
-            hasCheckpoint={checkpointSet}
-          />
-        )}
+        <WidgetSlot
+          side="right"
+          widgets={widgetLayout.right}
+          render={renderWidget}
+        />
       </div>
-      <CommentsPanel
-        open={panelOpen}
-        comments={comments}
-        orphanedIds={orphanedCommentIds}
-        onScrollToComment={scrollToComment}
-        onEdit={openEditModal}
-        onDelete={(id) => void handleDeleteComment(id)}
-        onToggleResolved={(id) => void handleToggleResolved(id)}
-        onClose={() => setPanelOpen(false)}
-      />
+      {widgetPlacement(widgetLayout, 'comments') === null && (
+        <CommentsPanel
+          open={panelOpen}
+          comments={comments}
+          orphanedIds={orphanedCommentIds}
+          onScrollToComment={scrollToComment}
+          onEdit={openEditModal}
+          onDelete={(id) => void handleDeleteComment(id)}
+          onToggleResolved={(id) => void handleToggleResolved(id)}
+          onClose={() => setPanelOpen(false)}
+        />
+      )}
       {/* 開いている間だけマウントする（閉じている間の state を持たせない）。
           key を使わないのは、この children リストで key を付け替えると、同じ
           コミットで消える兄弟の DOM が残ることがあったため。開き直しの

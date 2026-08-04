@@ -20,6 +20,7 @@ import {
   openWidgetArrange,
   type Page,
   test,
+  waitForCommentsPanelSettled,
 } from './fixtures.ts';
 
 const ORIGINAL = readFileSync(
@@ -283,6 +284,22 @@ test.describe('ミニマップウィジェット', () => {
     await expect(page.getByTestId('minimap-marker')).toHaveCount(1, {
       timeout: 5000,
     });
+
+    // 点は棒と同じ座標系に乗る（19行目 / 全26行 ＝ 約 0.69 の位置）。棒 1 本の
+    // 高さには上限があるので、枠ではなく棒の箱を基準にしないとここがずれる。
+    // コメント追加で下ドックが開く（高さトランジション）ので、収まってから
+    // 1 回の評価で両方の矩形を採る（別々に採ると途中の値が混ざる）。
+    await waitForCommentsPanelSettled(page);
+    const ratio = await page.evaluate(() => {
+      const rows = document.querySelector('[data-testid="minimap-rows"]');
+      const marker = document.querySelector('[data-testid="minimap-marker"]');
+      if (!rows || !marker) return -1;
+      const rb = rows.getBoundingClientRect();
+      const mb = marker.getBoundingClientRect();
+      return (mb.y + mb.height / 2 - rb.y) / rb.height;
+    });
+    expect(ratio).toBeGreaterThan(0.6);
+    expect(ratio).toBeLessThan(0.8);
   });
 
   test('クリックした位置の行へ飛ぶ', async ({ page }) => {

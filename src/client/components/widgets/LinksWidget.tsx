@@ -102,7 +102,9 @@ function LinkRow({
         onClick={() => onSelectLine(link.line)}
       >
         <span className={styles.itemText}>
-          {link.kind === 'image' ? '🖼 ' : ''}
+          {/* 画像は絵文字ではなくラベルで示す（絵文字フォントが無い環境で
+              豆腐にならないように）。 */}
+          {link.kind === 'image' && <span className={styles.tag}>画像</span>}{' '}
           {link.label || link.target}
           {link.category === 'relative' && (
             <span

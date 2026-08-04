@@ -277,16 +277,19 @@
   background: none;
   cursor: pointer;
 }
+/* 棒・ビューポート枠・コメントの点が乗る箱。棒 1 本の高さには上限があるので、
+   行数が少ない文書ではこの箱が枠いっぱいには広がらない（＝棒の下に余白が
+   できる）。3 つとも同じ箱を基準にすることで位置が必ず揃う。 */
 .minimapRows {
-  position: absolute;
-  inset: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 2px 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 .minimapRow {
-  flex: 1 1 0;
+  flex: 1 1 3px;
   min-height: 1px;
   max-height: 3px;
   border-radius: 1px;
@@ -322,12 +325,14 @@
 /* コメントの位置。右端に点で重ねる。 */
 .marker {
   position: absolute;
-  right: -4px;
-  width: 5px;
-  height: 5px;
-  margin-top: -2px;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
   border-radius: 50%;
   background: var(--accent);
+  /* 棒に重なっても点として読めるよう、背景色で縁取る。 */
+  box-shadow: 0 0 0 1.5px var(--bg-surface);
   pointer-events: none;
 }
 .marker[data-resolved="true"] {

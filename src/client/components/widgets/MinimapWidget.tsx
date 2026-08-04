@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useMemo, useState } from 'react';
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { commentStatus } from '../../lib/comments.ts';
 import {
   buildMinimapRows,
@@ -49,6 +49,7 @@ export function MinimapWidget({
   const rows = useMemo(() => buildMinimapRows(source), [source]);
   const totalLines = useMemo(() => countLines(source), [source]);
   const [viewport, setViewport] = useState<Viewport | null>(null);
+  const rowsRef = useRef<HTMLSpanElement>(null);
 
   // 本文のスクロール位置は React の外にある状態なので、購読して読み出す
   // （本文が差し替わる・モードが変わるとスクロール要素ごと変わるため依存に含める）。
@@ -90,7 +91,8 @@ export function MinimapWidget({
   );
 
   function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
+    // 位置の基準は棒の箱（枠の下の余白を押しても最終行に丸まる）。
+    const rect = (rowsRef.current ?? e.currentTarget).getBoundingClientRect();
     if (rect.height === 0) return;
     onSelectLine(lineAtRatio((e.clientY - rect.top) / rect.height, totalLines));
   }
@@ -111,7 +113,14 @@ export function MinimapWidget({
           aria-label="文書全体。クリックした位置の行へ移動します"
           onClick={handleClick}
         >
-          <span className={styles.minimapRows}>
+          {/* 棒・今見ている範囲・コメントの点は同じ箱を基準に置く。棒は 1 本
+              あたりの高さに上限があるため、短い文書では箱が枠いっぱいには
+              広がらない——外側の枠を基準にすると位置がずれる。 */}
+          <span
+            ref={rowsRef}
+            className={styles.minimapRows}
+            data-testid="minimap-rows"
+          >
             {rows.map((r) => (
               <span
                 key={r.line}
@@ -121,26 +130,26 @@ export function MinimapWidget({
                 style={{ width: `${Math.max(4, r.weight * 100)}%` }}
               />
             ))}
+            {viewport && (
+              <span
+                className={styles.viewport}
+                data-testid="minimap-viewport"
+                style={{
+                  top: `${viewport.top * 100}%`,
+                  height: `${viewport.height * 100}%`,
+                }}
+              />
+            )}
+            {markers.map((m) => (
+              <span
+                key={String(m.id)}
+                className={styles.marker}
+                data-testid="minimap-marker"
+                data-resolved={String(m.resolved)}
+                style={{ top: `${m.ratio * 100}%` }}
+              />
+            ))}
           </span>
-          {viewport && (
-            <span
-              className={styles.viewport}
-              data-testid="minimap-viewport"
-              style={{
-                top: `${viewport.top * 100}%`,
-                height: `${viewport.height * 100}%`,
-              }}
-            />
-          )}
-          {markers.map((m) => (
-            <span
-              key={String(m.id)}
-              className={styles.marker}
-              data-testid="minimap-marker"
-              data-resolved={String(m.resolved)}
-              style={{ top: `${m.ratio * 100}%` }}
-            />
-          ))}
         </button>
       )}
     </WidgetPanel>

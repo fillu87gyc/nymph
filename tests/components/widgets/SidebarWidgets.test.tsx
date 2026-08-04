@@ -289,13 +289,24 @@ describe('MinimapWidget', () => {
     const onSelectLine = vi.fn();
     renderMinimap({ onSelectLine });
     const canvas = screen.getByTestId('minimap-canvas');
-    // jsdom は要素の実寸を持たないので、クリック計算に使う矩形を差し替える
-    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
-      top: 0,
-      height: 100,
-    } as DOMRect);
+    // jsdom は要素の実寸を持たないので、クリック計算に使う矩形を差し替える。
+    // 基準になるのは棒の箱（枠ではない）。
+    vi.spyOn(
+      screen.getByTestId('minimap-rows'),
+      'getBoundingClientRect',
+    ).mockReturnValue({ top: 0, height: 100 } as DOMRect);
     fireEvent.click(canvas, { clientY: 50 });
     expect(onSelectLine).toHaveBeenCalledWith(2);
+  });
+
+  test('棒・ビューポート・コメントの点は同じ箱の中に置く', () => {
+    // 棒 1 本の高さには上限があるため、枠を基準にすると短い文書で位置が
+    // ずれる。3 つとも棒の箱（minimap-rows）の子であることを固定する。
+    renderMinimap();
+    const rowsBox = screen.getByTestId('minimap-rows');
+    for (const el of screen.getAllByTestId('minimap-marker'))
+      expect(rowsBox).toContainElement(el);
+    expect(rowsBox.querySelectorAll('[data-kind]').length).toBe(4);
   });
 
   test('本文が空ならその旨を出す', () => {

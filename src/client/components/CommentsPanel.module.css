@@ -8,6 +8,35 @@
   display: flex;
   flex-direction: column;
 }
+/* ウィジェット枠に置いたとき。枠が幅・背景・区切り線を持つので、ドック用の
+   高さアニメーションと境界線を打ち消し、枠の縦幅いっぱいに広がる。
+   横幅が狭くなるぶん、余白とヘッダーを詰めてフィルタを折り返す。 */
+.slotPanel {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: none;
+  background: transparent;
+  transition: none;
+}
+.slotPanel .head {
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  gap: 4px;
+}
+.slotPanel .filterGroup {
+  margin-left: 0;
+}
+.slotPanel .filterBtn {
+  padding: 2px 6px;
+}
+.slotPanel .item {
+  padding: 8px;
+  gap: 6px;
+}
+.slotPanel .empty {
+  padding: 10px 8px;
+}
 .resizeHandle {
   flex-shrink: 0;
   height: 8px;

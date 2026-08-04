@@ -54,8 +54,8 @@ test.describe('FileTabs の自動表示/非表示', () => {
       });
       await expect(secondTab).toBeVisible();
 
-      // タブの × アイコン（span）をクリックして閉じる
-      await secondTab.locator('span').click();
+      // タブの × アイコンをクリックして閉じる
+      await secondTab.getByTestId('tab-close').click();
       await expect(secondTab).toHaveCount(0, { timeout: 3000 });
 
       // 1ファイルに戻ったのでタブ行自体が非表示になる

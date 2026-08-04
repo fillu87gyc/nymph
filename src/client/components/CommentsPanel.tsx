@@ -37,8 +37,16 @@ function hasSnapshotBalloon(status: CommentStatus): boolean {
   return status === 'deleted' || status === 'resolved';
 }
 
+/**
+ * 出し方。
+ * - dock: 画面下のドック（既定位置）。高さをドラッグで変えられる。
+ * - slot: 左右のウィジェット枠。枠の縦幅に従うので高さ調整は持たない。
+ */
+export type CommentsPanelVariant = 'dock' | 'slot';
+
 interface CommentsPanelProps {
   open: boolean;
+  variant?: CommentsPanelVariant;
   comments: Comment[];
   orphanedIds?: Set<Comment['id']>;
   onScrollToComment: (c: Comment) => void;
@@ -50,6 +58,7 @@ interface CommentsPanelProps {
 
 export function CommentsPanel({
   open,
+  variant = 'dock',
   comments,
   orphanedIds,
   onScrollToComment,
@@ -115,15 +124,23 @@ export function CommentsPanel({
     e.preventDefault();
   }, []);
 
+  // ウィジェット枠に置いたときは枠の縦幅に従うため、高さも開閉アニメーションも
+  // 持たない。閉じているときは枠ごと畳めるよう何も描かない（ドックのように
+  // 高さ 0 の要素を残すと、枠に区切り線だけが残ってしまう）。
+  const inSlot = variant === 'slot';
+  if (inSlot && !open) return null;
+
   // ドラッグ中は open/close 用の height トランジション(0.2s)を止める。
   // 有効なままだとドラッグ直後の offsetHeight がアニメーション途中の値になり、
   // ドラッグ操作が反映されていないように見える（E2E でも実際に不安定だった）。
-  const panelStyle = open
-    ? {
-        height: `${height}px`,
-        transition: resizing ? 'none' : undefined,
-      }
-    : { height: '0' };
+  const panelStyle = inSlot
+    ? undefined
+    : open
+      ? {
+          height: `${height}px`,
+          transition: resizing ? 'none' : undefined,
+        }
+      : { height: '0' };
   const visibleComments = comments.filter((c) =>
     matchesCommentFilter(c, filter, orphanedIds?.has(c.id) ?? false),
   );
@@ -135,15 +152,18 @@ export function CommentsPanel({
     <div
       id="comments-panel"
       ref={panelRef}
-      className={styles.panel}
+      className={inSlot ? `${styles.panel} ${styles.slotPanel}` : styles.panel}
       data-open={String(open)}
+      data-variant={variant}
       style={panelStyle}
     >
-      <div
-        className={styles.resizeHandle}
-        id="panel-resize-handle"
-        onMouseDown={startDrag}
-      />
+      {!inSlot && (
+        <div
+          className={styles.resizeHandle}
+          id="panel-resize-handle"
+          onMouseDown={startDrag}
+        />
+      )}
       <div className={styles.head}>
         <span className={styles.title}>レビューコメント</span>
         <div className={styles.filterGroup} data-testid="comment-filter">

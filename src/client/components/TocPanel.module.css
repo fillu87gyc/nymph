@@ -1,9 +1,9 @@
+/* 幅・境界線・背景はウィジェット枠（WidgetSlot）が持つ。ここは枠の中で
+   縦幅いっぱいに広がり、あふれた分だけスクロールする。 */
 .sidebar {
-  width: 220px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  background: var(--bg-surface);
-  border-left: 1px solid var(--border);
   padding: 6px 4px;
 }
 .header {

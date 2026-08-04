@@ -1,0 +1,40 @@
+/* 左右のウィジェット枠。幅・境界線・背景は枠が持ち、中のウィジェットは
+   幅いっぱいに広がる（積んでも 1 枚のサイドバーとして揃って見えるように）。
+   既定配置（左＝エクスプローラー / 右＝アウトライン）で従来と同じ見た目に
+   なるよう、幅は移設前の各パネルの値をそのまま引き継いでいる。 */
+.slot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+.slot[data-side="left"] {
+  width: 240px;
+  border-right: 1px solid var(--border);
+}
+.slot[data-side="right"] {
+  width: 220px;
+  border-left: 1px solid var(--border);
+}
+/* 積んだウィジェット 1 枚ぶん。 */
+.item {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+/* 一覧系（エクスプローラー・アウトライン・コメント）は余った縦幅を分け合う。 */
+.item[data-grows="true"] {
+  flex: 1 1 0;
+}
+/* タブのように件数ぶんの高さで足りるものは内容なりに収める。積んだ相手を
+   潰さないよう上限だけ設ける（超えた分はウィジェット内でスクロールする）。 */
+.item[data-grows="false"] {
+  flex: 0 0 auto;
+  max-height: 40%;
+}
+.item + .item {
+  border-top: 1px solid var(--border);
+}

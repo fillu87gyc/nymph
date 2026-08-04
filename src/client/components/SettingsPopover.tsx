@@ -3,6 +3,14 @@ import { useEscapeDismiss, useOutsideDismiss } from '../hooks/useDismiss.ts';
 import type { MarginCollapse } from '../lib/contentWidth.ts';
 import { CONTENT_FONT_OPTIONS } from '../lib/fonts.ts';
 import type { OutlineBadgeMode } from '../lib/outline.ts';
+import {
+  WIDGET_IDS,
+  WIDGET_META,
+  type WidgetId,
+  type WidgetLayout,
+  type WidgetPlacement,
+  widgetPlacement,
+} from '../lib/widgets.ts';
 import styles from './SettingsPopover.module.css';
 
 const OUTLINE_BADGE_OPTIONS: {
@@ -43,6 +51,40 @@ interface SettingsPopoverProps {
   onChangeOutlineBadgeMode: (mode: OutlineBadgeMode) => void;
   /** チェックポイント設定済みか。未設定なら「差分量」は選ばせない。 */
   checkpointSet: boolean;
+  widgetLayout: WidgetLayout;
+  onPlaceWidget: (id: WidgetId, placement: WidgetPlacement) => void;
+}
+
+/** ウィジェット 1 個ぶんの配置先の選択肢。 */
+function placementOptions(
+  id: WidgetId,
+): { value: WidgetPlacement; key: string; label: string; title: string }[] {
+  const meta = WIDGET_META[id];
+  const options = [
+    {
+      value: 'left' as const,
+      key: 'left',
+      label: '左',
+      title: `${meta.label}を左の枠に置く`,
+    },
+    {
+      value: 'right' as const,
+      key: 'right',
+      label: '右',
+      title: `${meta.label}を右の枠に置く`,
+    },
+  ];
+  // 既定位置を持つウィジェット（タブ・コメント）だけ枠の外に戻せる。
+  if (meta.defaultLabel === null) return options;
+  return [
+    ...options,
+    {
+      value: null,
+      key: 'default',
+      label: meta.defaultLabel,
+      title: `${meta.label}を既定の位置（${meta.defaultLabel}）に戻す`,
+    },
+  ];
 }
 
 // 設定ポップオーバー。テーマ切替 / 本文フォント / リガチャ / 本文幅（左右
@@ -64,6 +106,8 @@ export function SettingsPopover({
   outlineBadgeMode,
   onChangeOutlineBadgeMode,
   checkpointSet,
+  widgetLayout,
+  onPlaceWidget,
 }: SettingsPopoverProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -139,6 +183,47 @@ export function SettingsPopover({
               オフにすると fi や =&gt; を合成せず 1 文字ずつ表示します
             </span>
           </div>
+          {/* 左右の枠に積むウィジェットを選ぶ。行ごとにセグメントコントロール
+              なので、各行を role="group" にしてウィジェット名と関連付ける。 */}
+          <fieldset className={`${styles.section} ${styles.fieldset}`}>
+            <legend className={styles.sectionTitle}>ウィジェット配置</legend>
+            <div className={styles.widgetRows} data-testid="widget-layout">
+              {WIDGET_IDS.map((id) => {
+                const meta = WIDGET_META[id];
+                const current = widgetPlacement(widgetLayout, id);
+                return (
+                  <div
+                    key={id}
+                    className={styles.widgetRow}
+                    data-testid={`widget-row-${id}`}
+                  >
+                    <span className={styles.widgetName}>{meta.label}</span>
+                    {/* ボタンの表示は「左 / 右」だけなので、どのウィジェットの
+                        話かが分かるよう読み上げ名にはウィジェット名を含める。 */}
+                    <div className={styles.badgeModeGroup}>
+                      {placementOptions(id).map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          className={styles.badgeModeBtn}
+                          data-testid={`widget-place-${id}-${opt.key}`}
+                          aria-pressed={current === opt.value}
+                          aria-label={opt.title}
+                          title={opt.title}
+                          onClick={() => onPlaceWidget(id, opt.value)}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <span className={styles.hint}>
+              左右の折りたたみ枠に積むウィジェットを選べます
+            </span>
+          </fieldset>
           {/* セグメントコントロールなので、見出しを legend にしてボタン群と
               プログラム的に関連付ける（span のままだと支援技術に伝わらない） */}
           <fieldset className={`${styles.section} ${styles.fieldset}`}>

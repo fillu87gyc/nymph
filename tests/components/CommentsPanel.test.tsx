@@ -390,4 +390,48 @@ describe('CommentsPanel', () => {
     await userEvent.click(item.getByTitle('削除'));
     expect(onDelete).toHaveBeenCalledWith('c_bbb');
   });
+  describe('ウィジェット枠に置いたとき（variant="slot"）', () => {
+    function renderSlot(open: boolean) {
+      return render(
+        <CommentsPanel
+          open={open}
+          variant="slot"
+          comments={[makeComment()]}
+          onScrollToComment={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onToggleResolved={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+    }
+
+    test('閉じているときは何も描画しない（枠に区切り線だけ残さない）', () => {
+      const { container } = renderSlot(false);
+      expect(container.firstChild).toBeNull();
+    });
+
+    test('高さドラッグのハンドルを持たない（枠の縦幅に従うため）', () => {
+      renderSlot(true);
+      expect(document.getElementById('panel-resize-handle')).toBeNull();
+    });
+
+    test('高さのインラインスタイルを持たない', () => {
+      renderSlot(true);
+      expect(document.getElementById('comments-panel')?.style.height).toBe('');
+    });
+
+    test('コメントの中身はドックと同じように出る', () => {
+      renderSlot(true);
+      expect(screen.getByTestId('c-text')).toHaveTextContent('test comment');
+    });
+  });
+
+  test('ドックではリサイズハンドルと高さを持つ', () => {
+    render(<Wrapper comments={[makeComment()]} />);
+    expect(document.getElementById('panel-resize-handle')).toBeInTheDocument();
+    expect(document.getElementById('comments-panel')?.style.height).not.toBe(
+      '',
+    );
+  });
 });

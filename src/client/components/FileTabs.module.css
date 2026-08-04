@@ -8,6 +8,46 @@
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
+/* 縦置き（ウィジェット枠に置いたとき）。枠の幅いっぱいに 1 件 1 行で並べる。 */
+.tabsWidget {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px 4px;
+}
+.header {
+  flex-shrink: 0;
+  padding: 4px 8px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.tabList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 縦置きのタブは行いっぱいに広げ、長いファイル名は省略記号で畳む。
+   横行のときは従来どおり内容ぶんの幅のまま（見た目を変えない）。 */
+.tabsWidget .tab {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 3px 8px;
+}
+.tabsWidget .tabName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .tab {
   padding: 2px 10px;
   border-radius: 4px;

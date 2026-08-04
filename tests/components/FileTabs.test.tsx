@@ -60,4 +60,83 @@ describe('FileTabs', () => {
     await userEvent.click(screen.getByText('b.md'));
     expect(onSwitch).toHaveBeenCalledWith('b.md');
   });
+
+  describe('縦置き（ウィジェット枠に置いたとき）', () => {
+    test('1件でも表示する（自分で枠に置いたウィジェットなので隠さない）', () => {
+      render(
+        <FileTabs
+          files={[file('a.md')]}
+          activeFile="a.md"
+          orientation="vertical"
+          onSwitch={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId('tabs-widget')).toBeInTheDocument();
+      expect(screen.getByText('a.md')).toBeInTheDocument();
+    });
+
+    test('0件なら描画しない', () => {
+      const { container } = render(
+        <FileTabs
+          files={[]}
+          activeFile={null}
+          orientation="vertical"
+          onSwitch={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      expect(container.firstChild).toBeNull();
+    });
+
+    test('縦置きでも切替と閉じるが効く', async () => {
+      const onSwitch = vi.fn();
+      const onClose = vi.fn();
+      render(
+        <FileTabs
+          files={[file('a.md'), file('b.md')]}
+          activeFile="a.md"
+          orientation="vertical"
+          onSwitch={onSwitch}
+          onClose={onClose}
+        />,
+      );
+      await userEvent.click(screen.getByText('b.md'));
+      expect(onSwitch).toHaveBeenCalledWith('b.md');
+
+      const bTab = screen.getByText('b.md').closest('button');
+      const closeIcon = bTab?.querySelector('[data-testid="tab-close"]');
+      expect(closeIcon).not.toBeNull();
+      if (closeIcon) await userEvent.click(closeIcon);
+      expect(onClose).toHaveBeenCalledWith('b.md');
+    });
+
+    test('data-orientation で横行と縦置きを見分けられる', () => {
+      const { rerender } = render(
+        <FileTabs
+          files={[file('a.md'), file('b.md')]}
+          activeFile="a.md"
+          onSwitch={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      expect(document.getElementById('file-tabs')).toHaveAttribute(
+        'data-orientation',
+        'horizontal',
+      );
+      rerender(
+        <FileTabs
+          files={[file('a.md'), file('b.md')]}
+          activeFile="a.md"
+          orientation="vertical"
+          onSwitch={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      expect(document.getElementById('file-tabs')).toHaveAttribute(
+        'data-orientation',
+        'vertical',
+      );
+    });
+  });
 });

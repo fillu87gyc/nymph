@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMinimapRows,
+  clampViewportBand,
   countLines,
   lineAtRatio,
   MAX_MINIMAP_ROWS,
+  MIN_VIEWPORT_PX,
   ratioAtLine,
 } from '../../src/client/lib/minimap.ts';
 
@@ -30,6 +32,46 @@ describe('buildMinimapRows', () => {
   it('コードフェンスの中と囲み自身を code にする', () => {
     const rows = buildMinimapRows('```ts\nconst x = 1;\n```');
     expect(rows.map((r) => r.kind)).toEqual(['code', 'code', 'code']);
+  });
+
+  it('mermaid / mmd のフェンスは図として diagram にする', () => {
+    for (const lang of ['mermaid', 'mmd', 'Mermaid']) {
+      const rows = buildMinimapRows(`\`\`\`${lang}\ngraph TD; A-->B\n\`\`\``);
+      expect(rows.map((r) => r.kind)).toEqual([
+        'diagram',
+        'diagram',
+        'diagram',
+      ]);
+    }
+  });
+
+  it('図のフェンスを閉じたあとはふつうの本文に戻る', () => {
+    const src = ['```mermaid', 'graph TD; A-->B', '```', '本文'].join('\n');
+    expect(buildMinimapRows(src).map((r) => r.kind)).toEqual([
+      'diagram',
+      'diagram',
+      'diagram',
+      'text',
+    ]);
+  });
+
+  it('画像だけの行は image にする（文中の画像は本文のまま）', () => {
+    const src = [
+      '![図](./a.png)',
+      '段落の中に ![図](./b.png) がある',
+      '## ![見出しの中](./c.png)',
+    ].join('\n');
+    expect(buildMinimapRows(src).map((r) => r.kind)).toEqual([
+      'image',
+      'text',
+      'heading',
+    ]);
+  });
+
+  it('束ねた行に図や画像が混ざれば、その束は図・画像として残る', () => {
+    const src = ['本文', '![図](./a.png)', '本文', '本文'].join('\n');
+    const rows = buildMinimapRows(src, 2);
+    expect(rows.map((r) => r.kind)).toEqual(['image', 'text']);
   });
 
   it('棒の長さは行の長さに比例し、1 で頭打ちになる', () => {
@@ -101,5 +143,37 @@ describe('lineAtRatio / ratioAtLine', () => {
     expect(ratioAtLine(51, 100)).toBeCloseTo(0.5);
     expect(ratioAtLine(999, 100)).toBe(1);
     expect(ratioAtLine(1, 0)).toBe(0);
+  });
+});
+
+describe('clampViewportBand', () => {
+  it('十分な高さがある帯はそのまま通す', () => {
+    expect(clampViewportBand(0.2, 0.5, 400)).toEqual({ top: 0.2, height: 0.5 });
+  });
+
+  it('長い文書で潰れた帯を下限の高さまで伸ばす', () => {
+    // 400px の箱で 0.01（＝4px）は線が潰れる → MIN_VIEWPORT_PX まで伸ばす
+    const band = clampViewportBand(0.2, 0.01, 400);
+    expect(band.height).toBeCloseTo(MIN_VIEWPORT_PX / 400);
+    expect(band.top).toBe(0.2);
+  });
+
+  it('伸ばした帯が箱からはみ出すときは上へ寄せて収める', () => {
+    const band = clampViewportBand(1, 0.01, 400);
+    expect(band.top).toBeCloseTo(1 - MIN_VIEWPORT_PX / 400);
+    expect(band.top + band.height).toBeCloseTo(1);
+  });
+
+  it('箱より下限が大きければ全体を覆う', () => {
+    expect(clampViewportBand(0.5, 0.01, 8)).toEqual({ top: 0, height: 1 });
+  });
+
+  it('先頭より上・全体より高い値は端に丸める', () => {
+    expect(clampViewportBand(-0.5, 0.5, 400).top).toBe(0);
+    expect(clampViewportBand(0, 2, 400).height).toBe(1);
+  });
+
+  it('箱の高さが測れないうちは割合をそのまま使う', () => {
+    expect(clampViewportBand(0.2, 0.01, 0)).toEqual({ top: 0.2, height: 0.01 });
   });
 });

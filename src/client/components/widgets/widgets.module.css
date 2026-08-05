@@ -265,9 +265,13 @@
 }
 
 /* --- ミニマップ ------------------------------------------------------ */
+/* button の既定の中身の中央寄せだと、行数が少ない文書で棒の箱が縦の中央に
+   浮いてしまう。1 行目は必ず上端から始まってほしいので flex で上詰めにする。 */
 .minimap {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
   width: calc(100% - 12px);
   height: 100%;
   min-height: 60px;
@@ -309,17 +313,31 @@
 .minimapRow[data-kind="list"] {
   opacity: 0.65;
 }
+/* 図（mermaid）と画像は「そこに絵がある」ことが分かればよいので、行の長さに
+   合わせた棒ではなく中央に置いた四角にする（幅は JSX 側で一定）。 */
+.minimapRow[data-kind="diagram"],
+.minimapRow[data-kind="image"] {
+  align-self: center;
+  border-radius: 2px;
+  background: var(--text-muted);
+  opacity: 0.85;
+}
 .minimapRow[data-kind="blank"] {
   background: none;
 }
-/* 今どこを見ているか。本文のスクロールに追従する。 */
+/* 今どこを見ているか。本文のスクロールに追従する。
+   中を濃く塗って面で見せるので、線は 2px で足りる。
+   線の色は本文色（明暗が地と逆）。アクセント色にすると、見出しの棒も枠の塗りも
+   同じ青なので「青地に青線」で枠線が消えてしまう。
+   左右は棒の箱ちょうどに合わせる（箱は overflow: hidden なので、外へ張り出すと
+   縦の線が切り落とされる）。 */
 .viewport {
   position: absolute;
-  left: -2px;
-  right: -2px;
-  border: 1px solid var(--accent);
-  border-radius: 3px;
-  background: var(--accent-glow);
+  left: 0;
+  right: 0;
+  border: 2px solid var(--text);
+  border-radius: 4px;
+  background: rgba(var(--accent-rgb), 0.6);
   pointer-events: none;
 }
 /* コメントの位置。右端に点で重ねる。 */

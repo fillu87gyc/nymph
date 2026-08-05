@@ -270,6 +270,51 @@ test.describe('ミニマップウィジェット', () => {
     await expect(page.getByTestId('minimap-viewport')).toBeVisible();
   });
 
+  test('行数が少ない文書でも 1 行目は上端から始まる', async ({ page }) => {
+    await placeInLeft(page, 'minimap');
+    // button の既定の中央寄せだと、棒の箱が縦の中央に浮いて位置が読めない
+    const gap = await page.evaluate(() => {
+      const canvas = document.querySelector('[data-testid="minimap-canvas"]');
+      const rows = document.querySelector('[data-testid="minimap-rows"]');
+      if (!canvas || !rows) throw new Error('minimap not rendered');
+      return (
+        rows.getBoundingClientRect().top - canvas.getBoundingClientRect().top
+      );
+    });
+    expect(gap).toBeLessThanOrEqual(1);
+  });
+
+  test('図と画像は中央に置いた四角にする', async ({ page }) => {
+    await placeInLeft(page, 'minimap');
+    const rows = page.getByTestId('minimap-rows');
+    // fixture の 19〜21 行目が ```mermaid の 3 行、10 行目が画像
+    await expect(rows.locator('[data-kind="diagram"]')).toHaveCount(3);
+    await expect(rows.locator('[data-kind="image"]')).toHaveCount(1);
+
+    // 左端から伸びる棒ではなく、箱の中央に置かれていること
+    const placed = await page.evaluate(() => {
+      const box = document.querySelector('[data-testid="minimap-rows"]');
+      const block = document.querySelector(
+        '[data-testid="minimap-rows"] [data-kind="diagram"]',
+      );
+      const text = document.querySelector(
+        '[data-testid="minimap-rows"] [data-kind="text"]',
+      );
+      if (!box || !block || !text) throw new Error('minimap not rendered');
+      const bb = box.getBoundingClientRect();
+      const kb = block.getBoundingClientRect();
+      return {
+        leftGap: kb.left - bb.left,
+        rightGap: bb.right - kb.right,
+        textLeftGap: text.getBoundingClientRect().left - bb.left,
+      };
+    });
+    expect(placed.leftGap).toBeGreaterThan(1);
+    expect(Math.abs(placed.leftGap - placed.rightGap)).toBeLessThanOrEqual(1);
+    // ふつうの本文は今までどおり左端から
+    expect(placed.textLeftGap).toBeLessThanOrEqual(1);
+  });
+
   test('コメントの位置を点で重ねる', async ({ page }) => {
     await expect(page.getByTestId('minimap-marker')).toHaveCount(0);
     await placeInLeft(page, 'minimap');
@@ -300,6 +345,75 @@ test.describe('ミニマップウィジェット', () => {
     });
     expect(ratio).toBeGreaterThan(0.6);
     expect(ratio).toBeLessThan(0.8);
+  });
+
+  test('今見ている範囲の枠は、長い文書でも線が読める太さと高さを保つ', async ({
+    page,
+    fixturePath,
+  }) => {
+    await placeInLeft(page, 'minimap');
+    const viewport = page.getByTestId('minimap-viewport');
+    await expect(viewport).toBeVisible();
+    // 1px のヘアラインは棒（最大 3px）に紛れて見つけられない
+    await expect(viewport).toHaveCSS('border-top-width', '2px');
+    await expect(viewport).toHaveCSS('border-bottom-width', '2px');
+    // 左右も棒の箱に収まっていること（はみ出すと overflow: hidden で切れる）
+    await expect(viewport).toHaveCSS('border-left-width', '2px');
+    await expect(viewport).toHaveCSS('border-right-width', '2px');
+
+    // 枠線は見出しの棒（アクセント色）とも自分の塗りとも違う色。同じ青だと
+    // 「青地に青線」で線が消える。
+    const colors = await page.evaluate(() => {
+      const vp = document.querySelector('[data-testid="minimap-viewport"]');
+      const heading = document.querySelector(
+        '[data-testid="minimap-rows"] [data-kind="heading"]',
+      );
+      if (!vp || !heading) throw new Error('minimap not rendered');
+      return {
+        border: getComputedStyle(vp).borderTopColor,
+        fill: getComputedStyle(vp).backgroundColor,
+        headingBar: getComputedStyle(heading).backgroundColor,
+      };
+    });
+    expect(colors.border).not.toBe(colors.headingBar);
+    expect(colors.border).not.toBe(colors.fill);
+
+    // 長い文書（段落を積んで本文を高くする）では割合そのままだと帯が数 px に
+    // 潰れる。下限まで伸ばしたうえで、棒の箱（overflow: hidden）に収まって
+    // いること＝末尾まで送っても下の枠線が切れないこと。
+    writeFileSync(
+      fixturePath,
+      Array.from({ length: 1500 }, (_, i) => `本文の行 ${i + 1}`).join('\n\n'),
+    );
+    await expect(page.getByTestId('minimap-widget-meta')).toHaveText('2999行', {
+      timeout: 5000,
+    });
+    await page.getByTestId('content-scroll').evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+
+    const band = () =>
+      page.evaluate(() => {
+        const rows = document.querySelector('[data-testid="minimap-rows"]');
+        const vp = document.querySelector('[data-testid="minimap-viewport"]');
+        if (!rows || !vp) throw new Error('minimap viewport not found');
+        const rb = rows.getBoundingClientRect();
+        const vb = vp.getBoundingClientRect();
+        return {
+          height: vb.height,
+          top: (vb.top - rb.top) / rb.height,
+          overflow: vb.bottom - rb.bottom,
+        };
+      });
+
+    // スクロールの反映を待ってから（枠は scroll イベントで追従する）測る
+    await expect
+      .poll(async () => (await band()).top, { timeout: 3000 })
+      .toBeGreaterThan(0.8);
+    const measured = await band();
+    // 上下の線（各 2px）が潰れず、中の塗りも残る高さ
+    expect(measured.height).toBeGreaterThanOrEqual(12);
+    expect(measured.overflow).toBeLessThanOrEqual(1);
   });
 
   test('クリックした位置の行へ飛ぶ', async ({ page }) => {

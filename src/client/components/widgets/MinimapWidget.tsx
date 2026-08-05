@@ -2,8 +2,10 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { commentStatus } from '../../lib/comments.ts';
 import {
   buildMinimapRows,
+  clampViewportBand,
   countLines,
   lineAtRatio,
+  type MinimapKind,
   ratioAtLine,
 } from '../../lib/minimap.ts';
 import type { Comment } from '../../types.ts';
@@ -26,6 +28,15 @@ interface Viewport {
   top: number;
   height: number;
 }
+
+/**
+ * 図と画像は、文字数に比例した棒ではなく中央に置いた四角で表す。
+ * 中身が絵なので「何文字あるか」に意味がなく、alt や図の定義の長さで
+ * 棒が伸び縮みしても読み手には何も伝わらないため。
+ */
+const BLOCK_KINDS = new Set<MinimapKind>(['diagram', 'image']);
+/** その四角の幅（棒の箱に対する %）。 */
+const BLOCK_WIDTH = 56;
 
 /**
  * ミニマップウィジェット。
@@ -63,10 +74,15 @@ export function MinimapWidget({
       const target = contentScrollRef.current;
       if (!target) return;
       const height = target.scrollHeight || 1;
-      setViewport({
-        top: target.scrollTop / height,
-        height: Math.min(1, target.clientHeight / height),
-      });
+      // 枠は棒の箱に対して置くので、下限の高さも箱の実寸で判断する。
+      const box = rowsRef.current?.getBoundingClientRect().height ?? 0;
+      setViewport(
+        clampViewportBand(
+          target.scrollTop / height,
+          Math.min(1, target.clientHeight / height),
+          box,
+        ),
+      );
     }
     update();
     el.addEventListener('scroll', update, { passive: true });
@@ -127,7 +143,11 @@ export function MinimapWidget({
                 className={styles.minimapRow}
                 data-kind={r.kind}
                 data-line={r.line}
-                style={{ width: `${Math.max(4, r.weight * 100)}%` }}
+                style={{
+                  width: BLOCK_KINDS.has(r.kind)
+                    ? `${BLOCK_WIDTH}%`
+                    : `${Math.max(4, r.weight * 100)}%`,
+                }}
               />
             ))}
             {viewport && (

@@ -10,6 +10,8 @@
 
 export type MinimapKind =
   | 'heading'
+  | 'diagram'
+  | 'image'
   | 'code'
   | 'quote'
   | 'list'
@@ -34,6 +36,8 @@ const FULL_WIDTH_CHARS = 80;
 
 const KIND_PRIORITY: MinimapKind[] = [
   'heading',
+  'diagram',
+  'image',
   'code',
   'table',
   'quote',
@@ -42,11 +46,23 @@ const KIND_PRIORITY: MinimapKind[] = [
   'blank',
 ];
 
-function lineKind(text: string, fenced: boolean): MinimapKind {
-  if (fenced) return 'code';
+/** 図として描かれるフェンス（本文の描画と同じ判定）。 */
+const DIAGRAM_LANGS = new Set(['mermaid', 'mmd']);
+/** フェンスの囲みと、その情報文字列（```mermaid の mermaid）。 */
+const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})\s*([^\s`]*)/;
+/** その行が画像だけでできているか。文中の画像は本文として扱う。 */
+const IMAGE_LINE_RE = /^!\[[^\]]*\]\([^)]*\)$/;
+
+function lineKind(
+  text: string,
+  fenced: boolean,
+  diagram: boolean,
+): MinimapKind {
+  if (fenced) return diagram ? 'diagram' : 'code';
   const t = text.trim();
   if (!t) return 'blank';
   if (/^#{1,6}\s/.test(t)) return 'heading';
+  if (IMAGE_LINE_RE.test(t)) return 'image';
   if (t.startsWith('>')) return 'quote';
   if (t.startsWith('|')) return 'table';
   if (/^([-*+]|\d+[.)])\s/.test(t)) return 'list';
@@ -69,12 +85,21 @@ export function buildMinimapRows(
 
   const kinds: MinimapKind[] = [];
   const weights: number[] = [];
-  let fence: string | null = null;
+  let fence: { diagram: boolean } | null = null;
   for (const text of lines) {
-    const m = /^\s{0,3}(`{3,}|~{3,})/.exec(text);
+    const m = FENCE_RE.exec(text);
     const isFenceEdge = m !== null;
-    if (isFenceEdge) fence = fence === null ? m[1][0] : null;
-    kinds.push(lineKind(text, fence !== null || isFenceEdge));
+    // 閉じの行も開いていたフェンスの種類で塗る（囲みごと 1 つの塊に見せる）
+    let diagram: boolean = fence?.diagram ?? false;
+    if (isFenceEdge) {
+      if (fence === null) {
+        diagram = DIAGRAM_LANGS.has(m[2].toLowerCase());
+        fence = { diagram };
+      } else {
+        fence = null;
+      }
+    }
+    kinds.push(lineKind(text, fence !== null || isFenceEdge, diagram));
     weights.push(Math.min(1, text.trim().length / FULL_WIDTH_CHARS));
   }
 
@@ -113,4 +138,30 @@ export function lineAtRatio(ratio: number, totalLines: number): number {
 export function ratioAtLine(line: number, totalLines: number): number {
   if (totalLines <= 0) return 0;
   return Math.min(1, Math.max(0, (line - 1) / totalLines));
+}
+
+/**
+ * 今どこを見ているかの枠の下限の高さ（px）。
+ * 上下の線（各 2px）が潰れず、中の塗りも残る高さにする。
+ */
+export const MIN_VIEWPORT_PX = 14;
+
+/**
+ * 今見ている範囲の枠を、線が読める高さに整える。
+ *
+ * 割合をそのまま使うと、長い文書では帯が数 px まで縮んで上下の枠線が
+ * 重なり、ただの点にしか見えなくなる。下限まで伸ばしたうえで、はみ出す分は
+ * 上へ寄せて棒の箱の中に収める（箱は overflow: hidden なので、はみ出すと
+ * 下の枠線が切れて見えなくなる）。
+ */
+export function clampViewportBand(
+  top: number,
+  height: number,
+  boxHeightPx: number,
+): { top: number; height: number } {
+  const clampedTop = Math.min(1, Math.max(0, top));
+  const clampedHeight = Math.min(1, Math.max(0, height));
+  if (boxHeightPx <= 0) return { top: clampedTop, height: clampedHeight };
+  const h = Math.min(1, Math.max(clampedHeight, MIN_VIEWPORT_PX / boxHeightPx));
+  return { top: Math.min(clampedTop, 1 - h), height: h };
 }

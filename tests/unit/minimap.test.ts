@@ -34,6 +34,46 @@ describe('buildMinimapRows', () => {
     expect(rows.map((r) => r.kind)).toEqual(['code', 'code', 'code']);
   });
 
+  it('mermaid / mmd のフェンスは図として diagram にする', () => {
+    for (const lang of ['mermaid', 'mmd', 'Mermaid']) {
+      const rows = buildMinimapRows(`\`\`\`${lang}\ngraph TD; A-->B\n\`\`\``);
+      expect(rows.map((r) => r.kind)).toEqual([
+        'diagram',
+        'diagram',
+        'diagram',
+      ]);
+    }
+  });
+
+  it('図のフェンスを閉じたあとはふつうの本文に戻る', () => {
+    const src = ['```mermaid', 'graph TD; A-->B', '```', '本文'].join('\n');
+    expect(buildMinimapRows(src).map((r) => r.kind)).toEqual([
+      'diagram',
+      'diagram',
+      'diagram',
+      'text',
+    ]);
+  });
+
+  it('画像だけの行は image にする（文中の画像は本文のまま）', () => {
+    const src = [
+      '![図](./a.png)',
+      '段落の中に ![図](./b.png) がある',
+      '## ![見出しの中](./c.png)',
+    ].join('\n');
+    expect(buildMinimapRows(src).map((r) => r.kind)).toEqual([
+      'image',
+      'text',
+      'heading',
+    ]);
+  });
+
+  it('束ねた行に図や画像が混ざれば、その束は図・画像として残る', () => {
+    const src = ['本文', '![図](./a.png)', '本文', '本文'].join('\n');
+    const rows = buildMinimapRows(src, 2);
+    expect(rows.map((r) => r.kind)).toEqual(['image', 'text']);
+  });
+
   it('棒の長さは行の長さに比例し、1 で頭打ちになる', () => {
     const rows = buildMinimapRows(['', 'abcd', 'x'.repeat(200)].join('\n'));
     expect(rows[0].weight).toBe(0);

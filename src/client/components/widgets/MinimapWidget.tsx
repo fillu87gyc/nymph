@@ -5,6 +5,7 @@ import {
   clampViewportBand,
   countLines,
   lineAtRatio,
+  type MinimapKind,
   ratioAtLine,
 } from '../../lib/minimap.ts';
 import type { Comment } from '../../types.ts';
@@ -27,6 +28,15 @@ interface Viewport {
   top: number;
   height: number;
 }
+
+/**
+ * 図と画像は、文字数に比例した棒ではなく中央に置いた四角で表す。
+ * 中身が絵なので「何文字あるか」に意味がなく、alt や図の定義の長さで
+ * 棒が伸び縮みしても読み手には何も伝わらないため。
+ */
+const BLOCK_KINDS = new Set<MinimapKind>(['diagram', 'image']);
+/** その四角の幅（棒の箱に対する %）。 */
+const BLOCK_WIDTH = 56;
 
 /**
  * ミニマップウィジェット。
@@ -133,7 +143,11 @@ export function MinimapWidget({
                 className={styles.minimapRow}
                 data-kind={r.kind}
                 data-line={r.line}
-                style={{ width: `${Math.max(4, r.weight * 100)}%` }}
+                style={{
+                  width: BLOCK_KINDS.has(r.kind)
+                    ? `${BLOCK_WIDTH}%`
+                    : `${Math.max(4, r.weight * 100)}%`,
+                }}
               />
             ))}
             {viewport && (

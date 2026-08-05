@@ -309,6 +309,15 @@
 .minimapRow[data-kind="list"] {
   opacity: 0.65;
 }
+/* 図（mermaid）と画像は「そこに絵がある」ことが分かればよいので、行の長さに
+   合わせた棒ではなく中央に置いた四角にする（幅は JSX 側で一定）。 */
+.minimapRow[data-kind="diagram"],
+.minimapRow[data-kind="image"] {
+  align-self: center;
+  border-radius: 2px;
+  background: var(--text-muted);
+  opacity: 0.85;
+}
 .minimapRow[data-kind="blank"] {
   background: none;
 }
@@ -325,7 +334,7 @@
   right: 0;
   border: 6px solid var(--text);
   border-radius: 5px;
-  background: rgba(var(--accent-rgb), 0.3);
+  background: rgba(var(--accent-rgb), 0.6);
   pointer-events: none;
 }
 /* コメントの位置。右端に点で重ねる。 */

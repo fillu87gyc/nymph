@@ -270,6 +270,37 @@ test.describe('ミニマップウィジェット', () => {
     await expect(page.getByTestId('minimap-viewport')).toBeVisible();
   });
 
+  test('図と画像は中央に置いた四角にする', async ({ page }) => {
+    await placeInLeft(page, 'minimap');
+    const rows = page.getByTestId('minimap-rows');
+    // fixture の 19〜21 行目が ```mermaid の 3 行、10 行目が画像
+    await expect(rows.locator('[data-kind="diagram"]')).toHaveCount(3);
+    await expect(rows.locator('[data-kind="image"]')).toHaveCount(1);
+
+    // 左端から伸びる棒ではなく、箱の中央に置かれていること
+    const placed = await page.evaluate(() => {
+      const box = document.querySelector('[data-testid="minimap-rows"]');
+      const block = document.querySelector(
+        '[data-testid="minimap-rows"] [data-kind="diagram"]',
+      );
+      const text = document.querySelector(
+        '[data-testid="minimap-rows"] [data-kind="text"]',
+      );
+      if (!box || !block || !text) throw new Error('minimap not rendered');
+      const bb = box.getBoundingClientRect();
+      const kb = block.getBoundingClientRect();
+      return {
+        leftGap: kb.left - bb.left,
+        rightGap: bb.right - kb.right,
+        textLeftGap: text.getBoundingClientRect().left - bb.left,
+      };
+    });
+    expect(placed.leftGap).toBeGreaterThan(1);
+    expect(Math.abs(placed.leftGap - placed.rightGap)).toBeLessThanOrEqual(1);
+    // ふつうの本文は今までどおり左端から
+    expect(placed.textLeftGap).toBeLessThanOrEqual(1);
+  });
+
   test('コメントの位置を点で重ねる', async ({ page }) => {
     await expect(page.getByTestId('minimap-marker')).toHaveCount(0);
     await placeInLeft(page, 'minimap');

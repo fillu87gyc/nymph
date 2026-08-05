@@ -142,9 +142,9 @@ export function ratioAtLine(line: number, totalLines: number): number {
 
 /**
  * 今どこを見ているかの枠の下限の高さ（px）。
- * 上下の線（各 6px）が潰れず、中の塗りも残る高さにする。
+ * 上下の線（各 2px）が潰れず、中の塗りも残る高さにする。
  */
-export const MIN_VIEWPORT_PX = 24;
+export const MIN_VIEWPORT_PX = 14;
 
 /**
  * 今見ている範囲の枠を、線が読める高さに整える。

@@ -1,5 +1,11 @@
 name: Release
 
+# ⚠️ このファイル名 (.github/workflows/publish.yml) は変更しないこと。
+# npmjs の Trusted Publishing は「リポジトリ + ワークフローのファイルパス」で
+# OIDC を照合するため、リネームすると照合に失敗して npm publish が
+# ENEEDAUTH で落ちる。ファイル名を変えたい場合は npmjs 側の
+# Trusted Publisher 設定も同時に更新すること。
+#
 # リリースは 2 通りの入口がある:
 #   1. Actions タブから「Run workflow」でバージョンを指定する（推奨）
 #   2. ローカルで `git tag v1.2.3 && git push origin v1.2.3` する
@@ -94,12 +100,22 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "リリース対象: v$VERSION (npm dist-tag: $NPM_TAG)"
 
-      - name: タグの重複を確認
+      - name: タグの状態を確認
+        id: tagstate
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
-          if git rev-parse -q --verify "refs/tags/${{ steps.meta.outputs.tag }}" >/dev/null; then
-            echo "::error::タグ ${{ steps.meta.outputs.tag }} は既に存在します"
+          TAG="${{ steps.meta.outputs.tag }}"
+          TAGGED="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || true)"
+          if [ -z "$TAGGED" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          elif [ "$TAGGED" = "$(git rev-parse HEAD)" ]; then
+            # publish で落ちたあとの再実行。タグは既にあるので作り直さず先へ進む
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::タグ $TAG は同じコミットに既にあるため作成をスキップします"
+          else
+            echo "::error::タグ $TAG は別のコミット ($TAGGED) に既に存在します。" \
+              "そのタグを消して (git push --delete origin $TAG) 実行し直すか、別のバージョンを指定してください"
             exit 1
           fi
 
@@ -125,7 +141,7 @@ jobs:
           fi
 
       - name: タグを作成して push
-        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.tagstate.outputs.exists == 'false'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -148,8 +164,10 @@ jobs:
       - name: npm publish
         if: steps.published.outputs.skip == 'false'
         env:
-          # npmjs 側で Trusted Publishing を設定済みなら NPM_TOKEN は不要（OIDC で認証する）
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # 認証は npmjs の Trusted Publishing (OIDC) に任せる。
+          # NODE_AUTH_TOKEN は設定しないこと: 空文字を渡すと setup-node が書いた
+          # .npmrc の _authToken が空のまま評価され、OIDC まで到達せず
+          # ENEEDAUTH で落ちる。
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail

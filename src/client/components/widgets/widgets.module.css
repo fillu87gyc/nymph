@@ -265,9 +265,13 @@
 }
 
 /* --- ミニマップ ------------------------------------------------------ */
+/* button の既定の中身の中央寄せだと、行数が少ない文書で棒の箱が縦の中央に
+   浮いてしまう。1 行目は必ず上端から始まってほしいので flex で上詰めにする。 */
 .minimap {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
   width: calc(100% - 12px);
   height: 100%;
   min-height: 60px;

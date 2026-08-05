@@ -270,6 +270,20 @@ test.describe('ミニマップウィジェット', () => {
     await expect(page.getByTestId('minimap-viewport')).toBeVisible();
   });
 
+  test('行数が少ない文書でも 1 行目は上端から始まる', async ({ page }) => {
+    await placeInLeft(page, 'minimap');
+    // button の既定の中央寄せだと、棒の箱が縦の中央に浮いて位置が読めない
+    const gap = await page.evaluate(() => {
+      const canvas = document.querySelector('[data-testid="minimap-canvas"]');
+      const rows = document.querySelector('[data-testid="minimap-rows"]');
+      if (!canvas || !rows) throw new Error('minimap not rendered');
+      return (
+        rows.getBoundingClientRect().top - canvas.getBoundingClientRect().top
+      );
+    });
+    expect(gap).toBeLessThanOrEqual(1);
+  });
+
   test('図と画像は中央に置いた四角にする', async ({ page }) => {
     await placeInLeft(page, 'minimap');
     const rows = page.getByTestId('minimap-rows');

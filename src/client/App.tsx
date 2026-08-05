@@ -74,6 +74,11 @@ import {
   type OutlineBadgeMode,
   saveOutlineBadgeMode,
 } from './lib/outline.ts';
+import {
+  loadSlotWidths,
+  type SlotWidths,
+  saveSlotWidths,
+} from './lib/slotWidth.ts';
 import { buildCommentSnapshot } from './lib/snapshot.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import { extractToc } from './lib/toc.ts';
@@ -126,6 +131,8 @@ export function App() {
   // 左右のウィジェット枠に何を積むか。テーマや本文幅と同じ表示設定なので
   // localStorage に持つ（配置画面から変更する）。
   const [widgetLayout, setWidgetLayout] = useState(loadWidgetLayout);
+  // 左右のウィジェット枠の幅（px）。枠と本文の境目のドラッグで変える。
+  const [slotWidths, setSlotWidths] = useState<SlotWidths>(loadSlotWidths);
   // ウィジェット配置画面を開いているか。設定ポップオーバーから開く。
   const [widgetArrangeOpen, setWidgetArrangeOpen] = useState(false);
   // 表示中のトースト。出すたびに新しいオブジェクトにして、同じ文言を連続で
@@ -438,6 +445,20 @@ export function App() {
     setIsResizingWidth(false);
     saveContentWidth(manualWidthRef.current);
   }
+
+  /** ウィジェット枠の幅の更新（ドラッグ中は保存せず画面だけ動かす）。 */
+  const handleSlotWidthChange = useCallback((side: SlotId, width: number) => {
+    setSlotWidths((prev) => ({ ...prev, [side]: width }));
+  }, []);
+
+  /** ウィジェット枠の幅の確定（ドラッグ終了・キー操作・リセット）。 */
+  const handleSlotWidthCommit = useCallback((side: SlotId, width: number) => {
+    setSlotWidths((prev) => {
+      const next = { ...prev, [side]: width };
+      saveSlotWidths(next);
+      return next;
+    });
+  }, []);
 
   useOutsideDismiss(anchorPopupRef, () => setAnchorPopup(null), {
     enabled: anchorPopup !== null,
@@ -1144,7 +1165,10 @@ export function App() {
         <WidgetSlot
           side="left"
           widgets={widgetLayout.left}
+          width={slotWidths.left}
           render={renderWidget}
+          onWidthChange={handleSlotWidthChange}
+          onWidthCommit={handleSlotWidthCommit}
         />
         {diffMode ? (
           <div
@@ -1236,7 +1260,10 @@ export function App() {
         <WidgetSlot
           side="right"
           widgets={widgetLayout.right}
+          width={slotWidths.right}
           render={renderWidget}
+          onWidthChange={handleSlotWidthChange}
+          onWidthCommit={handleSlotWidthCommit}
         />
       </div>
       {widgetPlacement(widgetLayout, 'comments') === null && (

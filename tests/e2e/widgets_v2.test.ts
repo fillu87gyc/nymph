@@ -313,6 +313,23 @@ test.describe('ミニマップウィジェット', () => {
     await expect(viewport).toHaveCSS('border-top-width', '2px');
     await expect(viewport).toHaveCSS('border-bottom-width', '2px');
 
+    // 枠線は見出しの棒（アクセント色）とも自分の塗りとも違う色。同じ青だと
+    // 「青地に青線」で線が消える。
+    const colors = await page.evaluate(() => {
+      const vp = document.querySelector('[data-testid="minimap-viewport"]');
+      const heading = document.querySelector(
+        '[data-testid="minimap-rows"] [data-kind="heading"]',
+      );
+      if (!vp || !heading) throw new Error('minimap not rendered');
+      return {
+        border: getComputedStyle(vp).borderTopColor,
+        fill: getComputedStyle(vp).backgroundColor,
+        headingBar: getComputedStyle(heading).backgroundColor,
+      };
+    });
+    expect(colors.border).not.toBe(colors.headingBar);
+    expect(colors.border).not.toBe(colors.fill);
+
     // 長い文書（段落を積んで本文を高くする）では割合そのままだと帯が数 px に
     // 潰れる。下限まで伸ばしたうえで、棒の箱（overflow: hidden）に収まって
     // いること＝末尾まで送っても下の枠線が切れないこと。

@@ -314,15 +314,17 @@
 }
 /* 今どこを見ているか。本文のスクロールに追従する。
    1px のヘアラインだと棒（同じくらいの太さ）に紛れて見つけられないので、
-   線は 2px に太らせ、中も薄く塗って面で見えるようにする。さらに外側へ地の色の
-   縁を回して、棒に重なった枠線が沈まないようにする。 */
+   線は 2px に太らせ、中もはっきり塗って面で見えるようにする。
+   線の色は本文色（明暗が地と逆）。アクセント色にすると、見出しの棒も塗りも
+   同じ青なので「青地に青線」で枠線が消えてしまう。さらに外側へ地の色の縁を
+   回して、棒に重なっても線が沈まないようにする。 */
 .viewport {
   position: absolute;
   left: -3px;
   right: -3px;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--text);
   border-radius: 4px;
-  background: rgba(var(--accent-rgb), 0.14);
+  background: rgba(var(--accent-rgb), 0.3);
   box-shadow: 0 0 0 1px var(--bg-surface);
   pointer-events: none;
 }

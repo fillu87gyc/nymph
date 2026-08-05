@@ -115,8 +115,11 @@ export function ratioAtLine(line: number, totalLines: number): number {
   return Math.min(1, Math.max(0, (line - 1) / totalLines));
 }
 
-/** 今どこを見ているかの枠の下限の高さ（px）。上下の線が潰れない太さ。 */
-export const MIN_VIEWPORT_PX = 14;
+/**
+ * 今どこを見ているかの枠の下限の高さ（px）。
+ * 上下の線（各 6px）が潰れず、中の塗りも残る高さにする。
+ */
+export const MIN_VIEWPORT_PX = 24;
 
 /**
  * 今見ている範囲の枠を、線が読める高さに整える。

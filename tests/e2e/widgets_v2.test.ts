@@ -309,9 +309,12 @@ test.describe('ミニマップウィジェット', () => {
     await placeInLeft(page, 'minimap');
     const viewport = page.getByTestId('minimap-viewport');
     await expect(viewport).toBeVisible();
-    // 1px のヘアラインは棒に紛れて見つけられない
-    await expect(viewport).toHaveCSS('border-top-width', '2px');
-    await expect(viewport).toHaveCSS('border-bottom-width', '2px');
+    // 細い線は棒（最大 3px）に紛れて見つけられない
+    await expect(viewport).toHaveCSS('border-top-width', '6px');
+    await expect(viewport).toHaveCSS('border-bottom-width', '6px');
+    // 左右も棒の箱に収まっていること（はみ出すと overflow: hidden で切れる）
+    await expect(viewport).toHaveCSS('border-left-width', '6px');
+    await expect(viewport).toHaveCSS('border-right-width', '6px');
 
     // 枠線は見出しの棒（アクセント色）とも自分の塗りとも違う色。同じ青だと
     // 「青地に青線」で線が消える。
@@ -363,7 +366,8 @@ test.describe('ミニマップウィジェット', () => {
       .poll(async () => (await band()).top, { timeout: 3000 })
       .toBeGreaterThan(0.8);
     const measured = await band();
-    expect(measured.height).toBeGreaterThanOrEqual(12);
+    // 上下の線（各 6px）が潰れず、中の塗りも残る高さ
+    expect(measured.height).toBeGreaterThanOrEqual(20);
     expect(measured.overflow).toBeLessThanOrEqual(1);
   });
 

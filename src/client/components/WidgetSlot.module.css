@@ -1,7 +1,8 @@
 /* 左右のウィジェット枠。幅・境界線・背景は枠が持ち、中のウィジェットは
    幅いっぱいに広がる（積んでも 1 枚のサイドバーとして揃って見えるように）。
-   既定配置（左＝エクスプローラー / 右＝アウトライン）で従来と同じ見た目に
-   なるよう、幅は移設前の各パネルの値をそのまま引き継いでいる。 */
+   幅はインラインスタイル（React 側の state）が入る。ここの値は
+   slotWidth.ts の既定幅と同じで、既定配置（左＝エクスプローラー /
+   右＝アウトライン）のときは移設前の各パネルと同じ見た目になる。 */
 .slot {
   flex-shrink: 0;
   display: flex;
@@ -9,6 +10,8 @@
   min-height: 0;
   overflow: hidden;
   background: var(--bg-surface);
+  /* リサイズハンドルを内側の境界に重ねるための基準。 */
+  position: relative;
 }
 .slot[data-side="left"] {
   width: 240px;
@@ -37,4 +40,42 @@
 }
 .item + .item {
   border-top: 1px solid var(--border);
+}
+/* 本文との境目に重ねる幅リサイズハンドル。枠は overflow: hidden なので
+   はみ出させず内側に寄せる。掴む前は透明で、ホバー/フォーカス/ドラッグ中
+   だけグリップが浮かぶ（ContentResizer と同じ見え方に揃えている）。 */
+.resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+.slot[data-side="left"] > .resizer {
+  right: 0;
+}
+.slot[data-side="right"] > .resizer {
+  left: 0;
+}
+.resizer::before {
+  content: "";
+  width: 2px;
+  height: 56px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.resizer:hover::before,
+.resizer:focus-visible::before,
+.resizer[data-dragging="true"]::before {
+  background: var(--accent);
+}
+.resizer:focus-visible {
+  outline: none;
 }

@@ -8,7 +8,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { renderExportHtml } from './htmlExport.ts';
+import { readMermaidBundle, renderExportHtml } from './htmlExport.ts';
 import { readComments, readRound } from './reviewStore.ts';
 
 export interface ExportResult {
@@ -18,6 +18,8 @@ export interface ExportResult {
   file: string;
   /** 焼き込んだコメント件数 */
   commentCount: number;
+  /** 書き出した HTML のバイト数（同梱の有無で大きく変わるため返す） */
+  bytes: number;
 }
 
 export interface ExportToFileOptions {
@@ -25,6 +27,8 @@ export interface ExportToFileOptions {
   generatedAt?: Date;
   /** 相対画像をデータ URI に埋め込むか（既定: true） */
   embedImages?: boolean;
+  /** Mermaid の描画エンジンを同梱するか（既定: false。生成物が 3MB 以上増える） */
+  embedMermaid?: boolean;
 }
 
 /**
@@ -56,11 +60,18 @@ export function exportToFile(
     round,
     generatedAt: options.generatedAt,
     embedImages: options.embedImages,
+    // バンドルの読み込みはここ（I/O 側）で行い、組み立て側には中身だけ渡す
+    mermaidBundle: options.embedMermaid ? readMermaidBundle() : undefined,
   });
 
   const outDir = dirname(absOut);
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
   writeFileSync(absOut, html, 'utf-8');
 
-  return { outPath: absOut, file: absFile, commentCount: comments.length };
+  return {
+    outPath: absOut,
+    file: absFile,
+    commentCount: comments.length,
+    bytes: Buffer.byteLength(html, 'utf-8'),
+  };
 }

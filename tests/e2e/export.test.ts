@@ -7,7 +7,13 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
@@ -189,6 +195,24 @@ test.describe('nymph --export', () => {
         fullPage: true,
       });
     });
+
+    test('--export-mermaid で図が描画された見た目', async ({ page }) => {
+      expect(
+        runCli([mdPath, '--export', outPath, '--export-mermaid']).status,
+      ).toBe(0);
+      await page.goto(pathToFileURL(outPath).href);
+      await expect(page.locator('figure.mermaid')).toHaveAttribute(
+        'data-mermaid',
+        'done',
+        { timeout: 20000 },
+      );
+
+      mkdirSync('playwright-screenshots', { recursive: true });
+      await page.screenshot({
+        path: 'playwright-screenshots/export-html-mermaid.png',
+        fullPage: true,
+      });
+    });
   });
 
   test('ヘッダーに状態別の件数とラウンドが出る', async ({ page }) => {
@@ -266,6 +290,90 @@ test.describe('nymph --export', () => {
     const img = page.getByAltText('点');
     await expect(img).toBeVisible();
     expect(await img.getAttribute('src')).toMatch(/^data:image\/gif;base64,/);
+  });
+
+  test.describe('--export-mermaid（描画エンジンの同梱）', () => {
+    test('図がオフラインのまま描画され、外部リクエストは出ない', async ({
+      page,
+    }) => {
+      expect(
+        runCli([mdPath, '--export', outPath, '--export-mermaid']).status,
+      ).toBe(0);
+
+      const external: string[] = [];
+      await page.route(/^https?:\/\//, (route) => {
+        external.push(route.request().url());
+        return route.abort();
+      });
+
+      await page.goto(pathToFileURL(outPath).href);
+
+      const figure = page.locator('figure.mermaid');
+      await expect(figure).toHaveAttribute('data-mermaid', 'done', {
+        timeout: 20000,
+      });
+      // ソースではなく実際の SVG が出ている
+      await expect(page.locator('.mermaidView svg')).toHaveCount(1);
+      await expect(figure.locator('pre')).toBeHidden();
+      expect(external).toEqual([]);
+    });
+
+    test('テーマを切り替えても図が残る', async ({ page }) => {
+      expect(
+        runCli([mdPath, '--export', outPath, '--export-mermaid']).status,
+      ).toBe(0);
+      await page.goto(pathToFileURL(outPath).href);
+      await expect(page.locator('figure.mermaid')).toHaveAttribute(
+        'data-mermaid',
+        'done',
+        { timeout: 20000 },
+      );
+
+      await page.getByRole('button', { name: /ライト|ダーク/ }).click();
+      await expect(page.locator('.mermaidView svg')).toHaveCount(1);
+    });
+
+    test('壊れた図はソース表示のまま残す（他の図を巻き添えにしない）', async ({
+      page,
+    }) => {
+      const broken = join(dir, 'broken.md');
+      writeFileSync(
+        broken,
+        '# 図\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n```mermaid\n%%これは図として壊れている{{{\n```\n',
+      );
+      const brokenOut = join(dir, 'broken.html');
+      expect(
+        runCli([broken, '--export', brokenOut, '--export-mermaid']).status,
+      ).toBe(0);
+
+      await page.goto(pathToFileURL(brokenOut).href);
+
+      const figures = page.locator('figure.mermaid');
+      await expect(figures).toHaveCount(2);
+      // 描けた方は SVG に、描けなかった方はソース表示のまま
+      await expect(figures.nth(0)).toHaveAttribute('data-mermaid', 'done', {
+        timeout: 20000,
+      });
+      await expect(figures.nth(1)).not.toHaveAttribute('data-mermaid', 'done');
+      await expect(figures.nth(1).locator('pre')).toBeVisible();
+    });
+
+    test('図の無い文書には 3MB を積まない', () => {
+      const noFig = join(dir, 'nofig.md');
+      writeFileSync(noFig, '# 図なし\n\n本文だけです。\n');
+      const noFigOut = join(dir, 'nofig.html');
+
+      expect(
+        runCli([noFig, '--export', noFigOut, '--export-mermaid']).status,
+      ).toBe(0);
+      expect(statSync(noFigOut).size).toBeLessThan(100 * 1024);
+    });
+
+    test('--export 無しで指定するとエラーで落ちる', () => {
+      const result = runCli([mdPath, '--export-mermaid']);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('--export と一緒に指定してください');
+    });
   });
 
   test('ファイルを指定しないとエラーで落ちる', () => {

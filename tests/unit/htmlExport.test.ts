@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Comment } from '../../src/client/types.ts';
-import { findOrphanedIds, renderExportHtml } from '../../src/htmlExport.ts';
+import {
+  findOrphanedIds,
+  inlineScriptSafe,
+  renderExportHtml,
+} from '../../src/htmlExport.ts';
 
 let dir: string;
 let file: string;
@@ -89,12 +93,13 @@ describe('renderExportHtml — Markdown の変換', () => {
     expect(html).toContain('const a = &quot;&lt;b&gt;&quot;;');
   });
 
-  it('mermaid はソースを図として見せる（描画はしない）', () => {
+  it('mermaid は既定ではソースを見せるだけ（描画エンジンを積まない）', () => {
     const html = render('```mermaid\ngraph TD\n  A --> B\n```\n');
     expect(html).toContain('<figure class="mermaid">');
     expect(html).toContain('graph TD');
     // 図を描くための外部スクリプトを引っぱってこない
     expect(html).not.toContain('mermaid.min.js');
+    expect(html).not.toContain('data-mermaid=');
   });
 
   it('本文中の生 HTML は実行せずそのまま見せる', () => {
@@ -312,5 +317,77 @@ describe('findOrphanedIds', () => {
       comment({ id: 'c_diff', block_type: 'diff', lineStart: 99, lineEnd: 99 }),
     ]);
     expect(orphaned.size).toBe(0);
+  });
+});
+
+// 実物のバンドルは 3MB あり、しかも `dist/` はビルド後にしか無い。
+// ここでは「渡された中身を焼き込むか」だけを見たいので偽物を渡す。
+const FAKE_BUNDLE = 'globalThis.mermaid = { __fake: true };';
+
+function renderWithMermaid(content: string, bundle = FAKE_BUNDLE): string {
+  writeFileSync(file, content);
+  return renderExportHtml({
+    file,
+    content,
+    comments: [],
+    mermaidBundle: bundle,
+    generatedAt: new Date('2026-08-05T12:34:00'),
+  });
+}
+
+describe('renderExportHtml — Mermaid 描画エンジンの同梱', () => {
+  const DIAGRAM = '```mermaid\ngraph TD\n  A --> B\n```\n';
+
+  it('バンドルを渡すと丸ごと焼き込む', () => {
+    const html = renderWithMermaid(DIAGRAM);
+    expect(html).toContain(FAKE_BUNDLE);
+    // 同梱しても外部ホストは参照しない（自己完結の要件は変わらない）
+    expect(html).not.toMatch(/(src|href)="(https?:)?\/\//);
+  });
+
+  it('描画用のコンテナと待機状態を持たせる', () => {
+    const html = renderWithMermaid(DIAGRAM);
+    expect(html).toContain('data-mermaid="pending"');
+    expect(html).toContain('<div class="mermaidView"></div>');
+  });
+
+  it('ソース表示は残す（描画に失敗しても情報が欠けないように）', () => {
+    const html = renderWithMermaid(DIAGRAM);
+    expect(html).toContain('graph TD');
+    expect(html).toContain('<figcaption>Mermaid</figcaption>');
+    // 描画できたものだけ CSS でソースを畳む
+    expect(html).toContain(
+      'figure.mermaid[data-mermaid="done"] pre{display:none}',
+    );
+  });
+
+  it('図が 1 つも無ければ 3MB を積まない', () => {
+    const html = renderWithMermaid('# 見出し\n\n図はありません。\n');
+    expect(html).not.toContain(FAKE_BUNDLE);
+    expect(html).not.toContain('data-mermaid=');
+  });
+
+  it('バンドルを渡さなければ同梱しない（既定）', () => {
+    const html = render(DIAGRAM);
+    expect(html).not.toContain('mermaidView');
+  });
+
+  it('バンドル内の </script> でスクリプトが途切れない', () => {
+    const evil = 'var s = "</script><img src=x onerror=alert(1)>";';
+    const html = renderWithMermaid(DIAGRAM, evil);
+    expect(html).not.toContain('</script><img');
+    expect(html).toContain('<\\/script>');
+  });
+});
+
+describe('inlineScriptSafe', () => {
+  it('閉じタグだけをエスケープし、JS としての意味は変えない', () => {
+    expect(inlineScriptSafe('a = "</script>";')).toBe('a = "<\\/script>";');
+    expect(inlineScriptSafe('a = "</SCRIPT >";')).toBe('a = "<\\/SCRIPT >";');
+  });
+
+  it('関係ない < や / はそのまま', () => {
+    expect(inlineScriptSafe('a < b / c')).toBe('a < b / c');
+    expect(inlineScriptSafe('</div>')).toBe('</div>');
   });
 });

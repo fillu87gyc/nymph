@@ -12,14 +12,19 @@
  *    アプリは DOMPurify（＝ブラウザの DOM）で消毒できるが、CLI 側には DOM が
  *    無い。「消毒し損ねた HTML を配布物に埋める」より「HTML を書いたまま
  *    見せる」方が安全側なのでそちらに倒す。
- *  - Mermaid はソースを枠付きで見せるだけ（描画にはブラウザが要る）。
+ *  - Mermaid は既定ではソースを枠付きで見せるだけ。`--export-mermaid` を
+ *    付けると描画エンジン（`dist/mermaid-standalone.js`）を丸ごと焼き込み、
+ *    オフラインのまま図が描かれる。CDN から拾う案は採らなかった——配布物が
+ *    開かれるたび第三者へ接続する（＝閲覧が漏れる）うえ、mermaid の ESM は
+ *    図の種類ごとに動的 import するため SRI で守りきれないため。
  *  - コードのシンタックスハイライトは付けない（hljs はクライアント同梱のため）。
  *
  * ここは純粋な文字列生成に寄せてある（ファイル I/O は画像の読み込みだけ）。
  */
 
 import { readFileSync, statSync } from 'node:fs';
-import { basename, dirname, extname } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Marked, type Tokens } from 'marked';
 import { commentStatus, ctxDisplay } from './client/lib/comments.ts';
 import { assignLines, esc, getBlockTokensDFS } from './client/lib/markdown.ts';
@@ -40,6 +45,44 @@ const IMAGE_MIME: Record<string, string> = {
 
 /** 1 枚あたりの埋め込み上限。これを超える画像は元の src のまま残す。 */
 export const MAX_EMBED_IMAGE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * `dist/` に置く mermaid 自己完結バンドルのファイル名。
+ * 複製はビルド時（`vite.config.ts` の copyMermaidBundle）に行う。
+ */
+export const MERMAID_BUNDLE_FILE = 'mermaid-standalone.js';
+
+/**
+ * インライン `<script>` に埋めても安全な形にする。
+ *
+ * JS 文字列の中に `</script` が現れると、そこで script 要素が閉じてしまう
+ * （HTML パーサは JS の文法を知らない）。`<\/script` は JS としては同じ
+ * 文字列を表すので、意味を変えずにパーサだけを黙らせられる。
+ */
+export function inlineScriptSafe(code: string): string {
+  return code.replace(/<\/(script)/gi, '<\\/$1');
+}
+
+/**
+ * `dist/mermaid-standalone.js` の中身を読む。
+ *
+ * 読み込みは呼び出し側（`exportCommand.ts`）の責務。このモジュールは
+ * 受け取った文字列を焼き込むだけにしておく——そうしないと HTML 組み立てが
+ * ビルド成果物の有無に依存し、`dist/` を持たない環境（CI の unit ジョブ）
+ * ではテストできなくなる。
+ */
+export function readMermaidBundle(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const bundlePath = join(here, '..', 'dist', MERMAID_BUNDLE_FILE);
+  try {
+    return readFileSync(bundlePath, 'utf-8');
+  } catch {
+    throw new Error(
+      `Mermaid の同梱バンドルが見つかりません: ${bundlePath}\n` +
+        '  先に `bun run build` を実行してください',
+    );
+  }
+}
 
 export interface ExportBlock {
   /** レンダリング済み HTML。mermaid ブロックでは空文字。 */
@@ -64,6 +107,12 @@ export interface ExportInput {
   generatedAt?: Date;
   /** 相対画像をデータ URI に埋め込むか（既定: true）。 */
   embedImages?: boolean;
+  /**
+   * Mermaid 描画エンジンの中身（`readMermaidBundle()` の戻り値）。
+   * 渡すと生成物へ丸ごと焼き込み、オフラインのまま図が描画される。
+   * 生成物は 3MB 以上大きくなるため、図が 1 つも無い文書では焼き込まない。
+   */
+  mermaidBundle?: string;
 }
 
 /** ローカル画像を読んでデータ URI にする。埋め込めないものは null。 */
@@ -266,10 +315,28 @@ function renderComment(c: Comment, status: CommentStatus): string {
 // renderBlock に渡すため、レンダリング済み HTML を持ち回る内部型。
 type RenderedComment = Comment & { __html: string };
 
-function renderBlock(block: ExportBlock, comments: RenderedComment[]): string {
+/**
+ * Mermaid ブロック。既定ではソースを枠付きで見せるだけ。
+ *
+ * 描画エンジンを同梱する場合も、出発点はこの「ソース表示」のまま変えない。
+ * 描画に成功したときだけ JS が図を差し込んで `data-mermaid="done"` を立て、
+ * CSS がソース側を隠す。こうしておけば、JS が無効でも・描画に失敗しても
+ * 何も欠けない（枠だけが残る、を避ける）。
+ */
+function renderMermaid(code: string, embedMermaid: boolean): string {
+  const view = embedMermaid ? '<div class="mermaidView"></div>' : '';
+  const attr = embedMermaid ? ' data-mermaid="pending"' : '';
+  return `<figure class="mermaid"${attr}><figcaption>Mermaid</figcaption>${view}<pre><code>${esc(code)}</code></pre></figure>`;
+}
+
+function renderBlock(
+  block: ExportBlock,
+  comments: RenderedComment[],
+  embedMermaid: boolean,
+): string {
   const body =
     block.type === 'mermaid'
-      ? `<figure class="mermaid"><figcaption>Mermaid</figcaption><pre><code>${esc(block.mermaidCode ?? '')}</code></pre></figure>`
+      ? renderMermaid(block.mermaidCode ?? '', embedMermaid)
       : block.html;
   const hasComments = comments.length > 0;
   const attrs = [
@@ -295,7 +362,10 @@ export function renderExportHtml(input: ExportInput): string {
     round = 0,
     generatedAt = new Date(),
     embedImages = true,
+    mermaidBundle,
   } = input;
+
+  const embedMermaid = typeof mermaidBundle === 'string';
 
   const md = createRenderer(dirname(file), embedImages);
   const blocks = buildExportBlocks(content, md);
@@ -325,8 +395,15 @@ export function renderExportHtml(input: ExportInput): string {
         c.lineEnd >= block.lineStart,
     );
     for (const c of attached) placed.add(c.id);
-    bodyParts.push(renderBlock(block, attached));
+    bodyParts.push(renderBlock(block, attached, embedMermaid));
   }
+
+  // mermaid のバンドルは 3MB を超える。図が 1 つも無ければ焼き込まない。
+  const withMermaid = embedMermaid && blocks.some((b) => b.type === 'mermaid');
+  const mermaidScript = withMermaid
+    ? `<script>${inlineScriptSafe(mermaidBundle as string)}</script>\n<script>${MERMAID_BOOT}</script>`
+    : '';
+  const mermaidStyles = withMermaid ? MERMAID_STYLES : '';
 
   const unanchored = rendered.filter((c) => !placed.has(c.id));
   const unanchoredSection = unanchored.length
@@ -344,7 +421,7 @@ export function renderExportHtml(input: ExportInput): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="nymph">
 <title>${esc(name)} — nymph レビュー</title>
-<style>${STYLES}</style>
+<style>${STYLES}${mermaidStyles}</style>
 <script>${THEME_BOOT}</script>
 </head>
 <body>
@@ -370,6 +447,7 @@ ${bodyParts.join('\n')}
 ${unanchoredSection}
 </main>
 <script>${SCRIPT}</script>
+${mermaidScript}
 </body>
 </html>
 `;
@@ -458,6 +536,57 @@ const THEME_BOOT = `
     t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
   }
   document.documentElement.setAttribute('data-theme',t);
+})();
+`;
+
+/* 描画エンジンを同梱したときだけ足すスタイル。描画に成功した図だけ
+   ソース表示を畳む——pending / failed のままならソースが見えるので、
+   JS 無効でも描画失敗でも情報は欠けない。 */
+const MERMAID_STYLES = `
+figure.mermaid[data-mermaid="done"]{border-style:solid;text-align:center}
+figure.mermaid[data-mermaid="done"] figcaption,
+figure.mermaid[data-mermaid="done"] pre{display:none}
+.mermaidView svg{max-width:100%;height:auto}
+`;
+
+// 同梱した mermaid で図を描く。描けたものだけソース表示と差し替え、
+// 失敗した図はソース表示のまま残す（1 つの図の構文エラーで他を巻き添えに
+// しない）。テーマ切替のたびに描き直すため、ソースは DOM に残しておく。
+const MERMAID_BOOT = `
+(function(){
+  var figures=[].slice.call(document.querySelectorAll('figure.mermaid[data-mermaid]'));
+  if(!figures.length||!window.mermaid) return;
+  var seq=0;
+  function draw(){
+    var dark=document.documentElement.getAttribute('data-theme')!=='light';
+    window.mermaid.initialize({
+      startOnLoad:false,
+      theme:dark?'dark':'default',
+      securityLevel:'strict',
+    });
+    figures.forEach(function(fig){
+      var src=fig.querySelector('pre code');
+      var view=fig.querySelector('.mermaidView');
+      if(!src||!view) return;
+      var code=src.textContent||'';
+      Promise.resolve()
+        .then(function(){ return window.mermaid.render('nymph-mmd-'+(seq++), code); })
+        .then(function(res){
+          view.innerHTML=res.svg;
+          fig.setAttribute('data-mermaid','done');
+        })
+        .catch(function(){
+          // 構文エラー等。ソース表示のまま据え置く
+          view.innerHTML='';
+          fig.setAttribute('data-mermaid','failed');
+        });
+    });
+  }
+  draw();
+  document.getElementById('toggle-theme').addEventListener('click',function(){
+    // テーマ確定後に描き直す
+    setTimeout(draw,0);
+  });
 })();
 `;
 

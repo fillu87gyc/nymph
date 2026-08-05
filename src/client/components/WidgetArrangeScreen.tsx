@@ -87,10 +87,10 @@ export function WidgetArrangeScreen({
     right: layout.right,
   };
 
-  /** その列に落とせるか。スロット専用ウィジェットは枠の外へ出せない。 */
+  /** その列に落とせるか。枠から出せないウィジェットは「利用可能」へ戻せない。 */
   function canDrop(col: ColumnId): boolean {
     if (dragging === null) return false;
-    return col !== 'available' || !WIDGET_META[dragging].slotOnly;
+    return col !== 'available' || !WIDGET_META[dragging].required;
   }
 
   function commit(id: WidgetId, col: ColumnId, index: number) {
@@ -142,7 +142,7 @@ export function WidgetArrangeScreen({
     const meta = WIDGET_META[id];
     const position =
       col === 'available'
-        ? `利用可能（既定の位置: ${meta.defaultLabel}）`
+        ? `利用可能（${meta.defaultLabel === null ? '枠に置くと表示' : `既定の位置: ${meta.defaultLabel}`}）`
         : `${COLUMN_LABEL[col]} ${index + 1} / ${columns[col].length}`;
     return (
       <button
@@ -154,7 +154,7 @@ export function WidgetArrangeScreen({
         data-dragging={String(dragging === id)}
         draggable
         aria-label={`${meta.label}（現在: ${position}）`}
-        title="ドラッグ、または矢印キーで移動できます"
+        title={`${meta.hint}／ドラッグ、または矢印キーで移動できます`}
         onDragStart={(e) => {
           // Firefox はデータが載っていないとドラッグを始めない。
           e.dataTransfer.setData('text/plain', id);
@@ -171,8 +171,10 @@ export function WidgetArrangeScreen({
           ⠿
         </span>
         <span className={styles.chipLabel}>{meta.label}</span>
-        {col === 'available' && meta.defaultLabel !== null && (
-          <span className={styles.chipNote}>{meta.defaultLabel}</span>
+        {col === 'available' && (
+          <span className={styles.chipNote}>
+            {meta.defaultLabel ?? meta.hint}
+          </span>
         )}
       </button>
     );
@@ -304,10 +306,11 @@ export function WidgetArrangeScreen({
           <h2 className={styles.colTitle}>{COLUMN_LABEL.available}</h2>
           {renderList('available')}
           <p className={styles.hint}>
-            ここに戻すと、そのウィジェット本来の位置（タブ＝
+            ここに戻すと、既定位置を持つもの（タブ＝
             {WIDGET_META.tabs.defaultLabel} / コメント＝
-            {WIDGET_META.comments.defaultLabel}）に出ます。エクスプローラーと
-            アウトラインは必ず左右どちらかの枠に入ります。
+            {WIDGET_META.comments.defaultLabel}）はその位置に出て、それ以外は
+            画面から消えます。エクスプローラーとアウトラインは必ず左右
+            どちらかの枠に入ります。
           </p>
         </section>
         <section className={styles.preview} aria-label="画面の配置">
@@ -342,7 +345,7 @@ export function WidgetArrangeScreen({
   );
 }
 
-/** 隣の列。スロット専用ウィジェットは「利用可能」を飛ばす（行き先が無い）。 */
+/** 隣の列。枠から出せないウィジェットは「利用可能」を飛ばす（行き先が無い）。 */
 function neighborColumn(
   col: ColumnId,
   step: -1 | 1,
@@ -351,7 +354,7 @@ function neighborColumn(
   let i = COLUMN_ORDER.indexOf(col) + step;
   while (i >= 0 && i < COLUMN_ORDER.length) {
     const dest = COLUMN_ORDER[i];
-    if (dest !== 'available' || !WIDGET_META[id].slotOnly) return dest;
+    if (dest !== 'available' || !WIDGET_META[id].required) return dest;
     i += step;
   }
   return null;
@@ -364,7 +367,10 @@ function describeResult(layout: WidgetLayout, id: WidgetId): string {
     layout[s].includes(id),
   );
   if (!slot) {
-    return `${label}を${COLUMN_LABEL.available}（${WIDGET_META[id].defaultLabel}）に戻しました`;
+    const defaultLabel = WIDGET_META[id].defaultLabel;
+    return defaultLabel === null
+      ? `${label}を${COLUMN_LABEL.available}に戻しました（画面から消えます）`
+      : `${label}を${COLUMN_LABEL.available}（${defaultLabel}）に戻しました`;
   }
   return `${label}を${COLUMN_LABEL[slot]}の${layout[slot].indexOf(id) + 1}番目に置きました`;
 }

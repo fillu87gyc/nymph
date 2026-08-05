@@ -22,6 +22,16 @@ import { TocPanel } from './components/TocPanel.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 import { WidgetArrangeScreen } from './components/WidgetArrangeScreen.tsx';
 import { WidgetSlot } from './components/WidgetSlot.tsx';
+import { DiagramsWidget } from './components/widgets/DiagramsWidget.tsx';
+import { DiffSummaryWidget } from './components/widgets/DiffSummaryWidget.tsx';
+import { FrontmatterWidget } from './components/widgets/FrontmatterWidget.tsx';
+import { LinksWidget } from './components/widgets/LinksWidget.tsx';
+import { MinimapWidget } from './components/widgets/MinimapWidget.tsx';
+import { RecentWidget } from './components/widgets/RecentWidget.tsx';
+import { SearchWidget } from './components/widgets/SearchWidget.tsx';
+import { StatsWidget } from './components/widgets/StatsWidget.tsx';
+import { TasksWidget } from './components/widgets/TasksWidget.tsx';
+import { TermsWidget } from './components/widgets/TermsWidget.tsx';
 import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
@@ -445,6 +455,18 @@ export function App() {
     );
   }, []);
 
+  /**
+   * 差分チェックモードへ切り替えて、その行をハイライトする。
+   * 差分へのコメントからのジャンプと、差分サマリウィジェットの共通経路。
+   */
+  const jumpToDiffLine = useCallback(
+    (side: 'old' | 'new', line: number) => {
+      void showDiff();
+      setDiffHighlight((prev) => ({ side, line, v: (prev?.v ?? 0) + 1 }));
+    },
+    [showDiff],
+  );
+
   const scrollToComment = useCallback(
     (c: Comment) => {
       // 差分への指摘: 差分チェックモードへ切り替えて該当行をハイライト
@@ -453,12 +475,7 @@ export function App() {
         const ctx = c.context;
         const line = ctx.side === 'old' ? ctx.oldLine : ctx.newLine;
         if (line == null) return;
-        void showDiff();
-        setDiffHighlight((prev) => ({
-          side: ctx.side,
-          line,
-          v: (prev?.v ?? 0) + 1,
-        }));
+        jumpToDiffLine(ctx.side, line);
         return;
       }
 
@@ -490,22 +507,41 @@ export function App() {
         flashBlockHighlight(c.lineStart);
       }
     },
-    [flashBlockHighlight, showDiff],
+    [flashBlockHighlight, jumpToDiffLine],
   );
 
+  /**
+   * 指定行へスクロールしてフラッシュする。狙いは次の順で決める。
+   *
+   * 1. その行から始まるブロック（見出し＝アウトラインからのジャンプ）
+   * 2. その行を含む最も内側のブロック（タスクやリンクのようにブロックの
+   *    途中の行を指す場合）
+   * 3. その行の直後のブロック（空行やコードフェンスの隙間を指す場合。
+   *    ミニマップのクリックのように狙いが大まかなときに効く）
+   */
   const scrollToLine = useCallback(
-    (lineStart: number) => {
-      const map = blockRefsMapRef.current;
-      let targetEl: HTMLElement | null = null;
-      for (const el of map.values()) {
-        if (+(el.dataset.lineStart ?? 0) === lineStart) {
-          targetEl = el;
-          break;
+    (line: number) => {
+      let exact: HTMLElement | null = null;
+      let innermost: HTMLElement | null = null;
+      let after: HTMLElement | null = null;
+      let last: HTMLElement | null = null;
+      for (const el of blockRefsMapRef.current.values()) {
+        const ls = +(el.dataset.lineStart ?? 0);
+        const le = +(el.dataset.lineEnd ?? 0);
+        if (ls === line) exact = el;
+        if (!last || ls > +(last.dataset.lineStart ?? 0)) last = el;
+        if (ls > line) {
+          if (!after || ls < +(after.dataset.lineStart ?? 0)) after = el;
+          continue;
         }
+        if (le < line) continue;
+        if (!innermost || ls > +(innermost.dataset.lineStart ?? 0))
+          innermost = el;
       }
+      const targetEl = exact ?? innermost ?? after ?? last;
       if (!targetEl) return;
       targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      flashBlockHighlight(lineStart);
+      flashBlockHighlight(+(targetEl.dataset.lineStart ?? 0));
     },
     [flashBlockHighlight],
   );
@@ -884,11 +920,25 @@ export function App() {
   // ウィジェットを出す条件。配置（どの枠に置くか）とは別軸で、従来どおり
   // それぞれのトグルや状態で決まる。タブは横行だと2ファイル以上でのみ出るが、
   // 枠に置いた縦置きは1ファイルでも出す（FileTabs 側の分岐と合わせる）。
+  //
+  // 第2弾のウィジェットは既定位置もトグルも持たない（枠に置く＝出す）ので
+  // 常に true。中身が空のときは各ウィジェットが「ありません」を自分で出す
+  // ——ここで隠すと、置いたのに何も現れず配置が壊れたように見えるため。
   const widgetVisible: Record<WidgetId, boolean> = {
     tabs: files.length > 0,
     explorer: !!root,
     outline: tocOpen,
     comments: panelOpen,
+    search: true,
+    recent: true,
+    minimap: true,
+    diagrams: true,
+    tasks: true,
+    links: true,
+    terms: true,
+    frontmatter: true,
+    diffsummary: true,
+    stats: true,
   };
 
   function slotHasContent(side: SlotId): boolean {
@@ -941,6 +991,61 @@ export function App() {
             onClose={() => setPanelOpen(false)}
           />
         );
+      case 'search':
+        return (
+          <SearchWidget
+            onOpenFileAtLine={(path, line) =>
+              void handleOpenFileAtLine(path, line)
+            }
+          />
+        );
+      case 'recent':
+        return (
+          <RecentWidget
+            recentFiles={recentFiles}
+            bookmarks={bookmarks}
+            activeFile={activeFile}
+            onOpenFile={(path) => void handleOpenFile(path)}
+            onOpenDir={(path) => void handleOpenDir(path)}
+          />
+        );
+      case 'minimap':
+        return (
+          <MinimapWidget
+            source={source}
+            comments={comments}
+            orphanedIds={orphanedCommentIds}
+            contentScrollRef={contentScrollRef}
+            diffMode={diffMode}
+            onSelectLine={scrollToLine}
+          />
+        );
+      case 'diagrams':
+        return <DiagramsWidget source={source} onSelectLine={scrollToLine} />;
+      case 'tasks':
+        return <TasksWidget source={source} onSelectLine={scrollToLine} />;
+      case 'links':
+        return <LinksWidget source={source} onSelectLine={scrollToLine} />;
+      case 'terms':
+        return (
+          <TermsWidget
+            entries={dictEntries}
+            source={source}
+            onSelectLine={scrollToLine}
+          />
+        );
+      case 'frontmatter':
+        return <FrontmatterWidget source={source} />;
+      case 'diffsummary':
+        return (
+          <DiffSummaryWidget
+            diffData={diffData}
+            checkpointSet={checkpointSet}
+            onSelectDiffLine={jumpToDiffLine}
+          />
+        );
+      case 'stats':
+        return <StatsWidget source={source} />;
     }
   }
 

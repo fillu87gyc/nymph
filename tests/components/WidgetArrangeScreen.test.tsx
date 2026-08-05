@@ -6,6 +6,8 @@ import { WidgetArrangeScreen } from '../../src/client/components/WidgetArrangeSc
 import {
   DEFAULT_WIDGET_LAYOUT,
   moveWidget,
+  WIDGET_IDS,
+  WIDGET_META,
   type WidgetLayout,
 } from '../../src/client/lib/widgets.ts';
 
@@ -48,10 +50,22 @@ function dragTo(chipTestId: string, dropTestId: string) {
 describe('WidgetArrangeScreen', () => {
   test('利用可能・左・右の 3 列に現在の配置が並ぶ', () => {
     render(<WidgetArrangeScreen {...makeProps()} />);
-    // 既定は 左＝エクスプローラー / 右＝アウトライン、タブとコメントは既定位置
-    expect(chipsIn('available')).toEqual(['tabs', 'comments']);
+    // 既定は 左＝エクスプローラー / 右＝アウトライン。
+    // 残りは（既定位置を持つタブ・コメントも、枠でしか出ないものも）利用可能に並ぶ
     expect(chipsIn('left')).toEqual(['explorer']);
     expect(chipsIn('right')).toEqual(['outline']);
+    expect(chipsIn('available')).toEqual(
+      WIDGET_IDS.filter((id) => !WIDGET_META[id].required),
+    );
+  });
+
+  test('利用可能のチップは既定位置か、何が出るのかを添える', () => {
+    render(<WidgetArrangeScreen {...makeProps()} />);
+    // 既定位置を持つものはその位置、持たないものは中身の説明
+    expect(screen.getByTestId('widget-chip-tabs')).toHaveTextContent('横行');
+    expect(screen.getByTestId('widget-chip-minimap')).toHaveTextContent(
+      WIDGET_META.minimap.hint,
+    );
   });
 
   test('空の枠にはドラッグ先の案内が出る', () => {
@@ -108,7 +122,21 @@ describe('WidgetArrangeScreen', () => {
       expect(onMove).toHaveBeenCalledWith('tabs', null, 0);
     });
 
-    test('スロット専用ウィジェットは利用可能へ落とせない', () => {
+    test('既定位置を持たないウィジェットを戻すと画面から消えると伝える', () => {
+      const onMove = vi.fn();
+      const layout: WidgetLayout = {
+        left: ['explorer', 'minimap'],
+        right: ['outline'],
+      };
+      render(<WidgetArrangeScreen {...makeProps({ layout, onMove })} />);
+      dragTo('widget-chip-minimap', 'widget-arrange-list-available');
+      expect(onMove).toHaveBeenCalledWith('minimap', null, 0);
+      expect(screen.getByTestId('widget-arrange-status')).toHaveTextContent(
+        'ミニマップを利用可能に戻しました（画面から消えます）',
+      );
+    });
+
+    test('枠から出せないウィジェットは利用可能へ落とせない', () => {
       const onMove = vi.fn();
       render(<WidgetArrangeScreen {...makeProps({ onMove })} />);
       dragTo('widget-chip-outline', 'widget-arrange-list-available');
@@ -180,7 +208,7 @@ describe('WidgetArrangeScreen', () => {
       expect(onMove).not.toHaveBeenCalled();
     });
 
-    test('スロット専用ウィジェットは利用可能を飛ばして左右を行き来する', async () => {
+    test('枠から出せないウィジェットは利用可能を飛ばして左右を行き来する', async () => {
       const onMove = vi.fn();
       render(<WidgetArrangeScreen {...makeProps({ onMove })} />);
       screen.getByTestId('widget-chip-explorer').focus();

@@ -1,0 +1,340 @@
+/* 第2弾ウィジェットの共通スタイル。
+   幅・境界線・背景はウィジェット枠（WidgetSlot）が持つので、ここは枠の中で
+   縦に広がり、あふれた分だけスクロールする骨格と、一覧の行の見た目を持つ。 */
+.panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 6px 4px;
+}
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px 6px;
+  flex-shrink: 0;
+}
+.headerTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.headerMeta {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.empty {
+  padding: 4px 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* --- 一覧の行 ------------------------------------------------------- */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.item:hover {
+  background: var(--bg-hover);
+}
+.item:disabled {
+  cursor: default;
+  color: var(--text-muted);
+}
+.item:disabled:hover {
+  background: none;
+}
+/* 行の主役（ラベル）。長いものは 1 行で省略する。 */
+.itemText {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 2 行組みの行（1 行目にラベル、2 行目に補足）。 */
+.itemStack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  padding: 4px 8px;
+}
+.itemSub {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lineNo {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+/* 種別などの小さなラベル。 */
+.tag {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: 20px;
+  background: var(--bg-hover);
+  font-size: 9.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* 一覧の中の見出し（検索結果のファイル名など）。 */
+.sectionLabel {
+  padding: 6px 8px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* --- 操作列（検索入力・絞り込み） ------------------------------------ */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 6px;
+  flex-shrink: 0;
+}
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.filterBtn {
+  flex-shrink: 0;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.filterBtn:hover {
+  background: var(--bg-hover);
+}
+.filterBtn[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* --- 検索結果 -------------------------------------------------------- */
+.snippet {
+  display: block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.snippet mark {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 2px;
+}
+
+/* --- タスク ---------------------------------------------------------- */
+.check {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.itemDone .itemText {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+/* --- リンク / 画像 --------------------------------------------------- */
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.linkRow .item {
+  min-width: 0;
+}
+.status {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.statusOk {
+  color: var(--success);
+}
+.statusMissing {
+  color: var(--danger);
+}
+.statusUnknown {
+  color: var(--text-dim);
+}
+.external {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-decoration: none;
+}
+.external:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+/* --- 差分サマリ ------------------------------------------------------ */
+.add {
+  color: var(--success);
+  font-variant-numeric: tabular-nums;
+}
+.del {
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- 文書統計 / frontmatter ------------------------------------------ */
+.rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  padding: 0 8px 4px;
+  font-size: 12px;
+}
+.rowKey {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.rowValue {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+/* frontmatter の値は数値ではないので左寄せで読ませる。 */
+.rowValueText {
+  text-align: left;
+  font-variant-numeric: normal;
+}
+
+/* --- ミニマップ ------------------------------------------------------ */
+.minimap {
+  position: relative;
+  display: block;
+  width: calc(100% - 12px);
+  height: 100%;
+  min-height: 60px;
+  margin: 0 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+/* 棒・ビューポート枠・コメントの点が乗る箱。棒 1 本の高さには上限があるので、
+   行数が少ない文書ではこの箱が枠いっぱいには広がらない（＝棒の下に余白が
+   できる）。3 つとも同じ箱を基準にすることで位置が必ず揃う。 */
+.minimapRows {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: 100%;
+  overflow: hidden;
+}
+.minimapRow {
+  flex: 1 1 3px;
+  min-height: 1px;
+  max-height: 3px;
+  border-radius: 1px;
+  background: var(--text-dim);
+  opacity: 0.5;
+}
+.minimapRow[data-kind="heading"] {
+  background: var(--accent);
+  opacity: 0.9;
+}
+.minimapRow[data-kind="code"] {
+  background: var(--success);
+  opacity: 0.45;
+}
+.minimapRow[data-kind="table"],
+.minimapRow[data-kind="quote"],
+.minimapRow[data-kind="list"] {
+  opacity: 0.65;
+}
+.minimapRow[data-kind="blank"] {
+  background: none;
+}
+/* 今どこを見ているか。本文のスクロールに追従する。 */
+.viewport {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent-glow);
+  pointer-events: none;
+}
+/* コメントの位置。右端に点で重ねる。 */
+.marker {
+  position: absolute;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--accent);
+  /* 棒に重なっても点として読めるよう、背景色で縁取る。 */
+  box-shadow: 0 0 0 1.5px var(--bg-surface);
+  pointer-events: none;
+}
+.marker[data-resolved="true"] {
+  background: var(--text-dim);
+}

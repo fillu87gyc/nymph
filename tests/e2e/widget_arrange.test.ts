@@ -9,6 +9,7 @@
  * なので worker プール全体に分散させる。配置は localStorage 依存だが、
  * context フィクスチャがテストごとに作り直されるためテスト間で漏れない。
  */
+import { WIDGET_IDS, WIDGET_META } from '../../src/client/lib/widgets.ts';
 import {
   arrangeColumnWidgets,
   closeSecondFile,
@@ -22,6 +23,19 @@ import {
 } from './fixtures.ts';
 
 test.describe.configure({ mode: 'parallel' });
+
+/**
+ * 枠に入っていないウィジェットは全部「利用可能」に並ぶ。第2弾で数が増えても
+ * 壊れないよう、期待値はモデル（WIDGET_META）から作る。
+ */
+const ALL_AVAILABLE: string[] = WIDGET_IDS.filter(
+  (id) => !WIDGET_META[id].required,
+);
+
+/** 枠に置いたぶんを除いた「利用可能」の期待値。 */
+function availableWithout(...placed: string[]): string[] {
+  return ALL_AVAILABLE.filter((id) => !placed.includes(id));
+}
 
 /** 枠に積まれているウィジェットを上から順に返す（メイン画面側）。 */
 async function slotWidgets(
@@ -65,10 +79,9 @@ test.describe('画面の開閉', () => {
 
   test('既定の配置が 3 列に並ぶ', async ({ page }) => {
     await openWidgetArrange(page);
-    expect(await arrangeColumnWidgets(page, 'available')).toEqual([
-      'tabs',
-      'comments',
-    ]);
+    expect(await arrangeColumnWidgets(page, 'available')).toEqual(
+      ALL_AVAILABLE,
+    );
     expect(await arrangeColumnWidgets(page, 'left')).toEqual(['explorer']);
     expect(await arrangeColumnWidgets(page, 'right')).toEqual(['outline']);
   });
@@ -79,7 +92,9 @@ test.describe('ドラッグ＆ドロップ', () => {
     page,
   }) => {
     await dragWidget(page, 'tabs', 'left');
-    expect(await arrangeColumnWidgets(page, 'available')).toEqual(['comments']);
+    expect(await arrangeColumnWidgets(page, 'available')).toEqual(
+      availableWithout('tabs'),
+    );
     await closeWidgetArrange(page);
 
     await expect(page.getByTestId('tabs-widget')).toBeVisible();
@@ -160,15 +175,14 @@ test.describe('ドラッグ＆ドロップ', () => {
     }
   });
 
-  test('スロット専用ウィジェットは利用可能へ落とせない', async ({ page }) => {
+  test('枠から出せないウィジェットは利用可能へ落とせない', async ({ page }) => {
     await openWidgetArrange(page);
     const list = page.getByTestId('widget-arrange-list-available');
     await page.getByTestId('widget-chip-outline').dragTo(list);
     // 受け付けないので配置は変わらない
-    expect(await arrangeColumnWidgets(page, 'available')).toEqual([
-      'tabs',
-      'comments',
-    ]);
+    expect(await arrangeColumnWidgets(page, 'available')).toEqual(
+      ALL_AVAILABLE,
+    );
     expect(await arrangeColumnWidgets(page, 'right')).toEqual(['outline']);
   });
 
@@ -224,10 +238,9 @@ test.describe('キーボード操作', () => {
     await page.getByTestId('widget-chip-comments').focus();
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
-    expect(await arrangeColumnWidgets(page, 'available')).toEqual([
-      'tabs',
-      'comments',
-    ]);
+    expect(await arrangeColumnWidgets(page, 'available')).toEqual(
+      ALL_AVAILABLE,
+    );
   });
 });
 
@@ -238,10 +251,9 @@ test.describe('初期配置にリセット / 永続化', () => {
     await page.getByTestId('widget-arrange-reset').click();
     expect(await arrangeColumnWidgets(page, 'left')).toEqual(['explorer']);
     expect(await arrangeColumnWidgets(page, 'right')).toEqual(['outline']);
-    expect(await arrangeColumnWidgets(page, 'available')).toEqual([
-      'tabs',
-      'comments',
-    ]);
+    expect(await arrangeColumnWidgets(page, 'available')).toEqual(
+      ALL_AVAILABLE,
+    );
 
     await closeWidgetArrange(page);
     await page.reload();

@@ -5,10 +5,14 @@
  * ユーザーが決められるようにする。VSCode のサイドバーと同じ発想で、1 つの
  * スロットに複数のウィジェットを縦に積める。
  *
- * 「スロットに入っていない」＝そのウィジェット本来の既定位置（タブなら
- * ツールバー直下の横行、コメントなら画面下のドック）に出す、という意味。
- * エクスプローラーとアウトラインは既定位置を持たないスロット専用ウィジェット
- * なので、必ずどちらかのスロットに属する（`slotOnly`）。
+ * ウィジェットは「既定位置を持つか」「枠から出せるか」の 2 軸で 3 種類ある。
+ *
+ * - 既定位置を持つ（`defaultLabel` あり）: タブ（ツールバー直下の横行）と
+ *   コメント（画面下のドック）。枠に入れなければ本来の位置に出る。
+ * - 枠から出せない（`required`）: エクスプローラーとアウトライン。既定位置を
+ *   持たないので、正規化時に欠けていれば既定スロットへ補完する。
+ * - どちらでもない（第2弾で足したもの）: 既定位置を持たず、枠に置いたときだけ
+ *   出る。枠から出す＝画面から消す、という意味になる。
  *
  * 配置は他の表示設定（テーマ・フォント・本文幅）と同じく localStorage に
  * 保存する。ウィジェットを出すかどうか（＝表示トグル）は配置とは別軸で、
@@ -16,7 +20,24 @@
  * ルートあり、アウトラインは開閉トグル、コメントはパネル開閉）で決まる。
  */
 
-export const WIDGET_IDS = ['tabs', 'explorer', 'outline', 'comments'] as const;
+export const WIDGET_IDS = [
+  // 第1弾（既存パネルの移設）
+  'tabs',
+  'explorer',
+  'outline',
+  'comments',
+  // 第2弾（枠に置いたときだけ出るウィジェット）
+  'search',
+  'recent',
+  'minimap',
+  'diagrams',
+  'tasks',
+  'links',
+  'terms',
+  'frontmatter',
+  'diffsummary',
+  'stats',
+] as const;
 
 export type WidgetId = (typeof WIDGET_IDS)[number];
 
@@ -36,48 +57,129 @@ export interface WidgetLayout {
 interface WidgetMeta {
   /** 設定 UI とスロットのヘッダーに出す名前。 */
   label: string;
-  /** 既定位置を持たず、必ずどちらかのスロットに置かれるか。 */
-  slotOnly: boolean;
-  /** 既定位置の呼び名（設定 UI の選択肢ラベル）。slotOnly なら null。 */
+  /**
+   * 既定位置の呼び名（配置画面の注記）。null なら既定位置を持たず、
+   * 枠に置いたときだけ画面に出る。
+   */
   defaultLabel: string | null;
+  /**
+   * 枠から出せないか。true のものは既定位置も持たないため、正規化時に
+   * どちらの枠にも居なければ既定スロットへ補完する。
+   */
+  required: boolean;
   /** スロット内で余った縦幅を分け合うか。false なら内容ぶんの高さで収まる。 */
   grows: boolean;
+  /** 配置画面で「何が出るのか」を一言で説明する。 */
+  hint: string;
 }
 
 export const WIDGET_META: Record<WidgetId, WidgetMeta> = {
   tabs: {
     label: 'タブ',
-    slotOnly: false,
     defaultLabel: '横行',
+    required: false,
     // 開いているファイル数ぶんの高さで足りる。伸ばすと他が潰れて損。
     grows: false,
+    hint: '開いているファイルの一覧',
   },
   explorer: {
     label: 'エクスプローラー',
-    slotOnly: true,
     defaultLabel: null,
+    required: true,
     grows: true,
+    hint: 'ルートディレクトリのファイルツリー',
   },
   outline: {
     label: 'アウトライン',
-    slotOnly: true,
     defaultLabel: null,
+    required: true,
     grows: true,
+    hint: '見出しの一覧',
   },
   comments: {
     label: 'コメント',
-    slotOnly: false,
     defaultLabel: '下ドック',
+    required: false,
     grows: true,
+    hint: 'レビューコメントの一覧',
+  },
+  search: {
+    label: '検索結果',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: '本文の全文検索を常設パネルで',
+  },
+  recent: {
+    label: '最近 / ブックマーク',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: '最近開いたファイルとブックマーク',
+  },
+  minimap: {
+    label: 'ミニマップ',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: '文書全体の俯瞰とコメント位置',
+  },
+  diagrams: {
+    label: '図の一覧',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: '本文中の Mermaid 図へジャンプ',
+  },
+  tasks: {
+    label: 'タスク',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: 'チェックボックス（- [ ]）の一覧',
+  },
+  links: {
+    label: 'リンク / 画像',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: 'リンクと画像の一覧（相対パスは生死も判定）',
+  },
+  terms: {
+    label: '用語集',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: '辞書の用語一覧と本文中の出現箇所',
+  },
+  frontmatter: {
+    label: 'frontmatter',
+    defaultLabel: null,
+    required: false,
+    // 数行のメタ情報なので内容ぶんの高さで足りる。
+    grows: false,
+    hint: '先頭の YAML メタ情報',
+  },
+  diffsummary: {
+    label: '差分サマリ',
+    defaultLabel: null,
+    required: false,
+    grows: true,
+    hint: 'チェックポイントからの変更箇所',
+  },
+  stats: {
+    label: '文書統計',
+    defaultLabel: null,
+    required: false,
+    grows: false,
+    hint: '文字数・見出し数・推定読了時間',
   },
 };
 
-/** スロット専用ウィジェットが最初に入るスロット。 */
-const DEFAULT_SLOT: Record<WidgetId, SlotId> = {
-  tabs: 'left',
+/** 枠から出せないウィジェットが、配置に無いときへ補われるスロット。 */
+const DEFAULT_SLOT: Partial<Record<WidgetId, SlotId>> = {
   explorer: 'left',
   outline: 'right',
-  comments: 'right',
 };
 
 /** 従来の見た目（左＝エクスプローラー / 右＝アウトライン）と同じ既定配置。 */
@@ -97,7 +199,7 @@ function isWidgetId(value: unknown): value is WidgetId {
   );
 }
 
-/** そのウィジェットが今どのスロットにいるか。null なら既定位置。 */
+/** そのウィジェットが今どのスロットにいるか。null なら枠の外。 */
 export function widgetPlacement(
   layout: WidgetLayout,
   id: WidgetId,
@@ -116,7 +218,7 @@ export function widgetPlacement(
  * 同じスロット内の並べ替え（下から上・上から下）も、別のスロットへの移動も
  * この 1 つの規則で説明できる。範囲外の値は端に丸める。
  *
- * スロット専用ウィジェット（エクスプローラー・アウトライン）を既定位置
+ * 枠から出せないウィジェット（エクスプローラー・アウトライン）を枠の外
  * （null）へ動かそうとした場合は、行き先が無いので配置を変えない。
  */
 export function moveWidget(
@@ -125,7 +227,7 @@ export function moveWidget(
   placement: WidgetPlacement,
   index: number,
 ): WidgetLayout {
-  if (placement === null && WIDGET_META[id].slotOnly) {
+  if (placement === null && WIDGET_META[id].required) {
     return { left: [...layout.left], right: [...layout.right] };
   }
   const next: WidgetLayout = {
@@ -144,7 +246,7 @@ export function moveWidget(
 
 /**
  * ウィジェットを配置先の末尾へ移す（`moveWidget` の index 省略版）。
- * 既定位置（null）へ戻すときは末尾もなにも無いので単に枠から外れる。
+ * 枠の外へ戻すときは末尾もなにも無いので単に枠から外れる。
  */
 export function placeWidget(
   layout: WidgetLayout,
@@ -155,13 +257,13 @@ export function placeWidget(
 }
 
 /**
- * 今どちらの枠にも入っていない＝既定位置に出ているウィジェット。
- * 配置画面の「利用可能」一覧はこれを並べる。スロット専用ウィジェットは
- * 既定位置を持たないので、（正規化前の壊れた配置であっても）ここには出さない。
+ * 今どちらの枠にも入っていないウィジェット。配置画面の「利用可能」一覧は
+ * これを並べる。枠から出せないものは（正規化前の壊れた配置であっても）
+ * 行き先が無いのでここには出さない。
  */
 export function availableWidgets(layout: WidgetLayout): WidgetId[] {
   return WIDGET_IDS.filter(
-    (id) => !WIDGET_META[id].slotOnly && widgetPlacement(layout, id) === null,
+    (id) => !WIDGET_META[id].required && widgetPlacement(layout, id) === null,
   );
 }
 
@@ -170,7 +272,7 @@ export function availableWidgets(layout: WidgetLayout): WidgetId[] {
  *
  * - 未知の id は捨てる（将来ウィジェットを削っても壊れないように）
  * - 重複は 1 つに畳む（両スロットに現れたら左を優先）
- * - スロット専用ウィジェットが欠けていれば既定のスロットの末尾へ補う
+ * - 枠から出せないウィジェットが欠けていれば既定のスロットの末尾へ補う
  */
 export function normalizeWidgetLayout(raw: unknown): WidgetLayout {
   if (typeof raw !== 'object' || raw === null) return cloneDefault();
@@ -190,8 +292,8 @@ export function normalizeWidgetLayout(raw: unknown): WidgetLayout {
   }
 
   for (const id of WIDGET_IDS) {
-    if (WIDGET_META[id].slotOnly && !seen.has(id))
-      out[DEFAULT_SLOT[id]].push(id);
+    if (WIDGET_META[id].required && !seen.has(id))
+      out[DEFAULT_SLOT[id] ?? 'left'].push(id);
   }
 
   return out;

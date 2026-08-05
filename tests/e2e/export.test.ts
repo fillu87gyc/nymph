@@ -174,6 +174,23 @@ test.describe('nymph --export', () => {
     ).toBeVisible();
   });
 
+  // PR に貼るデモ用。CI がこのディレクトリの PNG を description へ埋め込む。
+  test.describe('デモ用スクリーンショット', () => {
+    test.use({ colorScheme: 'dark', viewport: { width: 1100, height: 1000 } });
+
+    test('生成物の見た目', async ({ page }) => {
+      expect(runCli([mdPath, '--export', outPath]).status).toBe(0);
+      await page.goto(pathToFileURL(outPath).href);
+      await expect(page.getByText('主語が曖昧です')).toBeVisible();
+
+      mkdirSync('playwright-screenshots', { recursive: true });
+      await page.screenshot({
+        path: 'playwright-screenshots/export-html.png',
+        fullPage: true,
+      });
+    });
+  });
+
   test('ヘッダーに状態別の件数とラウンドが出る', async ({ page }) => {
     expect(runCli([mdPath, '--export', outPath]).status).toBe(0);
     await page.goto(pathToFileURL(outPath).href);

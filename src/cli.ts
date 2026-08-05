@@ -32,6 +32,10 @@ const HELP = `\
 オプション:
   -p, --port <番号>    使用するポート番号 (デフォルト: 6276)
   --no-open            ブラウザを自動的に開かない
+  --export <出力先>    コメント埋め込みの静的 HTML を書き出して終了する
+                       （サーバーは起動しない。ファイルを1つだけ指定する）
+  --export-mermaid     エクスポートに Mermaid 描画エンジンを同梱する
+                       （オフラインでも図が描画される。出力が約3MB増える）
   -v, --version        バージョンを表示して終了
   -h, --help           このヘルプを表示して終了
 
@@ -40,6 +44,8 @@ const HELP = `\
   nymph docs/*.md
   nymph ./docs
   nymph -p 8080 --no-open README.md
+  nymph report.md --export review.html
+  nymph report.md --export review.html --export-mermaid
 `;
 
 async function findPort(start = 6276): Promise<number> {
@@ -57,6 +63,13 @@ async function findPort(start = 6276): Promise<number> {
     }
   }
   return start;
+}
+
+/** 出力サイズの案内用。同梱の有無で桁が変わるので単位を付けて出す。 */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /**
@@ -193,6 +206,8 @@ async function main() {
 
   let portOverride: number | null = null;
   let noOpen = !!process.env.NYMPH_NO_OPEN;
+  let exportPath: string | null = null;
+  let embedMermaid = false;
   const fileArgs: string[] = [];
 
   for (let i = 0; i < rawArgs.length; i++) {
@@ -207,6 +222,10 @@ async function main() {
     }
     if (arg === '--no-open') {
       noOpen = true;
+    } else if (arg === '--export') {
+      exportPath = requireOptionValue(rawArgs, ++i, arg);
+    } else if (arg === '--export-mermaid') {
+      embedMermaid = true;
     } else if (arg === '-p' || arg === '--port') {
       const next = rawArgs[++i];
       const n = Number(next);
@@ -242,6 +261,41 @@ async function main() {
     process.exit(1);
   }
   const rootDir: string | null = dirs[0] ?? null;
+
+  // --export は「書き出して終わる」一発仕事。サーバーも起動しないし、
+  // 既存インスタンスへの委譲にも乗せない（別プロセスに画面を開かせても
+  // 出力ファイルは生まれないため）。
+  if (exportPath === null && embedMermaid) {
+    console.error(
+      'エラー: --export-mermaid は --export と一緒に指定してください',
+    );
+    process.exit(1);
+  }
+
+  if (exportPath !== null) {
+    if (paths.length !== 1) {
+      console.error(
+        paths.length === 0
+          ? 'エラー: --export にはエクスポートする .md ファイルを1つ指定してください'
+          : `エラー: --export で扱えるファイルは1つだけです（${paths.length} 個指定されました）`,
+      );
+      process.exit(1);
+    }
+    const { exportToFile } = await import('./exportCommand.ts');
+    try {
+      const result = exportToFile(paths[0], exportPath, { embedMermaid });
+      console.log(`エクスポート  ${result.outPath}`);
+      console.log(`元ファイル    ${result.file}`);
+      console.log(`コメント      ${result.commentCount} 件`);
+      console.log(`サイズ        ${formatBytes(result.bytes)}`);
+    } catch (err) {
+      console.error(
+        `エラー: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+    process.exit(0);
+  }
 
   // 既に同じファイル/ルートを開いている生きた nymph インスタンスがあれば、
   // 新規プロセス・新規ポートを起動せずそちらへ委譲する

@@ -85,16 +85,16 @@ export function buildMinimapRows(
 
   const kinds: MinimapKind[] = [];
   const weights: number[] = [];
-  let fence: { char: string; diagram: boolean } | null = null;
+  let fence: { diagram: boolean } | null = null;
   for (const text of lines) {
     const m = FENCE_RE.exec(text);
     const isFenceEdge = m !== null;
     // 閉じの行も開いていたフェンスの種類で塗る（囲みごと 1 つの塊に見せる）
-    let diagram = fence?.diagram ?? false;
+    let diagram: boolean = fence?.diagram ?? false;
     if (isFenceEdge) {
       if (fence === null) {
         diagram = DIAGRAM_LANGS.has(m[2].toLowerCase());
-        fence = { char: m[1][0], diagram };
+        fence = { diagram };
       } else {
         fence = null;
       }

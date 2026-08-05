@@ -296,6 +296,25 @@ nymphx() {
 nymphx *.md   # HMR 有効な開発モードで起動
 ```
 
+### リリース
+
+リリースは GitHub Actions の **Release** ワークフローで完結します。
+
+1. Actions タブ → Release → **Run workflow**
+2. `version` にリリースするバージョンを入れる（例: `1.2.3`、プレリリースなら `1.3.0-rc.1`）
+3. 実行すると以下が自動で行われる
+   - `tsc` / lint / unit test / build による検証
+   - `package.json` と `src/cli.ts` の `VERSION` をそのバージョンに揃える
+   - タグ `v1.2.3` を作成して push
+   - npm へ publish（provenance 付き。プレリリースは dist-tag `next`）
+   - リリースノート付きの GitHub Release を作成
+
+`dry_run` を有効にすると、タグ・publish・Release 作成を行わず検証と `npm publish --dry-run` だけを実行します。初回や不安なときの確認用です。
+
+ローカルで `git tag v1.2.3 && git push origin v1.2.3` した場合も同じワークフローが走ります（この経路ではタグ作成のステップだけスキップされます）。
+
+> **npm の認証**: npmjs 側で Trusted Publishing を設定していれば OIDC で認証されるため secret は不要です。設定していない場合はリポジトリの secret に `NPM_TOKEN`（publish 権限のある Automation token）を登録してください。
+
 ---
 
 ## Claude Code との連携

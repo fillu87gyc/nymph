@@ -313,7 +313,9 @@ nymphx *.md   # HMR 有効な開発モードで起動
 
 ローカルで `git tag v1.2.3 && git push origin v1.2.3` した場合も同じワークフローが走ります（この経路ではタグ作成のステップだけスキップされます）。
 
-> **npm の認証**: npmjs 側で Trusted Publishing を設定していれば OIDC で認証されるため secret は不要です。設定していない場合はリポジトリの secret に `NPM_TOKEN`（publish 権限のある Automation token）を登録してください。
+publish が失敗して同じバージョンをやり直す場合、タグが同じコミットに残っていればそのまま再実行できます（タグ作成と publish 済みバージョンはスキップされる）。別のコミットに同名タグがある場合はエラーで止まるので、`git push --delete origin v1.2.3` してから実行し直してください。
+
+> **npm の認証**: npmjs の Trusted Publishing（OIDC）を使っており、`NPM_TOKEN` などの secret は不要です。ただし npmjs 側は **リポジトリとワークフローのファイルパスの組み合わせ** で照合するため、`.github/workflows/publish.yml` をリネームすると `npm error code ENEEDAUTH` で publish に失敗します。ファイル名を変えるときは npmjs の Trusted Publisher 設定も同時に更新してください。
 
 ---
 

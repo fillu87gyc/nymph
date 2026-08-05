@@ -32,6 +32,8 @@ const HELP = `\
 オプション:
   -p, --port <番号>    使用するポート番号 (デフォルト: 6276)
   --no-open            ブラウザを自動的に開かない
+  --export <出力先>    コメント埋め込みの静的 HTML を書き出して終了する
+                       （サーバーは起動しない。ファイルを1つだけ指定する）
   -v, --version        バージョンを表示して終了
   -h, --help           このヘルプを表示して終了
 
@@ -40,6 +42,7 @@ const HELP = `\
   nymph docs/*.md
   nymph ./docs
   nymph -p 8080 --no-open README.md
+  nymph report.md --export review.html
 `;
 
 async function findPort(start = 6276): Promise<number> {
@@ -193,6 +196,7 @@ async function main() {
 
   let portOverride: number | null = null;
   let noOpen = !!process.env.NYMPH_NO_OPEN;
+  let exportPath: string | null = null;
   const fileArgs: string[] = [];
 
   for (let i = 0; i < rawArgs.length; i++) {
@@ -207,6 +211,8 @@ async function main() {
     }
     if (arg === '--no-open') {
       noOpen = true;
+    } else if (arg === '--export') {
+      exportPath = requireOptionValue(rawArgs, ++i, arg);
     } else if (arg === '-p' || arg === '--port') {
       const next = rawArgs[++i];
       const n = Number(next);
@@ -242,6 +248,33 @@ async function main() {
     process.exit(1);
   }
   const rootDir: string | null = dirs[0] ?? null;
+
+  // --export は「書き出して終わる」一発仕事。サーバーも起動しないし、
+  // 既存インスタンスへの委譲にも乗せない（別プロセスに画面を開かせても
+  // 出力ファイルは生まれないため）。
+  if (exportPath !== null) {
+    if (paths.length !== 1) {
+      console.error(
+        paths.length === 0
+          ? 'エラー: --export にはエクスポートする .md ファイルを1つ指定してください'
+          : `エラー: --export で扱えるファイルは1つだけです（${paths.length} 個指定されました）`,
+      );
+      process.exit(1);
+    }
+    const { exportToFile } = await import('./exportCommand.ts');
+    try {
+      const result = exportToFile(paths[0], exportPath);
+      console.log(`エクスポート  ${result.outPath}`);
+      console.log(`元ファイル    ${result.file}`);
+      console.log(`コメント      ${result.commentCount} 件`);
+    } catch (err) {
+      console.error(
+        `エラー: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+    process.exit(0);
+  }
 
   // 既に同じファイル/ルートを開いている生きた nymph インスタンスがあれば、
   // 新規プロセス・新規ポートを起動せずそちらへ委譲する

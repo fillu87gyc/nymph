@@ -302,6 +302,54 @@ test.describe('ミニマップウィジェット', () => {
     expect(ratio).toBeLessThan(0.8);
   });
 
+  test('今見ている範囲の枠は、長い文書でも線が読める太さと高さを保つ', async ({
+    page,
+    fixturePath,
+  }) => {
+    await placeInLeft(page, 'minimap');
+    const viewport = page.getByTestId('minimap-viewport');
+    await expect(viewport).toBeVisible();
+    // 1px のヘアラインは棒に紛れて見つけられない
+    await expect(viewport).toHaveCSS('border-top-width', '2px');
+    await expect(viewport).toHaveCSS('border-bottom-width', '2px');
+
+    // 長い文書（段落を積んで本文を高くする）では割合そのままだと帯が数 px に
+    // 潰れる。下限まで伸ばしたうえで、棒の箱（overflow: hidden）に収まって
+    // いること＝末尾まで送っても下の枠線が切れないこと。
+    writeFileSync(
+      fixturePath,
+      Array.from({ length: 1500 }, (_, i) => `本文の行 ${i + 1}`).join('\n\n'),
+    );
+    await expect(page.getByTestId('minimap-widget-meta')).toHaveText('2999行', {
+      timeout: 5000,
+    });
+    await page.getByTestId('content-scroll').evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+
+    const band = () =>
+      page.evaluate(() => {
+        const rows = document.querySelector('[data-testid="minimap-rows"]');
+        const vp = document.querySelector('[data-testid="minimap-viewport"]');
+        if (!rows || !vp) throw new Error('minimap viewport not found');
+        const rb = rows.getBoundingClientRect();
+        const vb = vp.getBoundingClientRect();
+        return {
+          height: vb.height,
+          top: (vb.top - rb.top) / rb.height,
+          overflow: vb.bottom - rb.bottom,
+        };
+      });
+
+    // スクロールの反映を待ってから（枠は scroll イベントで追従する）測る
+    await expect
+      .poll(async () => (await band()).top, { timeout: 3000 })
+      .toBeGreaterThan(0.8);
+    const measured = await band();
+    expect(measured.height).toBeGreaterThanOrEqual(12);
+    expect(measured.overflow).toBeLessThanOrEqual(1);
+  });
+
   test('クリックした位置の行へ飛ぶ', async ({ page }) => {
     await placeInLeft(page, 'minimap');
     const canvas = page.getByTestId('minimap-canvas');

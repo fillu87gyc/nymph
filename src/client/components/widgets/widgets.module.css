@@ -312,14 +312,18 @@
 .minimapRow[data-kind="blank"] {
   background: none;
 }
-/* 今どこを見ているか。本文のスクロールに追従する。 */
+/* 今どこを見ているか。本文のスクロールに追従する。
+   1px のヘアラインだと棒（同じくらいの太さ）に紛れて見つけられないので、
+   線は 2px に太らせ、中も薄く塗って面で見えるようにする。さらに外側へ地の色の
+   縁を回して、棒に重なった枠線が沈まないようにする。 */
 .viewport {
   position: absolute;
-  left: -2px;
-  right: -2px;
-  border: 1px solid var(--accent);
-  border-radius: 3px;
-  background: var(--accent-glow);
+  left: -3px;
+  right: -3px;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  background: rgba(var(--accent-rgb), 0.14);
+  box-shadow: 0 0 0 1px var(--bg-surface);
   pointer-events: none;
 }
 /* コメントの位置。右端に点で重ねる。 */

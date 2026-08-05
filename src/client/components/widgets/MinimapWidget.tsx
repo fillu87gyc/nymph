@@ -2,6 +2,7 @@ import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { commentStatus } from '../../lib/comments.ts';
 import {
   buildMinimapRows,
+  clampViewportBand,
   countLines,
   lineAtRatio,
   ratioAtLine,
@@ -63,10 +64,15 @@ export function MinimapWidget({
       const target = contentScrollRef.current;
       if (!target) return;
       const height = target.scrollHeight || 1;
-      setViewport({
-        top: target.scrollTop / height,
-        height: Math.min(1, target.clientHeight / height),
-      });
+      // 枠は棒の箱に対して置くので、下限の高さも箱の実寸で判断する。
+      const box = rowsRef.current?.getBoundingClientRect().height ?? 0;
+      setViewport(
+        clampViewportBand(
+          target.scrollTop / height,
+          Math.min(1, target.clientHeight / height),
+          box,
+        ),
+      );
     }
     update();
     el.addEventListener('scroll', update, { passive: true });

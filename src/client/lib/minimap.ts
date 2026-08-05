@@ -114,3 +114,26 @@ export function ratioAtLine(line: number, totalLines: number): number {
   if (totalLines <= 0) return 0;
   return Math.min(1, Math.max(0, (line - 1) / totalLines));
 }
+
+/** 今どこを見ているかの枠の下限の高さ（px）。上下の線が潰れない太さ。 */
+export const MIN_VIEWPORT_PX = 14;
+
+/**
+ * 今見ている範囲の枠を、線が読める高さに整える。
+ *
+ * 割合をそのまま使うと、長い文書では帯が数 px まで縮んで上下の枠線が
+ * 重なり、ただの点にしか見えなくなる。下限まで伸ばしたうえで、はみ出す分は
+ * 上へ寄せて棒の箱の中に収める（箱は overflow: hidden なので、はみ出すと
+ * 下の枠線が切れて見えなくなる）。
+ */
+export function clampViewportBand(
+  top: number,
+  height: number,
+  boxHeightPx: number,
+): { top: number; height: number } {
+  const clampedTop = Math.min(1, Math.max(0, top));
+  const clampedHeight = Math.min(1, Math.max(0, height));
+  if (boxHeightPx <= 0) return { top: clampedTop, height: clampedHeight };
+  const h = Math.min(1, Math.max(clampedHeight, MIN_VIEWPORT_PX / boxHeightPx));
+  return { top: Math.min(clampedTop, 1 - h), height: h };
+}

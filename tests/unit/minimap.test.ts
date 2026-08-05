@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMinimapRows,
+  clampViewportBand,
   countLines,
   lineAtRatio,
   MAX_MINIMAP_ROWS,
+  MIN_VIEWPORT_PX,
   ratioAtLine,
 } from '../../src/client/lib/minimap.ts';
 
@@ -101,5 +103,37 @@ describe('lineAtRatio / ratioAtLine', () => {
     expect(ratioAtLine(51, 100)).toBeCloseTo(0.5);
     expect(ratioAtLine(999, 100)).toBe(1);
     expect(ratioAtLine(1, 0)).toBe(0);
+  });
+});
+
+describe('clampViewportBand', () => {
+  it('十分な高さがある帯はそのまま通す', () => {
+    expect(clampViewportBand(0.2, 0.5, 400)).toEqual({ top: 0.2, height: 0.5 });
+  });
+
+  it('長い文書で潰れた帯を下限の高さまで伸ばす', () => {
+    // 400px の箱で 0.01（＝4px）は線が潰れる → MIN_VIEWPORT_PX まで伸ばす
+    const band = clampViewportBand(0.2, 0.01, 400);
+    expect(band.height).toBeCloseTo(MIN_VIEWPORT_PX / 400);
+    expect(band.top).toBe(0.2);
+  });
+
+  it('伸ばした帯が箱からはみ出すときは上へ寄せて収める', () => {
+    const band = clampViewportBand(1, 0.01, 400);
+    expect(band.top).toBeCloseTo(1 - MIN_VIEWPORT_PX / 400);
+    expect(band.top + band.height).toBeCloseTo(1);
+  });
+
+  it('箱より下限が大きければ全体を覆う', () => {
+    expect(clampViewportBand(0.5, 0.01, 8)).toEqual({ top: 0, height: 1 });
+  });
+
+  it('先頭より上・全体より高い値は端に丸める', () => {
+    expect(clampViewportBand(-0.5, 0.5, 400).top).toBe(0);
+    expect(clampViewportBand(0, 2, 400).height).toBe(1);
+  });
+
+  it('箱の高さが測れないうちは割合をそのまま使う', () => {
+    expect(clampViewportBand(0.2, 0.01, 0)).toEqual({ top: 0.2, height: 0.01 });
   });
 });

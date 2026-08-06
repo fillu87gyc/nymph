@@ -87,6 +87,81 @@ test.describe('画面の開閉', () => {
   });
 });
 
+test.describe('枠の中身のプレビュー', () => {
+  test('枠のチップに本文の見出しがそのまま並ぶ', async ({ page }) => {
+    await openWidgetArrange(page);
+    // 既定で右の枠に居るアウトライン。sample.md の見出しがそのまま出る
+    await expect(
+      page.getByTestId('widget-thumb-outline').getByTestId('widget-thumb-item'),
+    ).toHaveText(['Sample', 'Section', 'Diagram']);
+  });
+
+  test('本文から拾う中身も実物が並ぶ', async ({ page }) => {
+    await dragWidget(page, 'diagrams', 'left');
+    await expect(
+      page
+        .getByTestId('widget-thumb-diagrams')
+        .getByTestId('widget-thumb-item'),
+    ).toHaveText(['graph']);
+  });
+
+  test('中身が無いウィジェットは代わりの一言を出す', async ({ page }) => {
+    // sample.md にチェックボックスは無い
+    await dragWidget(page, 'tasks', 'left');
+    const thumb = page.getByTestId('widget-thumb-tasks');
+    await expect(thumb).toContainText('チェックボックス');
+    await expect(thumb.getByTestId('widget-thumb-item')).toHaveCount(0);
+  });
+
+  test('利用可能に居るあいだはプレビューを出さない', async ({ page }) => {
+    await openWidgetArrange(page);
+    await expect(page.getByTestId('widget-chip-tasks')).toHaveAttribute(
+      'data-column',
+      'available',
+    );
+    await expect(page.getByTestId('widget-thumb-tasks')).toHaveCount(0);
+  });
+});
+
+test.describe('今は非表示の注記', () => {
+  test('ルート未指定のエクスプローラーには理由と出し方が出る', async ({
+    page,
+  }) => {
+    await openWidgetArrange(page);
+    await expect(page.getByTestId('widget-chip-explorer')).toHaveAttribute(
+      'data-hidden',
+      'true',
+    );
+    await expect(page.getByTestId('widget-chip-hidden-explorer')).toContainText(
+      'フォルダを開く',
+    );
+
+    // 注記どおり、閉じたメイン画面にもエクスプローラーは出ていない
+    await closeWidgetArrange(page);
+    await expect(page.getByTestId('tree-root-name')).toBeHidden();
+  });
+
+  test('条件を満たすと注記が消え、実際に画面へ出る', async ({ page }) => {
+    // アウトラインは既定で閉じているので、枠に居ても今は出ていない
+    await openWidgetArrange(page);
+    await expect(page.getByTestId('widget-chip-hidden-outline')).toContainText(
+      'アウトライン',
+    );
+    await closeWidgetArrange(page);
+    await expect(page.getByTestId('toc-panel')).toBeHidden();
+
+    await page.locator('#btn-toc').click();
+    await expect(page.getByTestId('toc-panel')).toBeVisible();
+
+    await openWidgetArrange(page);
+    await expect(page.getByTestId('widget-chip-outline')).toHaveAttribute(
+      'data-hidden',
+      'false',
+    );
+    await expect(page.getByTestId('widget-chip-hidden-outline')).toHaveCount(0);
+  });
+});
+
 test.describe('ドラッグ＆ドロップ', () => {
   test('利用可能から左の枠へドラッグすると実際の画面に反映される', async ({
     page,

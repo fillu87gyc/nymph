@@ -134,8 +134,9 @@
 }
 .chip {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
   width: 100%;
   padding: 7px 9px;
   border: 1px solid var(--border-light);
@@ -146,6 +147,13 @@
   font-size: 12px;
   text-align: left;
   cursor: grab;
+}
+/* 名前の行。プレビューを添える枠のチップでは、この行が見出しになる。 */
+.chipHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
 }
 .chip:hover {
   background: var(--bg-hover);
@@ -177,6 +185,49 @@
   white-space: nowrap;
   font-size: 10px;
   color: var(--text-muted);
+}
+/* 中身の件数。名前の右端に小さく添える。 */
+.chipCount {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--bg-hover);
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* 枠に置いてあるのに条件を満たさず今は出ていない、という注記。
+   「配置が効いていない」と誤解されやすいので、色を付けて目立たせる。 */
+.chipHiddenNote {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--accent);
+}
+.chip[data-hidden="true"] .chipLabel {
+  color: var(--text-muted);
+}
+/* 中身の縮小プレビュー。実物の一覧と同じ順で先頭数件を並べる。 */
+.thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  background: var(--bg);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.thumbRow,
+.thumbNote,
+.thumbMore {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.thumbNote,
+.thumbMore {
+  color: var(--text-dim);
 }
 /* 差し込み位置。高さはドラッグ中も変えない（掴んだ先で行がずれないように）。 */
 .gap {

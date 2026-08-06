@@ -15,6 +15,7 @@ function makeProps(
     onToggleBookmark: vi.fn(),
     checkpointSet: false,
     onCheckpoint: vi.fn(),
+    onPrint: vi.fn(),
     onClearAll: vi.fn(),
     ...overrides,
   };
@@ -150,6 +151,17 @@ describe('OverflowMenu', () => {
     render(<OverflowMenu {...makeProps({ canCopyPath: false })} />);
     await userEvent.click(screen.getByTestId('overflow-menu-btn'));
     expect(screen.getByTestId('copy-path-btn')).toBeDisabled();
+  });
+
+  test('印刷 / PDF クリックで onPrint が呼ばれメニューが閉じる（印刷ダイアログの背後にメニューを残さない）', async () => {
+    const onPrint = vi.fn();
+    render(<OverflowMenu {...makeProps({ onPrint })} />);
+    await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+    const btn = screen.getByTestId('print-btn');
+    expect(btn).toBeInTheDocument();
+    await userEvent.click(btn);
+    expect(onPrint).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
   });
 
   test('すべて削除クリックで onClearAll が呼ばれメニューが閉じる', async () => {

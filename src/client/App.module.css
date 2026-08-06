@@ -51,6 +51,27 @@
   cursor: col-resize;
   user-select: none;
 }
+/* 印刷時は画面用のスクロール構造（100vh の flex 列 + overflow:auto）を解き、
+   本文が紙の高さに流れるようにする。解かないと 1 ページ目で切れる。
+   何を紙に出すか（付属物を落とす側）は styles/print.css が持つ。 */
+@media print {
+  .app {
+    display: block;
+    height: auto;
+  }
+  .main,
+  .mainRow {
+    display: block;
+    overflow: visible;
+  }
+  .contentCol,
+  .contentColMargins,
+  .contentGrid {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+}
 .dropOverlay {
   display: flex;
   position: fixed;

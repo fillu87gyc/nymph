@@ -32,6 +32,7 @@ function makeProps(
     onCopyPath: vi.fn(),
     onClearAll: vi.fn(),
     onCheckpoint: vi.fn(),
+    onPrint: vi.fn(),
     onToggleDiff: vi.fn(),
     onToggleTheme: vi.fn(),
     contentFontId: 'inter',

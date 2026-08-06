@@ -34,6 +34,8 @@ interface ToolbarProps {
   onCopyPath: () => void;
   onClearAll: () => void;
   onCheckpoint: () => void;
+  /** 印刷 / PDF 保存（⋯ メニュー内）。 */
+  onPrint: () => void;
   onToggleDiff: () => void;
   onToggleTheme: () => void;
   contentFontId: string;
@@ -78,6 +80,7 @@ export function Toolbar({
   onCopyPath,
   onClearAll,
   onCheckpoint,
+  onPrint,
   onToggleDiff,
   onToggleTheme,
   contentFontId,
@@ -188,6 +191,7 @@ export function Toolbar({
         onToggleBookmark={onToggleBookmark}
         checkpointSet={checkpointSet}
         onCheckpoint={onCheckpoint}
+        onPrint={onPrint}
         onDictSync={onDictSync}
         isDictSyncing={isDictSyncing}
         onClearAll={onClearAll}

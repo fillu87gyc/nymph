@@ -1,0 +1,114 @@
+/* nymph 印刷スタイル（v0.4 #2「PDF 出力」）。
+ *
+ * ブラウザの「印刷 → PDF に保存」で、そのまま配れる 1 束になるようにする。
+ * やっていることは 3 つ:
+ *
+ *  1. 配色をライトに倒す。ブラウザは既定で背景色を印刷しないので、ダークの
+ *     ままだと「白い紙に薄い灰色の文字」になって読めない。値は global.css の
+ *     [data-theme="light"] と同一で、tests/unit/printStyles.test.ts が両者の
+ *     同期を検証する（プレーン CSS では値を 1 箇所に持てないため、ずれたら
+ *     テストが落ちる形にした）。
+ *     beforeprint で data-theme を書き換える案は採らなかった: highlight.js の
+ *     テーマは <link> の差し替えで切り替わるため、印刷直前に触ると読み込みが
+ *     間に合わないまま印刷が始まりうる。
+ *  2. 画面の付属物を落とす。「残すものを指定して、それ以外を落とす」形
+ *     （:not()）にしているので、ウィジェットやモーダルが増えても紙に漏れない。
+ *  3. 画面用のスクロール容器を解く。画面は html/body が overflow:hidden で
+ *     内側の列だけがスクロールする作りなので、そのままでは 1 ページ目で
+ *     切れてしまう。列そのものの解除は App.module.css の @media print 側。
+ *
+ * コメントは紙に出さない（画面のパネルごと落とす）。コメント入りの配布物は
+ * `nymph <file> --export out.html` を使う。あちらにも印刷用 CSS が入っている。
+ */
+
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  /* ── 1. 配色（= global.css の [data-theme="light"]） ── */
+  :root {
+    --bg: #ffffff;
+    --bg-surface: #f6f8fa;
+    --bg-hover: #e1e4e8;
+    --border: #d0d7de;
+    --border-light: #d8dee4;
+    --text: #1f2328;
+    --text-muted: #636c76;
+    --text-dim: #c6ccd2;
+    --accent: #0969da;
+    --accent-rgb: 9, 105, 218;
+    --accent-dim: rgba(9, 105, 218, 0.1);
+    --accent-glow: rgba(9, 105, 218, 0.05);
+    --code-bg: #f6f8fa;
+    --sb: #d0d7de;
+    --danger: #d1242f;
+    --danger-hover: #a40e26;
+    --danger-rgb: 209, 36, 47;
+    --success: #1a7f37;
+    --success-rgb: 26, 127, 55;
+    --diff-add-bg: #dafbe1;
+    --diff-add-word-bg: #aceebb;
+    --diff-del-bg: #ffebe9;
+    --diff-del-word-bg: #ffcecb;
+    /* ブラウザ既定の描画（スクロールバー・フォームコントロール）も紙側に合わせる */
+    color-scheme: light;
+  }
+
+  /* ── 2. 紙に出すのは本文だけ ── */
+  /* body 直下のポータル（モーダル・アンカーポップアップ）は #root 以外なので
+     まとめて落ちる。#app 直下では #main（本文行）だけを残し、ツールバー /
+     タブ / コメントパネル / トースト / ドロップオーバーレイを落とす。
+     #main の中はウィジェット枠を落とし、本文列だけを残す。 */
+  body > *:not(#root) {
+    display: none;
+  }
+  #app > *:not(#main) {
+    display: none;
+  }
+  #main > *:not([data-print-region]) {
+    display: none;
+  }
+
+  /* ── 3. スクロール容器を解いて紙の高さに流す ── */
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  #content {
+    /* 画面用の余白は @page のマージンに任せる */
+    padding: 0;
+  }
+
+  /* ── ページ送り ── */
+  /* 「途中で切りたくない」のは中身が塊で意味を持つものだけに絞る。段落や
+     リストまで avoid にすると、1 ページに収まらない塊の前で大きな空白が
+     できてしまう。 */
+  #content pre,
+  #content table,
+  #content img,
+  #content [data-testid="mermaid-wrap"] {
+    break-inside: avoid;
+  }
+  #content :is(h1, h2, h3, h4, h5, h6) {
+    break-after: avoid;
+  }
+
+  /* 横スクロールは紙では使えないので、長いコード行は折り返す
+     （切れて読めないより折り返した方がまし）。 */
+  #content pre {
+    overflow: visible;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  /* シンタックスハイライトは紙では落とす。hljs のテーマは画面の配色に合わせて
+     作られていて、背景が印刷されない紙の上ではコントラストが保証できない
+     （HTML エクスポートでハイライトを持たせていないのと同じ判断）。 */
+  #content pre code.hljs,
+  #content pre code.hljs * {
+    color: var(--text);
+    background: transparent;
+  }
+}

@@ -3,3 +3,5 @@
  * ここでは「CSS Modules でスコープできないグローバルスタイル」のみ管理する。
  */
 @import "./styles/global.css";
+/* 印刷（@media print）専用。global.css の値を上書きするため後ろに置く。 */
+@import "./styles/print.css";

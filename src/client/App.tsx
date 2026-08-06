@@ -687,6 +687,12 @@ export function App() {
       .catch(() => toast('クリップボードへのコピーに失敗しました'));
   }
 
+  // 印刷 / PDF 保存。紙向けの体裁は styles/print.css（@media print）が持つので、
+  // ここはブラウザの印刷ダイアログを開くだけ。Ctrl/Cmd+P からでも同じ結果になる。
+  function handlePrint() {
+    window.print();
+  }
+
   async function handleDeleteComment(id: Comment['id']) {
     const ok = await deleteComment(id);
     if (!ok) toast('コメントを保存できませんでした');
@@ -1134,6 +1140,7 @@ export function App() {
         onCopyPath={copyFilePath}
         onClearAll={handleClearAll}
         onCheckpoint={handleCheckpoint}
+        onPrint={handlePrint}
         onToggleDiff={toggleDiff}
         onToggleTheme={handleToggleTheme}
         contentFontId={contentFontId}
@@ -1175,6 +1182,7 @@ export function App() {
             ref={contentScrollRef}
             className={diffSingleColumn ? undefined : styles.contentCol}
             data-testid="content-scroll"
+            data-print-region="true"
           >
             <DiffView
               diffData={diffData}
@@ -1188,6 +1196,7 @@ export function App() {
           <div
             className={styles.contentColMargins}
             onWheel={forwardWheelToContent}
+            data-print-region="true"
           >
             <div
               ref={contentScrollRef}

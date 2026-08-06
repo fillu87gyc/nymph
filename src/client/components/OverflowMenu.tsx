@@ -12,13 +12,15 @@ interface OverflowMenuProps {
   onToggleBookmark: () => void;
   checkpointSet: boolean;
   onCheckpoint: () => void;
+  /** ブラウザの印刷ダイアログを開く（そのまま PDF に保存できる）。 */
+  onPrint: () => void;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
   onClearAll: () => void;
 }
 
 // 「⋯」オーバーフローメニュー。フォルダを開く / パスをコピー / ブックマーク /
-// チェックポイント設定 / 辞書更新 / すべて削除 をまとめる。
+// チェックポイント設定 / 印刷 / 辞書更新 / すべて削除 をまとめる。
 // RecentMenu と同じ「外側クリックで閉じる」パターンに加え、Esc でも閉じる。
 // 項目クリックは一律メニューを閉じてから実行する（一般的なドロップダウンの
 // 作法に合わせる。「すべて削除」の確認モーダルや「フォルダを開く」の OS
@@ -32,6 +34,7 @@ export function OverflowMenu({
   onToggleBookmark,
   checkpointSet,
   onCheckpoint,
+  onPrint,
   onDictSync,
   isDictSyncing,
   onClearAll,
@@ -119,6 +122,18 @@ export function OverflowMenu({
               onClick={() => runAndClose(onCheckpoint)}
             >
               📍 チェックポイント設定
+            </button>
+          </div>
+          <div className={styles.row}>
+            <button
+              type="button"
+              className="btn"
+              id="btn-print"
+              data-testid="print-btn"
+              title="本文を印刷する（PDF に保存できます）"
+              onClick={() => runAndClose(onPrint)}
+            >
+              🖨 印刷 / PDF
             </button>
           </div>
           {onDictSync && (

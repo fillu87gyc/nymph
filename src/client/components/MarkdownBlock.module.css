@@ -66,6 +66,15 @@
   color: var(--accent);
 }
 
+/* 紙には操作ボタンを出さない。コメント付きブロックの 💬 は
+   data-has-comment="true" のとき常時見えているため、印刷時に明示的に消す。 */
+@media print {
+  .commentBtn,
+  .btnDrawio {
+    display: none;
+  }
+}
+
 /* ブロックハイライト（scroll-to-comment）*/
 .block[data-highlighted="true"][data-block-type="table"] > div,
 .block[data-highlighted="true"][data-block-type="mermaid"] > div {

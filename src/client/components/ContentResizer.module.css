@@ -42,3 +42,11 @@
 .handle:focus-visible {
   outline: none;
 }
+
+/* 幅の調整は画面だけの操作。紙には出さない（高さ 100vh の空要素が
+   本文の先頭に居座らないよう、display ごと落とす）。 */
+@media print {
+  .handle {
+    display: none;
+  }
+}

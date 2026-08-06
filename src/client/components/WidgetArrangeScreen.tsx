@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useEscapeDismiss } from '../hooks/useDismiss.ts';
+import type { WidgetPreview, WidgetVisibility } from '../lib/widgetPreview.ts';
 import {
   availableWidgets,
   moveWidget,
@@ -32,6 +33,10 @@ function columnPlacement(col: ColumnId): WidgetPlacement {
 
 interface WidgetArrangeScreenProps {
   layout: WidgetLayout;
+  /** ウィジェットごとの、今この瞬間に画面へ出るか（＋出ていない理由）。 */
+  visibility: Record<WidgetId, WidgetVisibility>;
+  /** 枠に置いたときに実際に並ぶ中身の、先頭数件のプレビュー。 */
+  previews: Record<WidgetId, WidgetPreview>;
   /** `index` は「そのウィジェットを抜いたあとの配置先の配列」での挿入位置。 */
   onMove: (id: WidgetId, placement: WidgetPlacement, index: number) => void;
   onReset: () => void;
@@ -45,12 +50,19 @@ interface WidgetArrangeScreenProps {
  * 既定の位置に出す）一覧と、左右の枠の中身をドラッグ＆ドロップで行き来
  * させる。枠の中では上下の並び順もドラッグで変えられる。
  *
+ * 左右の枠のチップは名前だけでなく、そのウィジェットが今まさに並べている
+ * 中身の先頭数件を添える（`widgetPreview.ts`）。条件を満たさず今は出ない
+ * ものには、その理由と出し方も添える——枠に置いたのに画面に現れないと、
+ * 配置が効いていないように見えるため。
+ *
  * ドラッグできない環境・キーボード操作のために、チップにフォーカスした
  * 状態の矢印キーでも同じ操作ができる（← → で列を移動、↑ ↓ で枠内の並び替え）。
  * 変更は即座に反映・保存されるので「保存」ボタンは持たない。
  */
 export function WidgetArrangeScreen({
   layout,
+  visibility,
+  previews,
   onMove,
   onReset,
   onClose,
@@ -144,6 +156,12 @@ export function WidgetArrangeScreen({
       col === 'available'
         ? `利用可能（${meta.defaultLabel === null ? '枠に置くと表示' : `既定の位置: ${meta.defaultLabel}`}）`
         : `${COLUMN_LABEL[col]} ${index + 1} / ${columns[col].length}`;
+    // 縮小プレビューと非表示の注記は「枠に置いてある」チップにだけ意味がある
+    // （利用可能に居るものは、そもそも今その中身が画面に出ていない）。
+    const slotted = col !== 'available';
+    const preview = previews[id];
+    const hiddenReason =
+      slotted && !visibility[id].visible ? visibility[id].reason : null;
     return (
       <button
         type="button"
@@ -152,8 +170,13 @@ export function WidgetArrangeScreen({
         data-widget={id}
         data-column={col}
         data-dragging={String(dragging === id)}
+        data-hidden={String(hiddenReason !== null)}
         draggable
-        aria-label={`${meta.label}（現在: ${position}）`}
+        aria-label={
+          `${meta.label}（現在: ${position}）` +
+          (slotted ? `。${describePreview(preview)}` : '') +
+          (hiddenReason ? `。今は非表示: ${hiddenReason}` : '')
+        }
         title={`${meta.hint}／ドラッグ、または矢印キーで移動できます`}
         onDragStart={(e) => {
           // Firefox はデータが載っていないとドラッグを始めない。
@@ -167,16 +190,54 @@ export function WidgetArrangeScreen({
         }}
         onKeyDown={(e) => handleKeyDown(e, id, col, index)}
       >
-        <span aria-hidden="true" className={styles.grip}>
-          ⠿
+        <span className={styles.chipHead}>
+          <span aria-hidden="true" className={styles.grip}>
+            ⠿
+          </span>
+          <span className={styles.chipLabel}>{meta.label}</span>
+          {col === 'available' && (
+            <span className={styles.chipNote}>
+              {meta.defaultLabel ?? meta.hint}
+            </span>
+          )}
+          {slotted && preview.total > 0 && (
+            <span className={styles.chipCount}>{preview.total}</span>
+          )}
         </span>
-        <span className={styles.chipLabel}>{meta.label}</span>
-        {col === 'available' && (
-          <span className={styles.chipNote}>
-            {meta.defaultLabel ?? meta.hint}
+        {hiddenReason && (
+          <span
+            className={styles.chipHiddenNote}
+            data-testid={`widget-chip-hidden-${id}`}
+          >
+            今は非表示: {hiddenReason}
           </span>
         )}
+        {slotted && renderThumb(id, preview)}
       </button>
+    );
+  }
+
+  /** 枠のチップに添える、そのウィジェットの中身の縮小プレビュー。 */
+  function renderThumb(id: WidgetId, preview: WidgetPreview) {
+    const more = preview.total - preview.items.length;
+    return (
+      <span className={styles.thumb} data-testid={`widget-thumb-${id}`}>
+        {preview.items.length === 0 ? (
+          <span className={styles.thumbNote}>{preview.note}</span>
+        ) : (
+          preview.items.map((text, i) => (
+            <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: 本文の順に並べた固定 3 件で並べ替えも増減もせず、同じ文言（同名のタスクなど）が並びうるので文言だけでは鍵にならない
+              key={`${i}:${text}`}
+              className={styles.thumbRow}
+              data-testid="widget-thumb-item"
+            >
+              {text}
+            </span>
+          ))
+        )}
+        {more > 0 && <span className={styles.thumbMore}>ほか {more} 件</span>}
+      </span>
     );
   }
 
@@ -358,6 +419,16 @@ function neighborColumn(
     i += step;
   }
   return null;
+}
+
+/**
+ * 縮小プレビューを読み上げ用の 1 文にする。チップは aria-label を持つので、
+ * 中の文字は読まれない——プレビューもここで label に畳んで届ける。
+ */
+function describePreview(preview: WidgetPreview): string {
+  if (preview.items.length === 0) return preview.note;
+  const more = preview.total - preview.items.length;
+  return `中身: ${preview.items.join('、')}${more > 0 ? `、ほか ${more} 件` : ''}`;
 }
 
 /** 移動後の配置から読み上げ文を作る。 */

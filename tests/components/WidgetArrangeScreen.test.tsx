@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 import { WidgetArrangeScreen } from '../../src/client/components/WidgetArrangeScreen.tsx';
 import {
+  buildWidgetPreviews,
+  type WidgetPreviewInput,
+  type WidgetVisibilityInput,
+  widgetVisibility,
+} from '../../src/client/lib/widgetPreview.ts';
+import {
   DEFAULT_WIDGET_LAYOUT,
   moveWidget,
   WIDGET_IDS,
@@ -11,11 +17,39 @@ import {
   type WidgetLayout,
 } from '../../src/client/lib/widgets.ts';
 
+/** 何も欠けていない画面（全ウィジェットが出る状態）。 */
+function visibilityOf(overrides: Partial<WidgetVisibilityInput> = {}) {
+  return widgetVisibility({
+    fileCount: 1,
+    hasRoot: true,
+    outlineOpen: true,
+    commentsOpen: true,
+    ...overrides,
+  });
+}
+
+function previewsOf(overrides: Partial<WidgetPreviewInput> = {}) {
+  return buildWidgetPreviews({
+    source: '',
+    headings: [],
+    openFiles: [],
+    treeEntries: [],
+    comments: [],
+    recent: [],
+    terms: [],
+    diffHunks: [],
+    checkpointSet: false,
+    ...overrides,
+  });
+}
+
 function makeProps(
   overrides: Partial<React.ComponentProps<typeof WidgetArrangeScreen>> = {},
 ): React.ComponentProps<typeof WidgetArrangeScreen> {
   return {
     layout: DEFAULT_WIDGET_LAYOUT,
+    visibility: visibilityOf(),
+    previews: previewsOf(),
     onMove: vi.fn(),
     onReset: vi.fn(),
     onClose: vi.fn(),
@@ -75,6 +109,95 @@ describe('WidgetArrangeScreen', () => {
       />,
     );
     expect(screen.getByTestId('widget-empty-right')).toBeInTheDocument();
+  });
+
+  describe('枠の中身のプレビュー', () => {
+    test('枠のチップには実際の中身が先頭数件まで並ぶ', () => {
+      render(
+        <WidgetArrangeScreen
+          {...makeProps({
+            previews: previewsOf({
+              headings: ['はじめに', '使い方', '設定', 'FAQ'],
+            }),
+          })}
+        />,
+      );
+      const thumb = screen.getByTestId('widget-thumb-outline');
+      expect(
+        within(thumb)
+          .getAllByTestId('widget-thumb-item')
+          .map((el) => el.textContent),
+      ).toEqual(['はじめに', '使い方', '設定']);
+      // 並べきれない分は件数で伝える
+      expect(thumb).toHaveTextContent('ほか 1 件');
+    });
+
+    test('中身が無いウィジェットは代わりの一言を出す', () => {
+      render(<WidgetArrangeScreen {...makeProps()} />);
+      const thumb = screen.getByTestId('widget-thumb-outline');
+      expect(within(thumb).queryByTestId('widget-thumb-item')).toBeNull();
+      expect(thumb).toHaveTextContent('見出しがありません');
+    });
+
+    test('利用可能のチップにはプレビューを出さない（まだ画面に出ていないため）', () => {
+      render(<WidgetArrangeScreen {...makeProps()} />);
+      expect(screen.getByTestId('widget-chip-minimap')).toHaveAttribute(
+        'data-column',
+        'available',
+      );
+      expect(screen.queryByTestId('widget-thumb-minimap')).toBeNull();
+    });
+
+    test('読み上げ用のラベルにも中身が乗る', () => {
+      render(
+        <WidgetArrangeScreen
+          {...makeProps({ previews: previewsOf({ headings: ['はじめに'] }) })}
+        />,
+      );
+      expect(screen.getByTestId('widget-chip-outline')).toHaveAttribute(
+        'aria-label',
+        expect.stringContaining('中身: はじめに'),
+      );
+    });
+  });
+
+  describe('今は非表示の注記', () => {
+    test('枠に置いてあるのに条件を満たさないものは理由を添える', () => {
+      render(
+        <WidgetArrangeScreen
+          {...makeProps({ visibility: visibilityOf({ hasRoot: false }) })}
+        />,
+      );
+      const chip = screen.getByTestId('widget-chip-explorer');
+      expect(chip).toHaveAttribute('data-hidden', 'true');
+      expect(
+        screen.getByTestId('widget-chip-hidden-explorer'),
+      ).toHaveTextContent('フォルダを開く');
+      expect(chip.getAttribute('aria-label')).toContain('今は非表示');
+    });
+
+    test('条件を満たしていれば注記は出ない', () => {
+      render(<WidgetArrangeScreen {...makeProps()} />);
+      expect(screen.getByTestId('widget-chip-explorer')).toHaveAttribute(
+        'data-hidden',
+        'false',
+      );
+      expect(screen.queryByTestId('widget-chip-hidden-explorer')).toBeNull();
+    });
+
+    test('利用可能に居るあいだは非表示の注記を出さない（置いていないため）', () => {
+      render(
+        <WidgetArrangeScreen
+          {...makeProps({ visibility: visibilityOf({ fileCount: 0 }) })}
+        />,
+      );
+      // タブは利用可能に居るので、非表示かどうかを言う場面ではない
+      expect(screen.queryByTestId('widget-chip-hidden-tabs')).toBeNull();
+      expect(screen.getByTestId('widget-chip-tabs')).toHaveAttribute(
+        'data-hidden',
+        'false',
+      );
+    });
   });
 
   describe('ドラッグ＆ドロップ', () => {

@@ -61,6 +61,7 @@ import {
   saveContentWidth,
   saveMarginCollapse,
 } from './lib/contentWidth.ts';
+import { summarizeDiff } from './lib/diffSummary.ts';
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
 import {
   applyLigatures,
@@ -82,6 +83,7 @@ import {
 import { buildCommentSnapshot } from './lib/snapshot.ts';
 import { applyTermHighlights } from './lib/termHighlight.ts';
 import { extractToc } from './lib/toc.ts';
+import { buildWidgetPreviews, widgetVisibility } from './lib/widgetPreview.ts';
 import {
   DEFAULT_WIDGET_LAYOUT,
   loadWidgetLayout,
@@ -945,35 +947,58 @@ export function App() {
   }
 
   // ウィジェットを出す条件。配置（どの枠に置くか）とは別軸で、従来どおり
-  // それぞれのトグルや状態で決まる。タブは横行だと2ファイル以上でのみ出るが、
-  // 枠に置いた縦置きは1ファイルでも出す（FileTabs 側の分岐と合わせる）。
-  //
-  // 第2弾のウィジェットは既定位置もトグルも持たない（枠に置く＝出す）ので
-  // 常に true。中身が空のときは各ウィジェットが「ありません」を自分で出す
-  // ——ここで隠すと、置いたのに何も現れず配置が壊れたように見えるため。
-  const widgetVisible: Record<WidgetId, boolean> = {
-    tabs: files.length > 0,
-    explorer: !!root,
-    outline: tocOpen,
-    comments: panelOpen,
-    search: true,
-    recent: true,
-    minimap: true,
-    diagrams: true,
-    tasks: true,
-    links: true,
-    terms: true,
-    frontmatter: true,
-    diffsummary: true,
-    stats: true,
-  };
+  // それぞれのトグルや状態で決まる。判定そのものは配置画面の「今は非表示」
+  // の注記と同じ関数から作るので、注記と実際の画面がずれない。
+  const widgetVis = widgetVisibility({
+    fileCount: files.length,
+    hasRoot: !!root,
+    outlineOpen: tocOpen,
+    commentsOpen: panelOpen,
+  });
+
+  // 配置画面に出す中身の縮小プレビュー。本文の走査を含むので、画面を開いて
+  // いるあいだだけ作る（閉じているあいだは本文が変わっても計算しない）。
+  const widgetPreviews = useMemo(
+    () =>
+      widgetArrangeOpen
+        ? buildWidgetPreviews({
+            source,
+            headings: tocItems.map((t) => t.text),
+            openFiles: files.map((f) => f.name),
+            treeEntries: tree.map((n) => n.name),
+            comments: comments.map((c) => c.text),
+            recent: [
+              ...recentFiles.map((r) => r.name),
+              ...bookmarks.map((b) => b.name),
+            ],
+            terms: dictEntries.map((e) => e.term),
+            diffHunks: summarizeDiff(diffData?.lines ?? []).hunks.map(
+              (h) => h.preview,
+            ),
+            checkpointSet,
+          })
+        : null,
+    [
+      widgetArrangeOpen,
+      source,
+      tocItems,
+      files,
+      tree,
+      comments,
+      recentFiles,
+      bookmarks,
+      dictEntries,
+      diffData,
+      checkpointSet,
+    ],
+  );
 
   function slotHasContent(side: SlotId): boolean {
-    return widgetLayout[side].some((id) => widgetVisible[id]);
+    return widgetLayout[side].some((id) => widgetVis[id].visible);
   }
 
   function renderWidget(id: WidgetId) {
-    if (!widgetVisible[id]) return null;
+    if (!widgetVis[id].visible) return null;
     switch (id) {
       case 'tabs':
         return (
@@ -1331,9 +1356,11 @@ export function App() {
           onComment={handleSelectionComment}
         />
       )}
-      {widgetArrangeOpen && (
+      {widgetArrangeOpen && widgetPreviews && (
         <WidgetArrangeScreen
           layout={widgetLayout}
+          visibility={widgetVis}
+          previews={widgetPreviews}
           onMove={handleMoveWidget}
           onReset={handleResetWidgetLayout}
           onClose={() => setWidgetArrangeOpen(false)}

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { backendUrl, resolveFrontendUrl } from './frontendUrl.ts';
 import { globScan } from './globScan.ts';
 import {
@@ -36,8 +36,18 @@ const HELP = `\
                        （サーバーは起動しない。ファイルを1つだけ指定する）
   --export-mermaid     エクスポートに Mermaid 描画エンジンを同梱する
                        （オフラインでも図が描画される。出力が約3MB増える）
+  --annotate <出力先>  コメントを本文へ書き戻した Markdown を出力して終了する
+                       （各ブロックの直後に「> [nymph] …」の引用を挿し込む。
+                         元ファイルは書き換えない）
+  --annotate-open      書き戻すコメントを未解決・削除済のみに絞る
   -v, --version        バージョンを表示して終了
   -h, --help           このヘルプを表示して終了
+
+サブコマンド:
+  nymph export <ファイル> [-o <出力先>] [--bom]
+                       保存済みコメントを CSV にする（-o 省略で標準出力）
+  nymph dict build     ユビキタス言語辞書をビルドする
+  nymph dict allow     辞書設定に書かれたコマンドを承認する
 
 例:
   nymph README.md
@@ -46,6 +56,28 @@ const HELP = `\
   nymph -p 8080 --no-open README.md
   nymph report.md --export review.html
   nymph report.md --export review.html --export-mermaid
+  nymph report.md --annotate review.md
+  nymph export report.md -o review.csv
+`;
+
+const EXPORT_HELP = `\
+使い方: nymph export <ファイル> [オプション]
+
+  保存済みのレビューコメントを CSV（RFC 4180・UTF-8）にする
+
+オプション:
+  -o, --out <出力先>   CSV の書き出し先（省略すると標準出力へ流す）
+  --bom                先頭に UTF-8 BOM を付ける（Excel で開く場合）
+  -h, --help           このヘルプを表示して終了
+
+列:
+  file, id, status, line_start, line_end, block_type, round,
+  created_at, target, comment
+
+例:
+  nymph export report.md
+  nymph export report.md -o review.csv
+  nymph export report.md --bom -o review.csv
 `;
 
 async function findPort(start = 6276): Promise<number> {
@@ -204,10 +236,75 @@ async function main() {
     process.exit(0);
   }
 
+  // export サブコマンド処理（保存済みコメント → CSV）。
+  // 起動オプションではなくサブコマンドにしてあるのは、これがレビュー対象を
+  // 開く行為ではなく「溜まったデータを別形式で吐く」一発仕事のため。
+  if (rawArgs[0] === 'export') {
+    const subArgs = rawArgs.slice(1);
+    let outPath: string | undefined;
+    let bom = false;
+    const targets: string[] = [];
+
+    for (let i = 0; i < subArgs.length; i++) {
+      const arg = subArgs[i];
+      if (arg === '--out' || arg === '-o') {
+        outPath = requireOptionValue(subArgs, ++i, arg);
+      } else if (arg === '--bom') {
+        bom = true;
+      } else if (arg === '-h' || arg === '--help') {
+        process.stdout.write(EXPORT_HELP);
+        process.exit(0);
+      } else if (arg.startsWith('-')) {
+        console.error(`エラー: 不明なオプション: ${arg}`);
+        console.error('  nymph export --help でヘルプを表示');
+        process.exit(1);
+      } else {
+        targets.push(arg);
+      }
+    }
+
+    if (targets.length !== 1) {
+      console.error(
+        targets.length === 0
+          ? 'エラー: nymph export には対象の .md ファイルを1つ指定してください'
+          : `エラー: nymph export で扱えるファイルは1つだけです（${targets.length} 個指定されました）`,
+      );
+      process.exit(1);
+    }
+    if (!existsSync(targets[0])) {
+      console.error(`エラー: 指定されたパスが存在しません: ${targets[0]}`);
+      process.exit(1);
+    }
+
+    const { exportCommentsCsv } = await import('./csvCommand.ts');
+    try {
+      const result = exportCommentsCsv(targets[0], { outPath, bom });
+      if (result.outPath === null) {
+        // 標準出力へ流すときは他に何も出さない（そのままパイプできるように）。
+        // exit で切り落とされないよう、書き込みが済むまで待つ。
+        await new Promise<void>((done) => {
+          process.stdout.write(result.csv, () => done());
+        });
+      } else {
+        console.log(`CSV           ${result.outPath}`);
+        console.log(`元ファイル    ${result.file}`);
+        console.log(`コメント      ${result.count} 件`);
+      }
+    } catch (err) {
+      console.error(
+        `エラー: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+
   let portOverride: number | null = null;
   let noOpen = !!process.env.NYMPH_NO_OPEN;
   let exportPath: string | null = null;
   let embedMermaid = false;
+  let annotatePath: string | null = null;
+  let annotateOpenOnly = false;
   const fileArgs: string[] = [];
 
   for (let i = 0; i < rawArgs.length; i++) {
@@ -226,6 +323,10 @@ async function main() {
       exportPath = requireOptionValue(rawArgs, ++i, arg);
     } else if (arg === '--export-mermaid') {
       embedMermaid = true;
+    } else if (arg === '--annotate') {
+      annotatePath = requireOptionValue(rawArgs, ++i, arg);
+    } else if (arg === '--annotate-open') {
+      annotateOpenOnly = true;
     } else if (arg === '-p' || arg === '--port') {
       const next = rawArgs[++i];
       const n = Number(next);
@@ -262,14 +363,56 @@ async function main() {
   }
   const rootDir: string | null = dirs[0] ?? null;
 
-  // --export は「書き出して終わる」一発仕事。サーバーも起動しないし、
-  // 既存インスタンスへの委譲にも乗せない（別プロセスに画面を開かせても
-  // 出力ファイルは生まれないため）。
+  // --export / --annotate は「書き出して終わる」一発仕事。サーバーも起動
+  // しないし、既存インスタンスへの委譲にも乗せない（別プロセスに画面を
+  // 開かせても出力ファイルは生まれないため）。
   if (exportPath === null && embedMermaid) {
     console.error(
       'エラー: --export-mermaid は --export と一緒に指定してください',
     );
     process.exit(1);
+  }
+  if (annotatePath === null && annotateOpenOnly) {
+    console.error(
+      'エラー: --annotate-open は --annotate と一緒に指定してください',
+    );
+    process.exit(1);
+  }
+  // 1 回の実行で出力は 1 つに絞る。どちらの結果を報告しているのか
+  // （どちらが失敗したのか）を混ぜないため。
+  if (exportPath !== null && annotatePath !== null) {
+    console.error('エラー: --export と --annotate は同時に指定できません');
+    process.exit(1);
+  }
+
+  if (annotatePath !== null) {
+    if (paths.length !== 1) {
+      console.error(
+        paths.length === 0
+          ? 'エラー: --annotate には書き戻す .md ファイルを1つ指定してください'
+          : `エラー: --annotate で扱えるファイルは1つだけです（${paths.length} 個指定されました）`,
+      );
+      process.exit(1);
+    }
+    const { annotateToFile } = await import('./annotateCommand.ts');
+    try {
+      const result = annotateToFile(paths[0], annotatePath, {
+        includeResolved: !annotateOpenOnly,
+      });
+      console.log(`書き戻し      ${result.outPath}`);
+      console.log(`元ファイル    ${result.file}`);
+      console.log(
+        `コメント      ${result.written} 件（未解決 ${result.counts.open} / 削除済 ${result.counts.deleted} / 解決済 ${result.counts.resolved}）`,
+      );
+      if (result.skipped > 0)
+        console.log(`除外          解決済 ${result.skipped} 件`);
+    } catch (err) {
+      console.error(
+        `エラー: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+    process.exit(0);
   }
 
   if (exportPath !== null) {

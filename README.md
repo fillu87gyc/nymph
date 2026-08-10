@@ -85,8 +85,18 @@ nymph ./           # カレントディレクトリをツリー表示
                        （サーバーは起動しない。ファイルを1つだけ指定する）
   --export-mermaid     エクスポートに Mermaid 描画エンジンを同梱する
                        （オフラインでも図が描画される。出力が約3MB増える）
+  --annotate <出力先>  コメントを本文へ書き戻した Markdown を出力して終了する
+                       （各ブロックの直後に「> [nymph] …」の引用を挿し込む。
+                         元ファイルは書き換えない）
+  --annotate-open      書き戻すコメントを未解決・削除済のみに絞る
   -v, --version        バージョンを表示して終了
   -h, --help           このヘルプを表示して終了
+
+サブコマンド:
+  nymph export <ファイル> [-o <出力先>] [--bom]
+                       保存済みコメントを CSV にする（-o 省略で標準出力）
+  nymph dict build     ユビキタス言語辞書をビルドする
+  nymph dict allow     辞書設定に書かれたコマンドを承認する
 ```
 
 ```bash
@@ -95,6 +105,8 @@ nymph --no-open output.md      # ブラウザを開かずに起動
 nymph --version                # バージョン確認
 nymph report.md --export review.html   # レビュー結果を静的 HTML に書き出す
 nymph report.md --export review.html --export-mermaid   # 図も描画できる形で
+nymph report.md --annotate review.md   # コメントを本文へ書き戻す
+nymph export report.md -o review.csv   # コメントを CSV にする
 ```
 
 指定したファイル / ディレクトリが存在しない場合は、サーバーを起動せずにそのパスを示して終了します（複数指定のうち一部だけ存在しない場合も、黙って無視せずエラーになります）：
@@ -234,6 +246,45 @@ CDN から取得する案は採っていません。配布物が開かれるた�
 - 見出しはその直後の本文と切り離されないようにします
 
 コメントは紙に出ません。コメント入りで配りたいときは、印刷用 CSS 込みで書き出される `--export` の HTML を開いて印刷してください。
+
+### Markdown への書き戻し
+
+`--annotate` で、保存済みコメントを本文に挿し込んだ Markdown を書き出せます。HTML エクスポートが「読ませる配布物」なのに対し、こちらは**そのまま編集を続けられる形**でレビューを返すためのものです（書き手が人でも AI でも、本文の隣に指摘がある Markdown を受け取ってそのまま直せます）。
+
+```bash
+nymph report.md --annotate review.md
+nymph report.md --annotate review.md --annotate-open   # 未解決・削除済だけ
+```
+
+コメントは対象ブロックの直後に引用として入ります：
+
+```markdown
+これは本文の段落です。
+
+> [nymph] 未解決 · L3 · ラウンド 2 · 2026-08-09 10:20
+>
+> 主語が曖昧です
+```
+
+- **本文の行は書き換えません**。足すのは引用と、それを区切るための空行だけです（引用の前後に空行が無いと、直後の本文が引用の続きとして読まれて元の文書の意味が変わるため）
+- 行番号（`L3`）は**元ファイル基準**です。引用を挿し込んだ時点で以降の行はずれるので、書き戻した Markdown 自身の行番号とは一致しません
+- 対象が消えた指摘と差分への指摘は、末尾の「本文に紐づかないコメント」にまとめます
+- 出力の素性（日時・件数・ラウンド）は末尾の HTML コメントに残します。表示には出ないので、そのまま清書に回しても邪魔になりません
+- **元ファイルへの上書きは拒否します**。レビュー対象を書き換えないのがこのツールの前提なので、書き戻しは別ファイルへの出力に限っています
+
+### CSV エクスポート
+
+`nymph export` で、保存済みコメントを 1 件 1 行の CSV にできます。表計算・課題管理・スクリプトへ流すための出力です。
+
+```bash
+nymph export report.md                 # 標準出力へ（そのままパイプできる）
+nymph export report.md -o review.csv   # ファイルへ
+nymph export report.md --bom -o review.csv   # Excel で開くなら BOM 付きで
+```
+
+列は `file, id, status, line_start, line_end, block_type, round, created_at, target, comment` です。`status` は画面・HTML エクスポートと同じ規則（`open` / `deleted` / `resolved`）で決まります。RFC 4180（CRLF・`"` のエスケープ）に従うので、Excel / Numbers / LibreOffice や `csv` モジュールがそのまま読めます。
+
+`=` `+` `@` で始まる値は先頭に `'` を足して無害化します（表計算ソフトが数式として評価してしまうため）。箇条書きの `- ` は数式にならないのでそのままです。
 
 ---
 

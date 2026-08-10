@@ -37,6 +37,14 @@ graph TD
   A --> B
 \`\`\`
 
+最後の段落。
+`;
+
+// 生 HTML の検証（エスケープして literal 表示する）専用の文書。
+// この行を DOC 側に置くと、CI が PR に貼るデモ用スクリーンショットへ
+// 検証用の `<script>` がそのまま写り込む（読む人には描画の不具合に見える）。
+const RAW_HTML_DOC = `# 生 HTML
+
 <script>window.__pwned = true;</script>
 `;
 
@@ -157,8 +165,12 @@ test.describe('nymph --export', () => {
   });
 
   test('本文中の生 HTML は実行されずそのまま見える', async ({ page }) => {
-    expect(runCli([mdPath, '--export', outPath]).status).toBe(0);
-    await page.goto(pathToFileURL(outPath).href);
+    const rawHtml = join(dir, 'raw-html.md');
+    writeFileSync(rawHtml, RAW_HTML_DOC);
+    const rawHtmlOut = join(dir, 'raw-html.html');
+
+    expect(runCli([rawHtml, '--export', rawHtmlOut]).status).toBe(0);
+    await page.goto(pathToFileURL(rawHtmlOut).href);
 
     await expect(
       page.getByText('<script>window.__pwned = true;</script>'),

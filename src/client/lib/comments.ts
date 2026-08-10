@@ -1,3 +1,4 @@
+import { isDroppedPath } from '../../dropped.ts';
 import type {
   CodeContext,
   Comment,
@@ -25,7 +26,7 @@ export function ctxDisplay(c: Comment): string {
 // __dropped__ はファイル実体が無くコメントを保存できないため、あえて file
 // パラメータを付けない（サーバー側で 4xx を返す設計に対応させる）。
 export function commentsKey(activeFile: string | null): string {
-  return activeFile && activeFile !== '__dropped__'
+  return activeFile && !isDroppedPath(activeFile)
     ? `/comments?file=${encodeURIComponent(activeFile)}`
     : '/comments';
 }

@@ -3,11 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Comment } from '../../src/client/types.ts';
-import {
-  findOrphanedIds,
-  inlineScriptSafe,
-  renderExportHtml,
-} from '../../src/htmlExport.ts';
+import { inlineScriptSafe, renderExportHtml } from '../../src/htmlExport.ts';
 
 let dir: string;
 let file: string;
@@ -253,70 +249,6 @@ describe('renderExportHtml — コメントの埋め込み', () => {
     const html = render('# 見出し\n');
     expect(html).not.toContain('本文に紐づかないコメント');
     expect(html).not.toMatch(COMMENTED_BLOCK);
-  });
-});
-
-describe('findOrphanedIds', () => {
-  const blocks = [
-    { html: '<h1>見出し</h1>', lineStart: 1, lineEnd: 1, type: 'heading' },
-    { html: '<p>本文です。</p>', lineStart: 3, lineEnd: 3, type: 'paragraph' },
-  ];
-
-  it('開始行が一致するブロックがあれば生きている', () => {
-    expect(
-      findOrphanedIds(blocks, [comment({ lineStart: 3, lineEnd: 3 })]).size,
-    ).toBe(0);
-  });
-
-  it('開始行が一致するブロックが無ければ消えた扱い', () => {
-    const orphaned = findOrphanedIds(blocks, [
-      comment({ id: 'c_x', lineStart: 2, lineEnd: 2 }),
-    ]);
-    expect(orphaned.has('c_x')).toBe(true);
-  });
-
-  it('選択コメントはブロックの表示テキストで照合する', () => {
-    const alive = findOrphanedIds(blocks, [
-      comment({
-        id: 'c_sel',
-        block_type: 'selection',
-        lineStart: 3,
-        lineEnd: 3,
-        context: '本文',
-      }),
-    ]);
-    expect(alive.size).toBe(0);
-
-    const gone = findOrphanedIds(blocks, [
-      comment({
-        id: 'c_sel',
-        block_type: 'selection',
-        lineStart: 3,
-        lineEnd: 3,
-        context: '無い文言',
-      }),
-    ]);
-    expect(gone.has('c_sel')).toBe(true);
-  });
-
-  it('末尾の … を落として照合する', () => {
-    const orphaned = findOrphanedIds(blocks, [
-      comment({
-        id: 'c_sel',
-        block_type: 'selection',
-        lineStart: 3,
-        lineEnd: 3,
-        context: '本文で…',
-      }),
-    ]);
-    expect(orphaned.size).toBe(0);
-  });
-
-  it('差分への指摘は判定しない', () => {
-    const orphaned = findOrphanedIds(blocks, [
-      comment({ id: 'c_diff', block_type: 'diff', lineStart: 99, lineEnd: 99 }),
-    ]);
-    expect(orphaned.size).toBe(0);
   });
 });
 

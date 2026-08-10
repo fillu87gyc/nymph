@@ -22,29 +22,19 @@
  * ここは純粋な文字列生成に寄せてある（ファイル I/O は画像の読み込みだけ）。
  */
 
-import { readFileSync, statSync } from 'node:fs';
-import { basename, dirname, extname, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Marked, type Tokens } from 'marked';
 import { commentStatus, ctxDisplay } from './client/lib/comments.ts';
-import { assignLines, esc, getBlockTokensDFS } from './client/lib/markdown.ts';
+import { esc } from './client/lib/markdown.ts';
 import type { Comment, CommentStatus } from './client/types.ts';
-import { resolveLinkTarget } from './linkCheck.ts';
-
-/** データ URI に埋め込む画像の拡張子と MIME。ここに無い拡張子は埋め込まない。 */
-const IMAGE_MIME: Record<string, string> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.bmp': 'image/bmp',
-};
-
-/** 1 枚あたりの埋め込み上限。これを超える画像は元の src のまま残す。 */
-export const MAX_EMBED_IMAGE_BYTES = 2 * 1024 * 1024;
+import {
+  anchorComments,
+  buildReviewBlocks,
+  createBlockRenderer,
+  findOrphanedIds,
+  type ReviewBlock,
+} from './reviewBlocks.ts';
 
 /**
  * `dist/` に置く mermaid 自己完結バンドルのファイル名。
@@ -84,16 +74,6 @@ export function readMermaidBundle(): string {
   }
 }
 
-export interface ExportBlock {
-  /** レンダリング済み HTML。mermaid ブロックでは空文字。 */
-  html: string;
-  lineStart: number;
-  lineEnd: number;
-  type: string;
-  /** type が 'mermaid' のときのみ、図のソース。 */
-  mermaidCode?: string;
-}
-
 export interface ExportInput {
   /** レビュー対象の絶対パス（見出しと相対画像の基準に使う）。 */
   file: string;
@@ -113,149 +93,6 @@ export interface ExportInput {
    * 生成物は 3MB 以上大きくなるため、図が 1 つも無い文書では焼き込まない。
    */
   mermaidBundle?: string;
-}
-
-/** ローカル画像を読んでデータ URI にする。埋め込めないものは null。 */
-function toDataUri(href: string, baseDir: string): string | null {
-  // 判定範囲は「開いているファイルのディレクトリ配下」に限る。
-  // リンクの生死チェックと同じ封じ込め方針で、`../../etc/...` のような
-  // 範囲外のファイルを配布物へ吸い上げてしまうことを防ぐ。
-  const abs = resolveLinkTarget(href, baseDir, baseDir);
-  if (abs === null) return null;
-  const mime = IMAGE_MIME[extname(abs).toLowerCase()];
-  if (!mime) return null;
-  try {
-    const st = statSync(abs);
-    if (!st.isFile() || st.size > MAX_EMBED_IMAGE_BYTES) return null;
-    return `data:${mime};base64,${readFileSync(abs).toString('base64')}`;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * エクスポート専用の marked インスタンス。
- * グローバルな `marked` を `use()` で汚すと同じプロセス内の dict ビルド等に
- * 影響が出るため、呼び出しごとに独立したインスタンスを作る。
- */
-function createRenderer(baseDir: string, embedImages: boolean): Marked {
-  return new Marked({
-    renderer: {
-      // 生 HTML はブロック・インラインとも literal 表示（上部コメント参照）。
-      html({ text }: Tokens.HTML | Tokens.Tag): string {
-        return esc(text);
-      },
-      image(token: Tokens.Image): string {
-        const alt = esc(token.text ?? '');
-        const embedded = embedImages ? toDataUri(token.href, baseDir) : null;
-        const src = esc(embedded ?? token.href);
-        const title = token.title ? ` title="${esc(token.title)}"` : '';
-        return `<img src="${src}" alt="${alt}"${title}>`;
-      },
-    },
-  });
-}
-
-/**
- * 本文をブロック（コメントが紐づく単位）へ分解する。
- *
- * 行番号の割り当ては本体と同じ `assignLines` / `getBlockTokensDFS` を使う。
- * ここで独自に数えるとコメントのアンカーがアプリとずれるため、必ず共有する。
- */
-export function buildExportBlocks(src: string, md: Marked): ExportBlock[] {
-  const tokens = md.lexer(src);
-  assignLines(src, tokens);
-  const blocks: ExportBlock[] = [];
-
-  for (const t of getBlockTokensDFS(tokens)) {
-    if (t.__nested) continue;
-    const lineStart = t.lineStart || 1;
-    const lineEnd = t.lineEnd || lineStart;
-
-    if (t.type === 'code') {
-      if (t.lang === 'mermaid' || t.lang === 'mmd') {
-        blocks.push({
-          html: '',
-          lineStart,
-          lineEnd,
-          type: 'mermaid',
-          mermaidCode: t.text,
-        });
-      } else {
-        const lang = t.lang?.trim() || 'plaintext';
-        blocks.push({
-          html: `<pre><code class="language-${esc(lang)}">${esc(t.text)}</code></pre>`,
-          lineStart,
-          lineEnd,
-          type: 'code',
-        });
-      }
-      continue;
-    }
-
-    blocks.push({
-      html: (md.parse(t.raw) as string).trim(),
-      lineStart,
-      lineEnd,
-      type: t.type,
-    });
-  }
-
-  return blocks;
-}
-
-/** HTML タグを落として本文テキストだけにする（選択コメントの照合用）。 */
-function stripTags(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&amp;/g, '&');
-}
-
-/**
- * 「もとの文章が消えている」コメントを洗い出す。
- *
- * 判定規則はアプリ（`ContentArea.tsx`）と揃える:
- *  - ブロックコメント: `lineStart` から始まるブロックが無ければ消えた扱い
- *  - 選択コメント: 重なるブロックの表示テキストに文言が見つからなければ消えた扱い
- *  - 差分コメント: 本文ブロックに紐づかないので、ここでは判定しない
- */
-export function findOrphanedIds(
-  blocks: readonly ExportBlock[],
-  comments: readonly Comment[],
-): Set<Comment['id']> {
-  const orphaned = new Set<Comment['id']>();
-  const textOf = new Map<ExportBlock, string>();
-
-  for (const c of comments) {
-    if (c.block_type === 'diff') continue;
-
-    if (c.block_type === 'selection' && typeof c.context === 'string') {
-      const needle = c.context.endsWith('…')
-        ? c.context.slice(0, -1)
-        : c.context;
-      const overlapping = blocks.filter(
-        (b) => c.lineStart <= b.lineEnd && c.lineEnd >= b.lineStart,
-      );
-      const found = overlapping.some((b) => {
-        let text = textOf.get(b);
-        if (text === undefined) {
-          text = stripTags(b.html || b.mermaidCode || '');
-          textOf.set(b, text);
-        }
-        return text.includes(needle);
-      });
-      if (!found) orphaned.add(c.id);
-      continue;
-    }
-
-    if (!blocks.some((b) => b.lineStart === c.lineStart)) orphaned.add(c.id);
-  }
-
-  return orphaned;
 }
 
 const STATUS_LABEL: Record<CommentStatus, string> = {
@@ -330,7 +167,7 @@ function renderMermaid(code: string, embedMermaid: boolean): string {
 }
 
 function renderBlock(
-  block: ExportBlock,
+  block: ReviewBlock,
   comments: RenderedComment[],
   embedMermaid: boolean,
 ): string {
@@ -367,8 +204,8 @@ export function renderExportHtml(input: ExportInput): string {
 
   const embedMermaid = typeof mermaidBundle === 'string';
 
-  const md = createRenderer(dirname(file), embedImages);
-  const blocks = buildExportBlocks(content, md);
+  const md = createBlockRenderer(dirname(file), embedImages);
+  const blocks = buildReviewBlocks(content, md);
   const orphaned = findOrphanedIds(blocks, comments);
 
   const counts: Record<CommentStatus, number> = {
@@ -384,19 +221,10 @@ export function renderExportHtml(input: ExportInput): string {
 
   // 各コメントは最初に重なったブロックへ 1 度だけ置く。どのブロックにも
   // 重ならないもの（消えた対象・差分への指摘）は末尾にまとめる。
-  const placed = new Set<Comment['id']>();
-  const bodyParts: string[] = [];
-  for (const block of blocks) {
-    const attached = rendered.filter(
-      (c) =>
-        c.block_type !== 'diff' &&
-        !placed.has(c.id) &&
-        c.lineStart <= block.lineEnd &&
-        c.lineEnd >= block.lineStart,
-    );
-    for (const c of attached) placed.add(c.id);
-    bodyParts.push(renderBlock(block, attached, embedMermaid));
-  }
+  const { attached, unanchored } = anchorComments(blocks, rendered);
+  const bodyParts = blocks.map((block) =>
+    renderBlock(block, attached.get(block) ?? [], embedMermaid),
+  );
 
   // mermaid のバンドルは 3MB を超える。図が 1 つも無ければ焼き込まない。
   const withMermaid = embedMermaid && blocks.some((b) => b.type === 'mermaid');
@@ -405,7 +233,6 @@ export function renderExportHtml(input: ExportInput): string {
     : '';
   const mermaidStyles = withMermaid ? MERMAID_STYLES : '';
 
-  const unanchored = rendered.filter((c) => !placed.has(c.id));
   const unanchoredSection = unanchored.length
     ? `<section class="unanchored"><h2 class="unanchoredTitle">本文に紐づかないコメント（${unanchored.length}）</h2><aside class="comments">${unanchored.map((c) => c.__html).join('')}</aside></section>`
     : '';

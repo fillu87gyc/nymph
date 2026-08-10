@@ -1,3 +1,4 @@
+import { isDroppedPath } from '../../dropped.ts';
 import type {
   BookmarkEntry,
   FileEntry,
@@ -62,7 +63,7 @@ export function buildQuickOpenItems(
   const candidates: QuickOpenItem[] = [];
   for (const t of tabs) {
     // ドロップ由来の擬似タブは実パスを持たないため開けない
-    if (t.path === '__dropped__') continue;
+    if (isDroppedPath(t.path)) continue;
     const slash = t.path.lastIndexOf('/');
     candidates.push({
       path: t.path,

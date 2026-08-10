@@ -21,6 +21,7 @@ import {
   toggleBookmark,
 } from './bookmarks.ts';
 import type { Comment } from './client/types.ts';
+import { DROPPED_PATH } from './dropped.ts';
 import { resolveFrontendUrl } from './frontendUrl.ts';
 import { flattenMdFiles, scanMdTree } from './fsTree.ts';
 import { checkLinkTargets } from './linkCheck.ts';
@@ -64,6 +65,8 @@ interface State {
   cachedContent: string | null;
   droppedContent: string | null;
   droppedName: string | null;
+  /** ドロップ由来の擬似タブが選択中か（activeFile は直前の実ファイルを保つ）。 */
+  droppedActive: boolean;
   rootDir: string | null;
 }
 
@@ -73,6 +76,7 @@ const state: State = {
   cachedContent: null,
   droppedContent: null,
   droppedName: null,
+  droppedActive: false,
   rootDir: null,
 };
 
@@ -82,6 +86,7 @@ export function initState(paths: string[], rootDir: string | null = null) {
   state.cachedContent = null;
   state.droppedContent = null;
   state.droppedName = null;
+  state.droppedActive = false;
   state.rootDir = rootDir;
 }
 
@@ -91,6 +96,56 @@ function activePaths(): string[] {
     : state.activeFile
       ? [state.activeFile]
       : [];
+}
+
+/**
+ * 実ファイル前提の処理（コメントの読み書き・チェックポイント・diff・
+ * リンク検査）の対象ファイル。
+ *
+ * ドロップ由来の擬似タブを選択中はファイル実体が無いので「対象なし」を返す。
+ * activeFile には直前まで開いていた実ファイルが残っているため、そのまま
+ * フォールバックさせると画面に出ていないファイルを読み書きしてしまう。
+ */
+function activeRealFile(): string | null {
+  return state.droppedActive ? null : state.activeFile;
+}
+
+export interface FileTabsState {
+  paths: string[];
+  activeFile: string | null;
+  droppedName: string | null;
+  droppedActive: boolean;
+}
+
+/**
+ * /files が返すタブ一覧と選択中タブを決める。
+ *
+ * ドロップされたファイルは、実ファイルを開いているかどうかに関わらず擬似タブ
+ * として末尾に並べる（並べないと、ファイルを開いた状態でのドロップが画面上の
+ * どこにも現れず無視されたように見える）。実ファイルが1つも無い場合は
+ * droppedActive に関係なく擬似タブが選択中になる（他に選べるものが無いため）。
+ */
+export function resolveFileTabs(s: FileTabsState): {
+  files: { path: string; name: string }[];
+  activeFile: string | null;
+} {
+  const files = s.paths.map((p) => ({ path: p, name: basename(p) }));
+  if (s.droppedName) files.push({ path: DROPPED_PATH, name: s.droppedName });
+  const droppedSelected =
+    s.droppedName !== null && (s.droppedActive || s.activeFile === null);
+  return {
+    files,
+    activeFile: droppedSelected ? DROPPED_PATH : s.activeFile,
+  };
+}
+
+function filesPayload(): ReturnType<typeof resolveFileTabs> {
+  return resolveFileTabs({
+    paths: activePaths(),
+    activeFile: state.activeFile,
+    droppedName: state.droppedName,
+    droppedActive: state.droppedActive,
+  });
 }
 
 function json(data: unknown, status = 200): Response {
@@ -114,7 +169,7 @@ function handleContent(url: URL): Response {
 
   if (fileParam && !allowed.has(fileParam)) return err('Forbidden', 403);
 
-  const target = fileParam ?? state.activeFile;
+  const target = fileParam ?? activeRealFile();
   try {
     if (target) {
       const text = readFileSync(target, 'utf-8');
@@ -381,7 +436,7 @@ function handleGetComments(url: URL): Response {
 
   if (fileParam && !allowed.has(fileParam)) return err('Forbidden', 403);
 
-  const target = fileParam ?? state.activeFile;
+  const target = fileParam ?? activeRealFile();
   if (!target) return json({ round: 0, comments: [] });
   try {
     return json({ round: readRound(target), comments: readComments(target) });
@@ -398,7 +453,7 @@ async function handleSaveComments(req: Request, url: URL): Promise<Response> {
     if (!allowed.has(fileParam)) return err('Forbidden', 403);
     target = fileParam;
   } else {
-    target = state.activeFile;
+    target = activeRealFile();
   }
   // 保存先が確定できない場合（ディレクトリモード起動直後で未選択、または
   // __dropped__ 表示中でファイル実体がない）はサイレントに 200 を返さず
@@ -414,24 +469,25 @@ async function handleSaveComments(req: Request, url: URL): Promise<Response> {
 }
 
 function handleFiles(): Response {
-  const paths = activePaths();
-  const files = paths.map((p) => ({ path: p, name: basename(p) }));
-  if (files.length === 0 && state.droppedName) {
-    files.push({ path: '__dropped__', name: state.droppedName });
-  }
-  const activeFile =
-    state.activeFile ?? (state.droppedName ? '__dropped__' : null);
-  return json({ files, activeFile });
+  return json(filesPayload());
 }
 
 async function handleSetActiveFile(req: Request): Promise<Response> {
   try {
     const { path } = (await req.json()) as { path: string };
+    // ドロップ由来の擬似タブへの切り替え。実ファイルの activeFile は
+    // 「擬似タブを閉じたときの戻り先」として残す。
+    if (path === DROPPED_PATH) {
+      if (!state.droppedName) return json({ error: 'invalid path' }, 400);
+      state.droppedActive = true;
+      return json(filesPayload());
+    }
     const allowed = new Set(activePaths());
     if (!path || !allowed.has(path))
       return json({ error: 'invalid path' }, 400);
     state.activeFile = path;
-    return json({});
+    state.droppedActive = false;
+    return json(filesPayload());
   } catch (e) {
     return err(String(e));
   }
@@ -440,14 +496,11 @@ async function handleSetActiveFile(req: Request): Promise<Response> {
 async function handleCloseFile(req: Request): Promise<Response> {
   try {
     const { path } = (await req.json()) as { path: string };
-    if (path === '__dropped__') {
+    if (path === DROPPED_PATH) {
       state.droppedContent = null;
       state.droppedName = null;
-      const activeFile = state.activeFile ?? null;
-      return json({
-        activeFile,
-        files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
-      });
+      state.droppedActive = false;
+      return json(filesPayload());
     }
     const idx = state.filePaths.indexOf(path);
     if (idx === -1) return json({ error: 'not found' }, 404);
@@ -456,10 +509,7 @@ async function handleCloseFile(req: Request): Promise<Response> {
       const next = state.filePaths[idx] ?? state.filePaths[idx - 1] ?? null;
       state.activeFile = next;
     }
-    return json({
-      activeFile: state.activeFile,
-      files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
-    });
+    return json(filesPayload());
   } catch (e) {
     return err(String(e));
   }
@@ -605,8 +655,11 @@ async function handleLinkCheck(req: Request): Promise<Response> {
   try {
     const { targets } = (await req.json()) as { targets?: unknown };
     if (!Array.isArray(targets)) return json({ error: 'invalid targets' }, 400);
-    if (!state.activeFile) return json({ results: [] });
-    const baseDir = dirname(state.activeFile);
+    // ドロップ由来の擬似タブにはファイル実体（＝相対リンクの基準ディレクトリ）
+    // が無いため、判定せず未確認扱いにする。
+    const target = activeRealFile();
+    if (!target) return json({ results: [] });
+    const baseDir = dirname(target);
     const results = checkLinkTargets(
       targets.filter((t): t is string => typeof t === 'string'),
       baseDir,
@@ -693,25 +746,33 @@ async function handleOpenFile(req: Request): Promise<Response> {
 
     if (!state.filePaths.includes(abs)) state.filePaths.push(abs);
     state.activeFile = abs;
+    state.droppedActive = false;
     recordRecent([abs]);
-    return json({
-      files: state.filePaths.map((p) => ({ path: p, name: basename(p) })),
-      activeFile: state.activeFile,
-    });
+    return json(filesPayload());
   } catch (e) {
     return err(String(e));
   }
 }
 
+/**
+ * ブラウザへドロップされた .md を受け取る。
+ *
+ * ファイル実体を持たない「ドロップ由来の擬似タブ」として保持し、そのまま
+ * 選択状態にする（実ファイルを開いていてもタブが増えて中身が切り替わる）。
+ * 保持できるドロップは1つで、続けてドロップすると擬似タブの中身が入れ替わる。
+ */
 async function handleSwitchFile(req: Request): Promise<Response> {
   try {
     const { content, filename } = (await req.json()) as {
       content: string;
       filename: string;
     };
+    if (typeof content !== 'string' || typeof filename !== 'string')
+      return json({ error: 'invalid payload' }, 400);
     state.droppedContent = content;
     state.droppedName = filename;
-    return json({});
+    state.droppedActive = true;
+    return json(filesPayload());
   } catch (e) {
     return err(String(e));
   }
@@ -719,12 +780,13 @@ async function handleSwitchFile(req: Request): Promise<Response> {
 
 function handleSetCheckpoint(): Response {
   try {
-    if (!state.activeFile) return json({ ok: true, lines: 0 });
-    const content = readFileSync(state.activeFile, 'utf-8');
-    writeCheckpoint(state.activeFile, content);
+    const target = activeRealFile();
+    if (!target) return json({ ok: true, lines: 0 });
+    const content = readFileSync(target, 'utf-8');
+    writeCheckpoint(target, content);
     // チェックポイント設定は「ラウンド境界」。以降に作られるコメントへ
     // 記録される round をここで進める。
-    const round = incrementRound(state.activeFile);
+    const round = incrementRound(target);
     return json({
       ok: true,
       lines: content.split('\n').length,
@@ -737,10 +799,11 @@ function handleSetCheckpoint(): Response {
 
 function handleDiff(): Response {
   try {
-    if (!state.activeFile) return json({ lines: [], hasCheckpoint: false });
-    const checkpoint = readCheckpoint(state.activeFile);
+    const target = activeRealFile();
+    if (!target) return json({ lines: [], hasCheckpoint: false });
+    const checkpoint = readCheckpoint(target);
     if (checkpoint === null) return json({ lines: [], hasCheckpoint: false });
-    const current = readFileSync(state.activeFile, 'utf-8');
+    const current = readFileSync(target, 'utf-8');
     return json({
       lines: computeDiff(checkpoint, current),
       hasCheckpoint: true,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import useSWR from 'swr';
+import { isDroppedPath } from '../../dropped.ts';
 import { fetcher } from '../lib/fetcher.ts';
 
 interface ContentData {
@@ -9,14 +10,20 @@ interface ContentData {
 
 const FALLBACK: ContentData = { content: '', filename: null };
 
+/**
+ * ドロップ由来の擬似タブ（およびファイル未選択）の内容を指す SWR キー。
+ * 擬似タブにはパスが無いため file パラメータを付けない。
+ */
+export const DROPPED_CONTENT_KEY = '/content';
+
 export function useContent(activeFile: string | null | undefined) {
   const [updateTime, setUpdateTime] = useState('');
   const [welcomeMsg, setWelcomeMsg] = useState('ファイルを読み込んでいます…');
 
   const key =
-    activeFile && activeFile !== '__dropped__'
+    activeFile && !isDroppedPath(activeFile)
       ? `/content?file=${encodeURIComponent(activeFile)}`
-      : '/content';
+      : DROPPED_CONTENT_KEY;
 
   // activeFile === undefined は /files 未解決を示すポーズ用センチネル。
   // ここで無条件に '/content' を叩くと、直後に file 確定後の

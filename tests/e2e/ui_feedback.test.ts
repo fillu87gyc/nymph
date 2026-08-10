@@ -139,6 +139,96 @@ test.describe('ドロップで実際にファイル内容が切り替わる（�
     });
   });
 
+  // ファイルを開いた状態でのドロップが「無視された」バグの回帰テスト。
+  // ドロップ由来の擬似タブは実ファイルが開いていても必ずタブとして増え、
+  // そのまま選択される（以前は実ファイルが1つでもあるとタブに現れず、
+  // 画面がまったく変わらなかった）。
+  test('ファイルを開いた状態で .md を drop するとタブが増えて内容が切り替わる', async ({
+    page,
+    fixturePath,
+  }) => {
+    // 既定の状態は fixture 1ファイルのみ（＝タブ行は非表示）
+    await expect(page.locator('#file-tabs')).not.toBeVisible();
+
+    await dropFile(page, 'dropped.md', '# Dropped Tab\n\nDropped body.\n');
+
+    const droppedTab = page.locator('#file-tabs button', {
+      hasText: 'dropped.md',
+    });
+    await expect(page.locator('#file-tabs')).toBeVisible({ timeout: 3000 });
+    await expect(droppedTab).toHaveAttribute('data-active', 'true');
+    await expect(page.locator('#content h1')).toContainText('Dropped Tab', {
+      timeout: 3000,
+    });
+
+    // 元のファイルのタブへ戻れる（ドロップで置き換わったわけではない）
+    const originalName = fixturePath.split('/').pop() ?? '';
+    const originalTab = page.locator('#file-tabs button', {
+      hasText: originalName,
+    });
+    await originalTab.click();
+    await expect(page.locator('#content h1')).toContainText('Sample');
+
+    // 擬似タブへも戻れる
+    await droppedTab.click();
+    await expect(page.locator('#content h1')).toContainText('Dropped Tab');
+
+    // ドロップした2件目も同じくタブで開く（1件目と入れ替わる）
+    await dropFile(page, 'dropped2.md', '# Second Drop\n\nSecond body.\n');
+    await expect(
+      page.locator('#file-tabs button', { hasText: 'dropped2.md' }),
+    ).toHaveAttribute('data-active', 'true');
+    await expect(page.locator('#content h1')).toContainText('Second Drop', {
+      timeout: 3000,
+    });
+
+    // 擬似タブを閉じると元のファイルだけに戻る
+    await page
+      .locator('#file-tabs button', { hasText: 'dropped2.md' })
+      .getByTestId('tab-close')
+      .click();
+    await expect(page.locator('#file-tabs')).not.toBeVisible();
+    await expect(page.locator('#content h1')).toContainText('Sample');
+  });
+
+  // 擬似タブを選択中はサーバー側の activeFile に直前の実ファイルが残る。
+  // その実ファイルのコメントが擬似タブ側に出て（かつ保存先にされて）
+  // しまわないことを確認する。
+  test('擬似タブを選択中は元ファイルのコメントが混ざらない', async ({
+    page,
+    fixturePath,
+  }) => {
+    await page.request.post(
+      `/comments?file=${encodeURIComponent(fixturePath)}`,
+      {
+        data: [
+          {
+            id: 'c_dropped_scope',
+            lineStart: 1,
+            lineEnd: 1,
+            block_type: 'paragraph',
+            context: 'Sample',
+            text: '元ファイルのコメント',
+          },
+        ],
+      },
+    );
+    await page.reload();
+    await expect(page.locator('#comment-count')).toContainText('1');
+
+    await dropFile(page, 'dropped.md', '# Dropped Tab\n\nDropped body.\n');
+
+    await expect(page.locator('#content h1')).toContainText('Dropped Tab', {
+      timeout: 3000,
+    });
+    await expect(page.locator('#comment-count')).toHaveCount(0);
+
+    // 元ファイルのタブへ戻すとコメントも戻る（消えたわけではない）
+    const originalName = fixturePath.split('/').pop() ?? '';
+    await page.locator('#file-tabs button', { hasText: originalName }).click();
+    await expect(page.locator('#comment-count')).toContainText('1');
+  });
+
   test('.md 以外を drop すると内容は変わらずトーストで拒否される', async ({
     page,
   }) => {

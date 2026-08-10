@@ -3,6 +3,7 @@ import HLJS_DARK from 'highlight.js/styles/tokyo-night-dark.min.css?url';
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSWRConfig } from 'swr';
+import { isDroppedPath } from '../dropped.ts';
 import styles from './App.module.css';
 import { CommentModal } from './components/CommentModal.tsx';
 import { CommentsPanel } from './components/CommentsPanel.tsx';
@@ -35,7 +36,7 @@ import { TermsWidget } from './components/widgets/TermsWidget.tsx';
 import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
-import { useContent } from './hooks/useContent.ts';
+import { DROPPED_CONTENT_KEY, useContent } from './hooks/useContent.ts';
 import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useOutsideDismiss } from './hooks/useDismiss.ts';
@@ -94,7 +95,7 @@ import {
   type WidgetPlacement,
   widgetPlacement,
 } from './lib/widgets.ts';
-import type { Comment, DictEntry, PendingComment } from './types.ts';
+import type { Comment, DictEntry, FileEntry, PendingComment } from './types.ts';
 
 const GOOGLE_FONTS_BASE = 'https://fonts.googleapis.com/css2?display=swap&';
 
@@ -679,7 +680,7 @@ export function App() {
 
   // Copy active file's full path
   function copyFilePath() {
-    if (!activeFile || activeFile === '__dropped__') {
+    if (!activeFile || isDroppedPath(activeFile)) {
       toast('コピーできるファイルがありません');
       return;
     }
@@ -838,7 +839,7 @@ export function App() {
 
   // ブックマーク対象: アクティブファイル優先、なければツリーのルート dir
   const bookmarkTarget =
-    activeFile && activeFile !== '__dropped__'
+    activeFile && !isDroppedPath(activeFile)
       ? { path: activeFile, type: 'file' as const }
       : root
         ? { path: root, type: 'dir' as const }
@@ -906,19 +907,31 @@ export function App() {
     }
     try {
       const content = await file.text();
-      await fetch('/switch-file', {
+      const res = await fetch('/switch-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, filename: file.name }),
       });
-      await mutate('/files');
+      if (!res.ok) throw new Error('ファイルを開けませんでした');
+      // ドロップは実ファイルを開いていてもタブが1つ増えて選択される。
+      // サーバーが返す新しいタブ一覧をそのまま反映する（返り値を使わず
+      // 再フェッチするだけだと、既に他のファイルを開いているときに
+      // 擬似タブが増えたことへ画面が追従しない）。
+      const updated = (await res.json()) as {
+        files: FileEntry[];
+        activeFile: string | null;
+      };
+      await mutate('/files', updated, { revalidate: false });
       await mutate(isCommentsKey);
-      // activeFile が __dropped__ から __dropped__ のまま（既にドロップ済みの
-      // 状態で別ファイルを再ドロップした）場合、useContent の SWR キーは
-      // '/content'（file パラメータ無し）のまま変化しないため、mutate('/files')
-      // だけでは再フェッチされず前回ドロップ分の内容が残ってしまう。
-      // ドロップ後は常に明示的に content key を再検証する。
-      await mutate(contentKey);
+      // ドロップ由来の擬似タブの内容は常に '/content'（file パラメータ無し）
+      // という同じキーで配信される。既にドロップ済みの状態で別ファイルを
+      // 再ドロップするとキーが変わらず前回分がそのまま残ってしまうため、
+      // いま読んだ内容でキャッシュを上書きしておく。
+      await mutate(
+        DROPPED_CONTENT_KEY,
+        { content, filename: file.name },
+        { revalidate: false },
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       toast(message || 'ファイルの読み込みに失敗しました');
@@ -1161,7 +1174,7 @@ export function App() {
         tocOpen={tocOpen}
         onToggleToc={() => setTocOpen((o) => !o)}
         onCopyReview={copyReview}
-        canCopyPath={!!activeFile && activeFile !== '__dropped__'}
+        canCopyPath={!!activeFile && !isDroppedPath(activeFile)}
         onCopyPath={copyFilePath}
         onClearAll={handleClearAll}
         onCheckpoint={handleCheckpoint}

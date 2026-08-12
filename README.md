@@ -45,6 +45,15 @@ bun install
 bun run src/cli.ts output.md
 ```
 
+クローンを指す `nymph` コマンドを常設するなら `bun link` を使います。以後は `git pull && bun run build` だけで最新（origin/main）に追従します。
+
+```bash
+bun run build   # dist は .gitignore 済みなので必須
+bun link        # ~/.bun/bin/nymph → クローンの src/cli.ts
+```
+
+`bun install -g github:fillu87gyc/nymph` は使わないでください。`dist/` は git に入っていないため、**サーバーは起動するのに画面が真っ白**という状態になります。
+
 ---
 
 ## 使い方

@@ -46,6 +46,10 @@ jobs:
       - run: bun run lint
       - run: bun run test
       - run: bun run build
+      # 作業ツリーではなく `npm pack` の中身に対して CLI を叩く。
+      # files の設定漏れ（過去に 1.0.3〜1.0.5 で publish 済み）と
+      # dist のビルド漏れは、ここでしか見つからない。
+      - run: bun run smoke:pack
 
   release:
     name: Release

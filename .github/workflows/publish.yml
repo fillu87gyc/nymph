@@ -10,6 +10,8 @@ name: Release
 #   1. Actions タブから「Run workflow」でバージョンを指定する（推奨）
 #   2. ローカルで `git tag v1.2.3 && git push origin v1.2.3` する
 # どちらも同じ job を通り、npm publish と GitHub Release 作成までを行う。
+# ただし 1 だけが package.json のバンプをコミットし戻す。2 はタグの位置を
+# 動かせないため、リポジトリのバージョンは古いまま残る。
 on:
   workflow_dispatch:
     inputs:
@@ -123,10 +125,13 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ steps.meta.outputs.version }}"
+          # cli.ts は package.json から読むので、直すのはここ一箇所だけでよい
           npm pkg set version="$VERSION"
-          sed -i "s/^const VERSION = '.*';/const VERSION = '$VERSION';/" src/cli.ts
-          # --version が新しいバージョンを返せることを確認する
-          grep -q "^const VERSION = '$VERSION';$" src/cli.ts
+          ACTUAL="$(npm pkg get version | tr -d '"')"
+          [ "$ACTUAL" = "$VERSION" ] || {
+            echo "::error::package.json のバージョンが '$VERSION' になりませんでした ('$ACTUAL')"
+            exit 1
+          }
 
       - run: bun install --frozen-lockfile
       - run: bun run build
@@ -140,14 +145,34 @@ jobs:
             exit 1
           fi
 
-      - name: タグを作成して push
+      # バンプはコミットし戻してからタグを打つ。ここを飛ばしていたため
+      # 1.0.2〜1.1.1 のタグはすべて package.json が 1.0.0 のままのコミットを
+      # 指していて、クローンの `nymph -v` も 1.0.0 を返し続けていた。
+      # push は force しない。main が動いていたら fast-forward できずに落ちるが、
+      # publish より前なので何も公開されないまま安全に止まる。
+      - name: バンプをコミットしてタグを作成する
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run && steps.tagstate.outputs.exists == 'false'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          if git diff --staged --quiet; then
+            echo "::notice::package.json は既に ${{ steps.meta.outputs.version }} のためコミットは作りません"
+          else
+            git commit -m "chore(release): v${{ steps.meta.outputs.version }} [skip ci]"
+            git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          fi
+          # タグは必ずバンプ済みのコミットに付ける（タグから中身が復元できるように）
           git tag -a "${{ steps.meta.outputs.tag }}" -m "Release ${{ steps.meta.outputs.tag }}"
           git push origin "${{ steps.meta.outputs.tag }}"
+
+      - name: タグ push 由来のリリースの注意
+        if: github.event_name == 'push'
+        run: |
+          echo "::warning::タグ push 由来のリリースは、タグの位置を動かせないため" \
+            "package.json のバンプをコミットし戻しません（リポジトリは古いバージョンのまま残ります）。" \
+            "追従させたい場合は Actions タブの Run workflow から実行してください"
 
       - name: npm に publish 済みか確認
         id: published

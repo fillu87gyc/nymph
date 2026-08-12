@@ -330,12 +330,21 @@ export function App() {
     return () => clearTimeout(timeoutId);
   }, [toastState]);
 
-  // SSE: ファイル変更と dict 更新を処理
-  useSSE((changedFile, dictUpdated) => {
-    if (dictUpdated) {
+  // SSE: ファイル変更・dict 更新・タブ一覧の変化を処理
+  useSSE((msg) => {
+    if (msg.dictUpdated) {
       revalidateDict();
       return;
     }
+    if (msg.filesChanged) {
+      // 別プロセスの `nymph <file>` 委譲や別ウィンドウの操作でタブ一覧が
+      // 変わった。/files を取り直せば activeFile 経由で本文・コメントも
+      // 追従する（履歴も委譲時に増えているので併せて取り直す）。
+      void mutate('/files');
+      void mutate('/recent');
+      return;
+    }
+    const changedFile = msg.file;
     if (!changedFile || !activeFile) return;
     if (changedFile === activeFile) {
       void mutate(contentKey);

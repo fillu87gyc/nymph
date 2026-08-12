@@ -22,6 +22,7 @@ import {
 } from './bookmarks.ts';
 import type { Comment } from './client/types.ts';
 import { DROPPED_PATH } from './dropped.ts';
+import { notifyFilesChanged, subscribeFilesChanged } from './filesChanged.ts';
 import { resolveFrontendUrl } from './frontendUrl.ts';
 import { flattenMdFiles, scanMdTree } from './fsTree.ts';
 import { checkLinkTargets } from './linkCheck.ts';
@@ -148,6 +149,19 @@ function filesPayload(): ReturnType<typeof resolveFileTabs> {
   });
 }
 
+/**
+ * タブ一覧を書き換えたハンドラの共通レスポンス。
+ *
+ * 呼び出したクライアントには新しいタブ一覧をそのまま返しつつ、SSE 接続中の
+ * すべての画面へ変化を push する。これが無いと、別プロセスの委譲
+ * （`nymph <file>` / `nymphx <file>` の再実行 → `/open-file`）や別ウィンドウの
+ * 操作でタブが増えても、開きっぱなしの画面はフォーカスが戻るまで追従しない。
+ */
+function filesChangedResponse(): Response {
+  notifyFilesChanged();
+  return json(filesPayload());
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -214,6 +228,7 @@ function handleWatch(): Response {
   let pingTimer: ReturnType<typeof setInterval>;
   let dictWatcher: FSWatcher | undefined;
   let dictRetryTimer: ReturnType<typeof setTimeout> | undefined;
+  let unsubscribeFiles: (() => void) | undefined;
 
   const stream = new ReadableStream({
     start(ctrl) {
@@ -339,6 +354,13 @@ function handleWatch(): Response {
         }
       };
 
+      // タブ一覧の変化（別プロセスの委譲・別ウィンドウの操作・ドロップ）を
+      // push する。ファイル内容と違い fs.watch では拾えないので、状態を
+      // 書き換えたハンドラからの通知を購読する。
+      unsubscribeFiles = subscribeFilesChanged(() => {
+        emit({ filesChanged: true });
+      });
+
       syncWatchers();
       attachDictWatcher();
 
@@ -352,6 +374,7 @@ function handleWatch(): Response {
     },
     cancel() {
       closed = true;
+      unsubscribeFiles?.();
       clearInterval(syncTimer);
       clearInterval(pingTimer);
       if (dictRetryTimer) clearTimeout(dictRetryTimer);
@@ -480,14 +503,14 @@ async function handleSetActiveFile(req: Request): Promise<Response> {
     if (path === DROPPED_PATH) {
       if (!state.droppedName) return json({ error: 'invalid path' }, 400);
       state.droppedActive = true;
-      return json(filesPayload());
+      return filesChangedResponse();
     }
     const allowed = new Set(activePaths());
     if (!path || !allowed.has(path))
       return json({ error: 'invalid path' }, 400);
     state.activeFile = path;
     state.droppedActive = false;
-    return json(filesPayload());
+    return filesChangedResponse();
   } catch (e) {
     return err(String(e));
   }
@@ -500,7 +523,7 @@ async function handleCloseFile(req: Request): Promise<Response> {
       state.droppedContent = null;
       state.droppedName = null;
       state.droppedActive = false;
-      return json(filesPayload());
+      return filesChangedResponse();
     }
     const idx = state.filePaths.indexOf(path);
     if (idx === -1) return json({ error: 'not found' }, 404);
@@ -509,7 +532,7 @@ async function handleCloseFile(req: Request): Promise<Response> {
       const next = state.filePaths[idx] ?? state.filePaths[idx - 1] ?? null;
       state.activeFile = next;
     }
-    return json(filesPayload());
+    return filesChangedResponse();
   } catch (e) {
     return err(String(e));
   }
@@ -748,7 +771,7 @@ async function handleOpenFile(req: Request): Promise<Response> {
     state.activeFile = abs;
     state.droppedActive = false;
     recordRecent([abs]);
-    return json(filesPayload());
+    return filesChangedResponse();
   } catch (e) {
     return err(String(e));
   }
@@ -772,7 +795,7 @@ async function handleSwitchFile(req: Request): Promise<Response> {
     state.droppedContent = content;
     state.droppedName = filename;
     state.droppedActive = true;
-    return json(filesPayload());
+    return filesChangedResponse();
   } catch (e) {
     return err(String(e));
   }

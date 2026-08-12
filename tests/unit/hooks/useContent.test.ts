@@ -2,7 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import { SWRConfig } from 'swr';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { useContent } from '../../../src/client/hooks/useContent.ts';
+import {
+  contentKeyFor,
+  DROPPED_CONTENT_KEY,
+  useContent,
+} from '../../../src/client/hooks/useContent.ts';
+import { DROPPED_PATH } from '../../../src/dropped.ts';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return createElement(
@@ -75,6 +80,21 @@ test('activeFile が __dropped__ のとき /content（パラメータなし）�
   const { result } = renderHook(() => useContent('__dropped__'), { wrapper });
   await waitFor(() => expect(result.current.source).toBe('# dropped'));
   expect(result.current.contentKey).toBe('/content');
+});
+
+test('contentKeyFor: 実ファイルはパス付きのキーになる', () => {
+  expect(contentKeyFor('/docs/a b.md')).toBe(
+    `/content?file=${encodeURIComponent('/docs/a b.md')}`,
+  );
+});
+
+// 擬似タブと「1つも開いていない」が同じキーになるため、この2状態のあいだの
+// 遷移では SWR がキー変化を検知できない（＝勝手には取り直さない）。全ファイルを
+// 閉じたときに本文を消すには、閉じる側が明示的に revalidate する必要がある。
+test('contentKeyFor: 擬似タブと未選択は同じキーに衝突する', () => {
+  expect(contentKeyFor(DROPPED_PATH)).toBe(DROPPED_CONTENT_KEY);
+  expect(contentKeyFor(null)).toBe(DROPPED_CONTENT_KEY);
+  expect(contentKeyFor(undefined)).toBe(DROPPED_CONTENT_KEY);
 });
 
 test('activeFile が undefined（/files 未解決）の間は fetch しない', async () => {

@@ -36,7 +36,11 @@ import { TermsWidget } from './components/widgets/TermsWidget.tsx';
 import { useBookmarks } from './hooks/useBookmarks.ts';
 import { useComments } from './hooks/useComments.ts';
 import { useConnectionStatus } from './hooks/useConnectionStatus.ts';
-import { DROPPED_CONTENT_KEY, useContent } from './hooks/useContent.ts';
+import {
+  contentKeyFor,
+  DROPPED_CONTENT_KEY,
+  useContent,
+} from './hooks/useContent.ts';
 import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useOutsideDismiss } from './hooks/useDismiss.ts';
@@ -889,8 +893,13 @@ export function App() {
 
   // Close file
   async function handleCloseFile(path: string) {
-    await closeFile(path);
+    const nextActive = await closeFile(path);
     await mutate(isCommentsKey);
+    // 擬似タブ（ドロップ）と「1つも開いていない」状態は同じ '/content' キーを
+    // 共有する。キーが変わらない遷移では SWR が取り直さないため、擬似タブを
+    // 最後に閉じても本文がキャッシュのまま画面に残り続けていた（全部閉じたのに
+    // welcome 画面にならない）。キーが変わらないときだけ明示的に取り直す。
+    if (contentKeyFor(nextActive) === contentKey) await mutate(contentKey);
   }
 
   // Drag & drop

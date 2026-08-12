@@ -1,5 +1,6 @@
 import { memo, useCallback, useRef } from 'react';
 import { esc } from '../lib/markdown.ts';
+import { MERMAID_SRC_ATTR } from '../lib/mermaidRender.ts';
 import type { BlockData } from '../lib/parseBlocks.ts';
 import type { Comment } from '../types.ts';
 import styles from './MarkdownBlock.module.css';
@@ -44,6 +45,10 @@ const StableContent = memo(
         <div
           className="mermaid"
           id={mermaidId}
+          // 描画後は innerHTML が SVG に置き換わり元のコードが失われるため、
+          // テーマ切替時に描き直せるようソースを属性にも残す
+          // （参照: lib/mermaidRender.ts）。
+          {...{ [MERMAID_SRC_ATTR]: mermaidCode ?? '' }}
           // mermaid.run() がこの要素の innerHTML を SVG へ置き換えるため、React の
           // 管理下に置くと再レンダリングで描画が競合する。esc() でエスケープ済みの
           // コードを一度だけ流し込み、以降は React に触らせない（children 化は

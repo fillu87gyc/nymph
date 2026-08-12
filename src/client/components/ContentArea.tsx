@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { waitForFonts } from '../lib/fontReady.ts';
 import { findTextRange } from '../lib/markdown.ts';
+import {
+  markMermaidNodesRendered,
+  resetStaleMermaidNodes,
+} from '../lib/mermaidRender.ts';
 import { parseBlocks } from '../lib/parseBlocks.ts';
 import type { BookmarkEntry, Comment, RecentEntry } from '../types.ts';
 import styles from './ContentArea.module.css';
@@ -212,10 +216,10 @@ export function ContentArea({
       try {
         const { default: mermaid } = await import('mermaid');
         if (cancelled) return;
-        const dark = isDarkTheme;
+        const theme = isDarkTheme ? 'dark' : 'default';
         mermaid.initialize({
           startOnLoad: false,
-          theme: dark ? 'dark' : 'default',
+          theme,
           securityLevel: 'loose',
           fontFamily: '"JetBrains Mono", monospace',
         });
@@ -229,7 +233,13 @@ export function ContentArea({
           '500 16px "JetBrains Mono"',
         ]);
         if (cancelled) return;
+        // mermaid.run() は描画済み（data-processed）の図をスキップするため、
+        // テーマ切替後もそのままでは前のテーマの色で残ってしまう。描き直しが
+        // 必要な図のマークを外してから run させる（フォント確定後に外すことで
+        // 生コードが見える時間を最小化する）。
+        resetStaleMermaidNodes(container, theme);
         await mermaid.run({ querySelector: '#content .mermaid' });
+        markMermaidNodesRendered(container, theme);
       } catch (e) {
         console.warn('mermaid:', e);
       }

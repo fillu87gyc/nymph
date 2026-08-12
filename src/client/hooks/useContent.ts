@@ -16,14 +16,25 @@ const FALLBACK: ContentData = { content: '', filename: null };
  */
 export const DROPPED_CONTENT_KEY = '/content';
 
+/**
+ * activeFile に対応する本文の SWR キー。
+ *
+ * 擬似タブ（ドロップ）と「ファイルを1つも開いていない」状態は、どちらも
+ * パスを持たないので同じ `DROPPED_CONTENT_KEY` になる。キーが同じままの
+ * 遷移では SWR は取り直さないため、その遷移を起こす側（タブを閉じる処理）が
+ * 明示的に revalidate する必要がある。
+ */
+export function contentKeyFor(activeFile: string | null | undefined): string {
+  return activeFile && !isDroppedPath(activeFile)
+    ? `/content?file=${encodeURIComponent(activeFile)}`
+    : DROPPED_CONTENT_KEY;
+}
+
 export function useContent(activeFile: string | null | undefined) {
   const [updateTime, setUpdateTime] = useState('');
   const [welcomeMsg, setWelcomeMsg] = useState('ファイルを読み込んでいます…');
 
-  const key =
-    activeFile && !isDroppedPath(activeFile)
-      ? `/content?file=${encodeURIComponent(activeFile)}`
-      : DROPPED_CONTENT_KEY;
+  const key = contentKeyFor(activeFile);
 
   // activeFile === undefined は /files 未解決を示すポーズ用センチネル。
   // ここで無条件に '/content' を叩くと、直後に file 確定後の

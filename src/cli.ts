@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
+import pkg from '../package.json' with { type: 'json' };
 import { backendUrl, resolveFrontendUrl } from './frontendUrl.ts';
 import { globScan } from './globScan.ts';
 import {
@@ -18,7 +19,12 @@ import { recordRecent } from './recent.ts';
 import { resolveInputs } from './resolveInputs.ts';
 import { createServer, initState, SERVER_HOSTNAME } from './server.ts';
 
-const VERSION = '1.0.0';
+// バージョンの出どころは package.json ひとつだけにする。ここに数値を
+// 直書きすると、リリース時に package.json と二箇所を揃える必要が出て、
+// 実際 1.0.2〜1.1.1 は cli.ts 側が 1.0.0 のまま publish されていた。
+// bin が src/cli.ts なので、この相対パスは npm インストール先でも
+// クローンでも `bun build --compile` でもパッケージルートを指す。
+const VERSION = pkg.version;
 
 const HELP = `\
 使い方: nymph [オプション] [ファイル|ディレクトリ ...]

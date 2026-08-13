@@ -41,6 +41,7 @@ function makeProps(
     onChangeContentFont: vi.fn(),
     ligaturesEnabled: true,
     onToggleLigatures: vi.fn(),
+    onShowShortcuts: vi.fn(),
     marginCollapse: { left: false, right: false },
     onToggleMargin: vi.fn(),
     manualWidth: null,

@@ -9,6 +9,7 @@ import {
 import {
   basename,
   dirname,
+  extname,
   isAbsolute,
   join,
   relative,
@@ -25,7 +26,8 @@ import { DROPPED_PATH } from './dropped.ts';
 import { notifyFilesChanged, subscribeFilesChanged } from './filesChanged.ts';
 import { resolveFrontendUrl } from './frontendUrl.ts';
 import { flattenMdFiles, scanMdTree } from './fsTree.ts';
-import { checkLinkTargets } from './linkCheck.ts';
+import { IMAGE_MIME } from './imageMime.ts';
+import { checkLinkTargets, resolveLinkTarget } from './linkCheck.ts';
 import { normalizePath } from './pathUtils.ts';
 import { isRecentPath, listRecent, recordRecent } from './recent.ts';
 import {
@@ -694,6 +696,54 @@ async function handleLinkCheck(req: Request): Promise<Response> {
   }
 }
 
+/**
+ * 本文中の相対パス画像を配信する。
+ *
+ * ブラウザは相対パスを画面の URL 基準で解決してしまうため、クライアントは
+ * `<img src>` をこの窓口へ向け直す（`client/lib/imageSrc.ts`）。`file` が
+ * 相対パスの起点、`path` が本文に書かれたままの行き先。
+ *
+ * 任意パスを読み出せる窓口にはしない。範囲はリンクの生死チェックと同じ
+ * ——ルートがあればルート配下、無ければ起点ファイルのディレクトリ配下——に
+ * 限り、拡張子が画像のものだけを返す。
+ */
+function handleImage(url: URL): Response {
+  const fileParam = url.searchParams.get('file');
+  const target = url.searchParams.get('path');
+  if (!target) return err('Bad request', 400);
+
+  // 起点にできるのは開いているファイルだけ（/content と同じ認可）。
+  if (fileParam && !new Set(activePaths()).has(fileParam))
+    return err('Forbidden', 403);
+  const base = fileParam ?? activeRealFile();
+  if (!base) return err('Not found', 404);
+
+  const baseDir = dirname(base);
+  const abs = resolveLinkTarget(target, baseDir, state.rootDir ?? baseDir);
+  if (abs === null) return err('Forbidden', 403);
+  const mime = IMAGE_MIME[extname(abs).toLowerCase()];
+  if (!mime) return err('Forbidden', 403);
+
+  try {
+    if (!statSync(abs).isFile()) return err('Not found', 404);
+  } catch {
+    return err('Not found', 404);
+  }
+
+  return new Response(Bun.file(abs), {
+    headers: {
+      'Content-Type': mime,
+      // 拡張子で決めた型以外に解釈させない。SVG が単体で開かれても
+      // スクリプト等を動かさないよう、実行できるものを何も許可しない。
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy':
+        "default-src 'none'; style-src 'unsafe-inline'",
+      // 画像を差し替えたらリロードで反映されてほしい（ホットリロードと同じ体感）。
+      'Cache-Control': 'no-cache',
+    },
+  });
+}
+
 function handleRecent(): Response {
   const files = listRecent().map((e) => ({
     path: e.path,
@@ -1045,6 +1095,7 @@ export function createServer(port: number) {
         if (path === '/comments') return handleGetComments(url);
         if (path === '/diff') return handleDiff();
         if (path === '/files') return handleFiles();
+        if (path === '/image') return handleImage(url);
         if (path === '/recent') return handleRecent();
         if (path === '/search') return handleSearch(url);
         if (path === '/tree') return handleTree();

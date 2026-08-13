@@ -1292,6 +1292,7 @@ export function App() {
               )}
               <ContentArea
                 source={source}
+                activeFile={activeFile}
                 comments={comments}
                 isDarkTheme={hljsTheme === 'dark'}
                 highlightedBlockLs={highlightedBlockLs}

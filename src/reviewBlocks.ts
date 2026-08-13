@@ -14,19 +14,8 @@ import { extname } from 'node:path';
 import { Marked, type Tokens } from 'marked';
 import { assignLines, esc, getBlockTokensDFS } from './client/lib/markdown.ts';
 import type { Comment } from './client/types.ts';
+import { IMAGE_MIME } from './imageMime.ts';
 import { resolveLinkTarget } from './linkCheck.ts';
-
-/** データ URI に埋め込む画像の拡張子と MIME。ここに無い拡張子は埋め込まない。 */
-const IMAGE_MIME: Record<string, string> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.bmp': 'image/bmp',
-};
 
 /** 1 枚あたりの埋め込み上限。これを超える画像は元の src のまま残す。 */
 export const MAX_EMBED_IMAGE_BYTES = 2 * 1024 * 1024;

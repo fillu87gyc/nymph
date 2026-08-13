@@ -45,6 +45,15 @@ bun install
 bun run src/cli.ts output.md
 ```
 
+クローンを指す `nymph` コマンドを常設するなら `bun link` を使います。以後は `git pull && bun run build` だけで最新（origin/main）に追従します。
+
+```bash
+bun run build   # dist は .gitignore 済みなので必須
+bun link        # ~/.bun/bin/nymph → クローンの src/cli.ts
+```
+
+`bun install -g github:fillu87gyc/nymph` は使わないでください。`dist/` は git に入っていないため、**サーバーは起動するのに画面が真っ白**という状態になります。
+
 ---
 
 ## 使い方
@@ -321,7 +330,10 @@ bun run dev        # API サーバー(:6276) + Vite(:5173) を同時起動
 bun run test       # 単体 + コンポーネントテスト (Vitest 3)
 bun run test:e2e   # E2E テスト (Playwright)
 bun run build      # プロダクションビルド (Vite 7)
+bun run smoke:pack # 公開物（npm pack）をインストールして CLI 入口を叩く
 ```
+
+`smoke:pack` は `package.json` の `files` から実ファイルが漏れたまま publish される事故を止めるためのものです（`bin` が TypeScript ソースを直接指す構成なので、相対 import はすべて同梱されている必要があります）。作業ツリーで `bun run src/cli.ts` を叩いても漏れは再現しないため、`npm pack` の成果物を隔離ディレクトリへインストールして検証します。リリース時は CI（`.github/workflows/publish.yml` の verify job）が自動で実行します。
 
 dev ではフロントのアセットを配っているのは Vite dev server（:5173）で、API サーバー（:6276）を開いてもビルド済みの古い `dist/` が返るだけです。そのため CLI は「開くべき URL」としてフロント側を表示し、API のポートは補助的に添えます。
 

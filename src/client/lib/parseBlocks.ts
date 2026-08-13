@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import type { CodeContext, TableContext } from '../types.ts';
+import { rewriteImageSrc } from './imageSrc.ts';
 import { assignLines, esc, getBlockTokensDFS } from './markdown.ts';
 import { sanitizeHtml } from './sanitize.ts';
 
@@ -19,7 +20,17 @@ export interface BlockData {
   mermaidId?: string;
 }
 
-export function parseBlocks(src: string): BlockData[] {
+/**
+ * 本文をブロック（コメントが紐づく単位）へ分解し、描画用の HTML を作る。
+ *
+ * @param src  Markdown 本文
+ * @param file 表示中の md ファイルの絶対パス。本文中の相対パス画像は
+ *             このファイルの位置を起点に解決する（`imageSrc.ts`）。
+ */
+export function parseBlocks(
+  src: string,
+  file: string | null = null,
+): BlockData[] {
   const tokens = marked.lexer(src);
   assignLines(src, tokens);
   const blockTokens = getBlockTokensDFS(tokens);
@@ -85,7 +96,10 @@ export function parseBlocks(src: string): BlockData[] {
       };
       blocks.push({
         key: `block-${blocks.length}`,
-        html: sanitizeHtml(marked.parse(t.raw) as string),
+        html: rewriteImageSrc(
+          sanitizeHtml(marked.parse(t.raw) as string),
+          file,
+        ),
         lineStart,
         lineEnd,
         type: 'table',
@@ -95,7 +109,10 @@ export function parseBlocks(src: string): BlockData[] {
       // heading, paragraph, blockquote, list, hr, html
       blocks.push({
         key: `block-${blocks.length}`,
-        html: sanitizeHtml((marked.parse(t.raw) as string).trim()),
+        html: rewriteImageSrc(
+          sanitizeHtml((marked.parse(t.raw) as string).trim()),
+          file,
+        ),
         lineStart,
         lineEnd,
         type: t.type,

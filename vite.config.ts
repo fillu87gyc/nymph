@@ -53,6 +53,7 @@ export default defineConfig({
       '/comments': backendOrigin,
       '/watch': backendOrigin,
       '/files': backendOrigin,
+      '/image': backendOrigin,
       '/diff': backendOrigin,
       '/checkpoint': backendOrigin,
       '/active-file': backendOrigin,

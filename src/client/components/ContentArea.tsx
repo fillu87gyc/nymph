@@ -8,6 +8,8 @@ import { MarkdownBlock } from './MarkdownBlock.tsx';
 
 interface ContentAreaProps {
   source: string;
+  /** 表示中のファイルの絶対パス。本文中の相対パス画像の解決起点になる。 */
+  activeFile?: string | null;
   comments: Comment[];
   isDarkTheme: boolean;
   highlightedBlockLs: number | null;
@@ -39,6 +41,7 @@ interface ContentAreaProps {
 
 export function ContentArea({
   source,
+  activeFile = null,
   comments,
   isDarkTheme,
   highlightedBlockLs,
@@ -60,7 +63,10 @@ export function ContentArea({
   const commentRangesRef = useRef<Array<{ comment: Comment; range: Range }>>(
     [],
   );
-  const blocks = useMemo(() => parseBlocks(source), [source]);
+  const blocks = useMemo(
+    () => parseBlocks(source, activeFile),
+    [source, activeFile],
+  );
 
   const handleRef = useCallback(
     (key: string, el: HTMLElement | null) => {

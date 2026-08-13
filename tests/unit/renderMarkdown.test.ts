@@ -90,4 +90,29 @@ describe('parseBlocks', () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0].type).toBe('blockquote');
   });
+
+  test('画像の相対パスは md ファイル起点の /image に向く', () => {
+    const file = '/w/docs/guide.md';
+    const blocks = parseBlocks('![図](./img/a.png)', file);
+    expect(blocks[0].html).toContain(
+      `src="/image?file=${encodeURIComponent(file)}&amp;path=${encodeURIComponent('./img/a.png')}"`,
+    );
+  });
+
+  test('表の中の画像も /image に向く', () => {
+    const file = '/w/docs/guide.md';
+    const blocks = parseBlocks('| A |\n| --- |\n| ![図](./img/a.png) |', file);
+    expect(blocks[0].type).toBe('table');
+    expect(blocks[0].html).toContain('src="/image?file=');
+  });
+
+  test('外部 URL の画像と、ファイル未指定時の相対パスは書き換えない', () => {
+    expect(
+      parseBlocks('![図](https://example.com/a.png)', '/w/docs/guide.md')[0]
+        .html,
+    ).toContain('src="https://example.com/a.png"');
+    expect(parseBlocks('![図](./img/a.png)')[0].html).toContain(
+      'src="./img/a.png"',
+    );
+  });
 });

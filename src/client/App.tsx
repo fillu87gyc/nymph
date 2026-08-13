@@ -44,6 +44,7 @@ import {
 import { useDict } from './hooks/useDict.ts';
 import { useDiff } from './hooks/useDiff.ts';
 import { useOutsideDismiss } from './hooks/useDismiss.ts';
+import { type ExportOptions, useExport } from './hooks/useExport.ts';
 import { useFiles } from './hooks/useFiles.ts';
 import { useRecent } from './hooks/useRecent.ts';
 import { useSSE } from './hooks/useSSE.ts';
@@ -67,6 +68,7 @@ import {
   saveMarginCollapse,
 } from './lib/contentWidth.ts';
 import { summarizeDiff } from './lib/diffSummary.ts';
+import type { ExportFormat } from './lib/exportFile.ts';
 import { DEFAULT_CONTENT_FONT_ID, getContentFontOption } from './lib/fonts.ts';
 import {
   applyLigatures,
@@ -247,6 +249,9 @@ export function App() {
   const [quickOpenOpen, setQuickOpenOpen] = useState(false);
   const { root, rootName, tree, openDir, pickDir } = useTree();
   const { bookmarks, toggle: toggleBookmark, isBookmarked } = useBookmarks();
+  const { canExport, exportDocument } = useExport(
+    filesLoaded ? activeFile : undefined,
+  );
   const { source, updateTime, welcomeMsg, contentKey } = useContent(
     filesLoaded ? activeFile : undefined,
   );
@@ -707,6 +712,13 @@ export function App() {
   // ここはブラウザの印刷ダイアログを開くだけ。Ctrl/Cmd+P からでも同じ結果になる。
   function handlePrint() {
     window.print();
+  }
+
+  // CLI（--export / --annotate / nymph export）と同じ形式で書き出す。
+  // 生成物はサーバーに残さず、ブラウザのダウンロードとして受け取る。
+  async function handleExport(format: ExportFormat, options: ExportOptions) {
+    const result = await exportDocument(format, options);
+    toast(result.ok ? `${result.filename} を書き出しました` : result.error);
   }
 
   async function handleDeleteComment(id: Comment['id']) {
@@ -1197,6 +1209,8 @@ export function App() {
         onClearAll={handleClearAll}
         onCheckpoint={handleCheckpoint}
         onPrint={handlePrint}
+        onExport={(format, options) => void handleExport(format, options)}
+        canExport={canExport}
         onToggleDiff={toggleDiff}
         onToggleTheme={handleToggleTheme}
         contentFontId={contentFontId}

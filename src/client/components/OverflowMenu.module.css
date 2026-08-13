@@ -29,3 +29,44 @@
   background: var(--border);
   margin: 4px 2px;
 }
+
+/* エクスポート群の見出し。項目と同じ左端に揃え、押せないことが分かるよう
+   ボタンより一段落とした文字色にする。 */
+.groupLabel {
+  margin: 6px 2px 2px;
+  padding: 0 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* Mermaid 同梱トグル。クリックしてもメニューは閉じない（選んでから
+   HTML を押す 2 段操作のため）。 */
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.checkRow input {
+  flex: none;
+  margin: 0;
+  /* 既定のチェックボックスはダークテーマの中で白い箱として浮くため、
+     他の操作系と同じアクセント色に寄せる。 */
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.checkRow[data-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+.checkRow[data-disabled="true"] input {
+  cursor: default;
+}

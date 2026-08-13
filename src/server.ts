@@ -21,11 +21,14 @@ import {
   listBookmarks,
   toggleBookmark,
 } from './bookmarks.ts';
+import { isExportFormat } from './client/lib/exportFile.ts';
 import type { Comment } from './client/types.ts';
 import { DROPPED_PATH } from './dropped.ts';
+import { buildExportPayload, contentDisposition } from './exportPayload.ts';
 import { notifyFilesChanged, subscribeFilesChanged } from './filesChanged.ts';
 import { resolveFrontendUrl } from './frontendUrl.ts';
 import { flattenMdFiles, scanMdTree } from './fsTree.ts';
+import { readMermaidBundle } from './htmlExport.ts';
 import { IMAGE_MIME } from './imageMime.ts';
 import { checkLinkTargets, resolveLinkTarget } from './linkCheck.ts';
 import { normalizePath } from './pathUtils.ts';
@@ -744,6 +747,50 @@ function handleImage(url: URL): Response {
   });
 }
 
+/**
+ * 画面からのエクスポート（⋯ → エクスポート）。
+ *
+ * CLI の `--export` / `--annotate` / `nymph export` と同じ中身を、ダウンロード
+ * として返す。生成物はサーバーのディスクに残さない——書き出し先を選ぶのは
+ * ブラウザ（保存ダイアログ / ダウンロードフォルダ）の仕事で、こちらが勝手に
+ * ファイルを作ると「画面を触っただけでファイルが増える」ことになるため。
+ *
+ * 対象にできるのは開いているファイルだけ（`/content` と同じ認可）。ドロップ
+ * 由来の擬似タブはファイル実体もコメントの保存先も無いので断る。
+ */
+function handleExport(url: URL): Response {
+  const formatParam = url.searchParams.get('format') ?? 'html';
+  if (!isExportFormat(formatParam)) return err('Bad request', 400);
+
+  const fileParam = url.searchParams.get('file');
+  if (fileParam && !new Set(activePaths()).has(fileParam))
+    return err('Forbidden', 403);
+  const target = fileParam ?? activeRealFile();
+  if (!target) return err('エクスポートできるファイルがありません', 400);
+
+  // Mermaid の同梱は明示的に選ばれたときだけ（生成物が 3MB 以上大きくなる）。
+  // CLI の `--export-mermaid` と同じ既定。
+  const embedMermaid =
+    formatParam === 'html' && url.searchParams.get('mermaid') === '1';
+
+  try {
+    const payload = buildExportPayload(target, formatParam, {
+      loadMermaidBundle: embedMermaid ? readMermaidBundle : undefined,
+    });
+    return new Response(payload.body, {
+      headers: {
+        'Content-Type': payload.contentType,
+        'Content-Disposition': contentDisposition(payload.filename),
+        // レビューは書くたびに変わる。ブラウザに古い版を配らせない。
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : String(e));
+  }
+}
+
 function handleRecent(): Response {
   const files = listRecent().map((e) => ({
     path: e.path,
@@ -1094,6 +1141,7 @@ export function createServer(port: number) {
         if (path === '/watch') return handleWatch();
         if (path === '/comments') return handleGetComments(url);
         if (path === '/diff') return handleDiff();
+        if (path === '/export') return handleExport(url);
         if (path === '/files') return handleFiles();
         if (path === '/image') return handleImage(url);
         if (path === '/recent') return handleRecent();

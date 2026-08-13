@@ -127,6 +127,22 @@ export function buildReviewBlocks(src: string, md: Marked): ReviewBlock[] {
   return blocks;
 }
 
+/**
+ * 本文に Mermaid 図が含まれるか。
+ *
+ * 判定は `buildReviewBlocks` と同じ lang 見分け（marked のトークン）に揃える。
+ * 「同梱バンドル（3MB）を読むかどうか」の前判定に使うため、独自の正規表現で
+ * 数えるとここだけ食い違って「図があるのに同梱されない／無いのに読みに行って
+ * 失敗する」が起きる。レンダリングはしないので副作用は無い。
+ */
+export function containsMermaid(src: string): boolean {
+  for (const t of getBlockTokensDFS(new Marked().lexer(src))) {
+    if (t.type === 'code' && (t.lang === 'mermaid' || t.lang === 'mmd'))
+      return true;
+  }
+  return false;
+}
+
 /** HTML タグを落として本文テキストだけにする（選択コメントの照合用）。 */
 function stripTags(html: string): string {
   return html

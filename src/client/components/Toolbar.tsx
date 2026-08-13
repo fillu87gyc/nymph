@@ -1,4 +1,6 @@
+import type { ExportOptions } from '../hooks/useExport.ts';
 import type { MarginCollapse } from '../lib/contentWidth.ts';
+import type { ExportFormat } from '../lib/exportFile.ts';
 import type { OutlineBadgeMode } from '../lib/outline.ts';
 import type { BookmarkEntry, RecentEntry } from '../types.ts';
 import { OpenFileButton } from './OpenFileButton.tsx';
@@ -36,6 +38,9 @@ interface ToolbarProps {
   onCheckpoint: () => void;
   /** 印刷 / PDF 保存（⋯ メニュー内）。 */
   onPrint: () => void;
+  /** CLI と同じ形式で書き出す（⋯ メニュー内）。 */
+  onExport: (format: ExportFormat, options: ExportOptions) => void;
+  canExport: boolean;
   onToggleDiff: () => void;
   onToggleTheme: () => void;
   contentFontId: string;
@@ -81,6 +86,8 @@ export function Toolbar({
   onClearAll,
   onCheckpoint,
   onPrint,
+  onExport,
+  canExport,
   onToggleDiff,
   onToggleTheme,
   contentFontId,
@@ -192,6 +199,8 @@ export function Toolbar({
         checkpointSet={checkpointSet}
         onCheckpoint={onCheckpoint}
         onPrint={onPrint}
+        onExport={onExport}
+        canExport={canExport}
         onDictSync={onDictSync}
         isDictSyncing={isDictSyncing}
         onClearAll={onClearAll}

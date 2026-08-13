@@ -55,6 +55,7 @@ export default defineConfig({
       '/files': backendOrigin,
       '/image': backendOrigin,
       '/diff': backendOrigin,
+      '/export': backendOrigin,
       '/checkpoint': backendOrigin,
       '/active-file': backendOrigin,
       '/switch-file': backendOrigin,

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import { useEscapeDismiss, useOutsideDismiss } from '../hooks/useDismiss.ts';
+import type { ExportOptions } from '../hooks/useExport.ts';
+import type { ExportFormat } from '../lib/exportFile.ts';
 import { OpenDirButton } from './OpenDirButton.tsx';
 import styles from './OverflowMenu.module.css';
 
@@ -14,6 +16,10 @@ interface OverflowMenuProps {
   onCheckpoint: () => void;
   /** ブラウザの印刷ダイアログを開く（そのまま PDF に保存できる）。 */
   onPrint: () => void;
+  /** CLI と同じ形式（HTML / Markdown / CSV）で書き出す。 */
+  onExport: (format: ExportFormat, options: ExportOptions) => void;
+  /** エクスポートできる状態か（ドロップ由来の擬似タブでは書き出せない）。 */
+  canExport: boolean;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
   onClearAll: () => void;
@@ -35,11 +41,16 @@ export function OverflowMenu({
   checkpointSet,
   onCheckpoint,
   onPrint,
+  onExport,
+  canExport,
   onDictSync,
   isDictSyncing,
   onClearAll,
 }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
+  // Mermaid の同梱は既定で off（CLI の `--export-mermaid` と同じ）。
+  // 生成物が 3MB 以上大きくなるため、選んだ人にだけ渡す。
+  const [embedMermaid, setEmbedMermaid] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // 項目実行前にメニューを閉じる（全項目共通）
@@ -134,6 +145,61 @@ export function OverflowMenu({
               onClick={() => runAndClose(onPrint)}
             >
               🖨 印刷 / PDF
+            </button>
+          </div>
+          {/* CLI（--export / --annotate / nymph export）と同じ 3 形式を画面からも
+              落とせるようにする。印刷（＝PDF）の隣に置くのは、どちらも
+              「レビュー結果を nymph の外へ持ち出す」操作だから。 */}
+          <div className={styles.groupLabel}>エクスポート</div>
+          <div className={styles.row}>
+            <button
+              type="button"
+              className="btn"
+              id="btn-export-html"
+              data-testid="export-html-btn"
+              title="本文とコメントを 1 枚の静的 HTML にする（単体で開ける）"
+              disabled={!canExport}
+              onClick={() =>
+                runAndClose(() => onExport('html', { mermaid: embedMermaid }))
+              }
+            >
+              📄 HTML（コメント入り）
+            </button>
+          </div>
+          <label className={styles.checkRow} data-disabled={String(!canExport)}>
+            <input
+              type="checkbox"
+              data-testid="export-mermaid-toggle"
+              checked={embedMermaid}
+              disabled={!canExport}
+              onChange={(e) => setEmbedMermaid(e.target.checked)}
+            />
+            <span>Mermaid を同梱（HTML のみ・約 3MB 増）</span>
+          </label>
+          <div className={styles.row}>
+            <button
+              type="button"
+              className="btn"
+              id="btn-export-md"
+              data-testid="export-md-btn"
+              title="コメントを本文へ書き戻した Markdown を書き出す"
+              disabled={!canExport}
+              onClick={() => runAndClose(() => onExport('md', {}))}
+            >
+              📝 Markdown（コメント入り）
+            </button>
+          </div>
+          <div className={styles.row}>
+            <button
+              type="button"
+              className="btn"
+              id="btn-export-csv"
+              data-testid="export-csv-btn"
+              title="コメントを 1 件 1 行の CSV にする（表計算ソフト向け）"
+              disabled={!canExport}
+              onClick={() => runAndClose(() => onExport('csv', {}))}
+            >
+              📊 CSV（コメント一覧）
             </button>
           </div>
           {onDictSync && (

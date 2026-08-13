@@ -16,6 +16,8 @@ function makeProps(
     checkpointSet: false,
     onCheckpoint: vi.fn(),
     onPrint: vi.fn(),
+    onExport: vi.fn(),
+    canExport: true,
     onClearAll: vi.fn(),
     ...overrides,
   };
@@ -162,6 +164,76 @@ describe('OverflowMenu', () => {
     await userEvent.click(btn);
     expect(onPrint).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+  });
+
+  describe('エクスポート（CLI と同じ 3 形式）', () => {
+    test('HTML / Markdown / CSV の 3 項目が出る', async () => {
+      render(<OverflowMenu {...makeProps()} />);
+      await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+
+      expect(screen.getByTestId('export-html-btn')).toBeInTheDocument();
+      expect(screen.getByTestId('export-md-btn')).toBeInTheDocument();
+      expect(screen.getByTestId('export-csv-btn')).toBeInTheDocument();
+    });
+
+    test.each([
+      ['export-html-btn', 'html'],
+      ['export-md-btn', 'md'],
+      ['export-csv-btn', 'csv'],
+    ] as const)('%s クリックで onExport(%s) が呼ばれメニューが閉じる', async (testId, format) => {
+      const onExport = vi.fn();
+      render(<OverflowMenu {...makeProps({ onExport })} />);
+      await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+      await userEvent.click(screen.getByTestId(testId));
+
+      expect(onExport).toHaveBeenCalledTimes(1);
+      expect(onExport.mock.calls[0][0]).toBe(format);
+      expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+    });
+
+    test('Mermaid 同梱は既定で off（生成物を 3MB 太らせない）', async () => {
+      const onExport = vi.fn();
+      render(<OverflowMenu {...makeProps({ onExport })} />);
+      await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+
+      expect(screen.getByTestId('export-mermaid-toggle')).not.toBeChecked();
+      await userEvent.click(screen.getByTestId('export-html-btn'));
+      expect(onExport).toHaveBeenCalledWith('html', { mermaid: false });
+    });
+
+    test('Mermaid 同梱を入れてもメニューは閉じず、次の HTML 出力に反映される', async () => {
+      const onExport = vi.fn();
+      render(<OverflowMenu {...makeProps({ onExport })} />);
+      await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+      await userEvent.click(screen.getByTestId('export-mermaid-toggle'));
+
+      // 選んでから HTML を押す 2 段操作なので、ここで閉じては困る
+      expect(screen.getByTestId('overflow-menu')).toBeInTheDocument();
+      expect(screen.getByTestId('export-mermaid-toggle')).toBeChecked();
+
+      await userEvent.click(screen.getByTestId('export-html-btn'));
+      expect(onExport).toHaveBeenCalledWith('html', { mermaid: true });
+    });
+
+    test('Mermaid 同梱は HTML 以外には渡さない', async () => {
+      const onExport = vi.fn();
+      render(<OverflowMenu {...makeProps({ onExport })} />);
+      await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+      await userEvent.click(screen.getByTestId('export-mermaid-toggle'));
+      await userEvent.click(screen.getByTestId('export-md-btn'));
+
+      expect(onExport).toHaveBeenCalledWith('md', {});
+    });
+
+    test('canExport が false のとき 3 項目とトグルが無効化される', async () => {
+      render(<OverflowMenu {...makeProps({ canExport: false })} />);
+      await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+
+      expect(screen.getByTestId('export-html-btn')).toBeDisabled();
+      expect(screen.getByTestId('export-md-btn')).toBeDisabled();
+      expect(screen.getByTestId('export-csv-btn')).toBeDisabled();
+      expect(screen.getByTestId('export-mermaid-toggle')).toBeDisabled();
+    });
   });
 
   test('すべて削除クリックで onClearAll が呼ばれメニューが閉じる', async () => {

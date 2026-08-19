@@ -18,6 +18,7 @@ import { FileTree } from './components/FileTree.tsx';
 import { MermaidZoomModal } from './components/MermaidZoomModal.tsx';
 import { QuickOpen } from './components/QuickOpen.tsx';
 import { SelectionPopup } from './components/SelectionPopup.tsx';
+import { ShortcutsModal } from './components/ShortcutsModal.tsx';
 import { TOAST_DURATION_MS, Toast } from './components/Toast.tsx';
 import { TocPanel } from './components/TocPanel.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
@@ -82,6 +83,7 @@ import {
   type OutlineBadgeMode,
   saveOutlineBadgeMode,
 } from './lib/outline.ts';
+import { isTypingTarget, matchShortcut } from './lib/shortcuts.ts';
 import {
   loadSlotWidths,
   type SlotWidths,
@@ -208,6 +210,8 @@ export function App() {
     null,
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // キーボードショートカット一覧（? で開閉。⋯ メニューからも開ける）。
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [drawioOpen, setDrawioOpen] = useState(false);
   const [drawioCode, setDrawioCode] = useState<string | null>(null);
   const [mermaidZoomHtml, setMermaidZoomHtml] = useState<string | null>(null);
@@ -401,12 +405,14 @@ export function App() {
     }
   }
 
-  function handleToggleTheme() {
+  // ショートカット（T）の購読からも呼ぶため、レンダーごとに識別子が変わらないよう
+  // useCallback で包む（変わると keydown を張り直すことになる）。
+  const handleToggleTheme = useCallback(() => {
     const next = hljsTheme === 'light' ? 'dark' : 'light';
     setHljsTheme(next);
     document.documentElement.dataset.theme = next;
     localStorage.setItem('nymph-theme', next);
-  }
+  }, [hljsTheme]);
 
   function handleChangeContentFont(id: string) {
     setContentFontId(id);
@@ -886,22 +892,57 @@ export function App() {
     }
   }, [bookmarkTarget, toggleBookmark]);
 
-  // ショートカット: Ctrl/Cmd+P で Quick Open
-  // （ブラウザの印刷ダイアログは preventDefault で抑止。Ctrl/Cmd+R はブラウザのリロードに譲る）
+  // 画面を覆っているもの。修飾キー無しの 1 文字ショートカットは、これが出ている
+  // 間は拾わない（読んでいる / 入力している裏で背後の画面が変わらないように）。
+  // Ctrl/Cmd+P だけは従来どおり、開いていても閉じるために効かせる。
+  const overlayOpen =
+    commentModal !== null ||
+    confirmOpen ||
+    drawioOpen ||
+    mermaidZoomHtml !== null ||
+    widgetArrangeOpen ||
+    quickOpenOpen;
+
+  // ショートカット（一覧は ? で出る。定義と判定は lib/shortcuts.ts）
+  // Ctrl/Cmd+P はブラウザの印刷ダイアログを preventDefault で抑止して Quick Open に
+  // 充てる（Ctrl/Cmd+R はブラウザのリロードに譲る）。印刷は ⋯ メニューから。
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.isComposing) return;
-      if (!(e.ctrlKey || e.metaKey)) return;
-      const key = e.key.toLowerCase();
-      if (key === 'p') {
+      const action = matchShortcut(e);
+      if (action === null) return;
+
+      if (action === 'quick-open') {
         e.preventDefault();
         setRecentOpen(false);
         setQuickOpenOpen((o) => !o);
+        return;
+      }
+
+      // ここから先は修飾キー無しの 1 文字。入力欄と重なる場面では譲る。
+      if (isTypingTarget(e.target)) return;
+      if (overlayOpen) return;
+
+      if (action === 'toggle-help') {
+        e.preventDefault();
+        setShortcutsOpen((o) => !o);
+        return;
+      }
+      // 一覧を開いている間は残りを止める（閉じるのは ? と Esc）
+      if (shortcutsOpen) return;
+      e.preventDefault();
+      if (action === 'toggle-comments') {
+        // 枠に置いたコメントパネルは常時表示で panelOpen を見ないため、
+        // 押しても何も起きない。開閉できるのは既定位置（下のドック）のときだけ。
+        if (widgetPlacement(widgetLayout, 'comments') === null) {
+          setPanelOpen((o) => !o);
+        }
+      } else {
+        handleToggleTheme();
       }
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [overlayOpen, shortcutsOpen, widgetLayout, handleToggleTheme]);
 
   // Close file
   async function handleCloseFile(path: string) {
@@ -1219,6 +1260,7 @@ export function App() {
         onToggleLigatures={handleToggleLigatures}
         onDictSync={handleDictSync}
         isDictSyncing={isDictSyncing}
+        onShowShortcuts={() => setShortcutsOpen(true)}
         marginCollapse={marginCollapse}
         onToggleMargin={toggleMargin}
         manualWidth={manualWidth}
@@ -1395,6 +1437,9 @@ export function App() {
           html={mermaidZoomHtml}
           onClose={() => setMermaidZoomHtml(null)}
         />
+      )}
+      {shortcutsOpen && (
+        <ShortcutsModal onClose={() => setShortcutsOpen(false)} />
       )}
       {!diffMode && (
         <SelectionPopup

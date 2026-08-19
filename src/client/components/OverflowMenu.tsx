@@ -22,6 +22,8 @@ interface OverflowMenuProps {
   canExport: boolean;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
+  /** キーボードショートカット一覧を開く（`?` と同じ）。 */
+  onShowShortcuts: () => void;
   onClearAll: () => void;
 }
 
@@ -45,6 +47,7 @@ export function OverflowMenu({
   canExport,
   onDictSync,
   isDictSyncing,
+  onShowShortcuts,
   onClearAll,
 }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
@@ -215,6 +218,20 @@ export function OverflowMenu({
               </button>
             </div>
           )}
+          {/* ショートカットは `?` で出るが、キーを知らなければ辿り着けない。
+              メニューに口を用意して、キー割り当てごと見つけられるようにする。 */}
+          <div className={styles.row}>
+            <button
+              type="button"
+              className="btn"
+              id="btn-shortcuts"
+              data-testid="shortcuts-btn"
+              title="キーボードショートカットの一覧を表示（?）"
+              onClick={() => runAndClose(onShowShortcuts)}
+            >
+              ⌨ ショートカット一覧
+            </button>
+          </div>
           <div className={styles.divider} />
           <div className={styles.row}>
             <button

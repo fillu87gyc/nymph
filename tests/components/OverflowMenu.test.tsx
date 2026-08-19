@@ -18,6 +18,7 @@ function makeProps(
     onPrint: vi.fn(),
     onExport: vi.fn(),
     canExport: true,
+    onShowShortcuts: vi.fn(),
     onClearAll: vi.fn(),
     ...overrides,
   };
@@ -68,6 +69,16 @@ describe('OverflowMenu', () => {
     await userEvent.click(document.getElementById('btn-checkpoint') as Element);
 
     expect(onCheckpoint).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
+  });
+
+  test('ショートカット一覧クリックでハンドラが呼ばれメニューが閉じる', async () => {
+    const onShowShortcuts = vi.fn();
+    render(<OverflowMenu {...makeProps({ onShowShortcuts })} />);
+    await userEvent.click(screen.getByTestId('overflow-menu-btn'));
+    await userEvent.click(screen.getByTestId('shortcuts-btn'));
+
+    expect(onShowShortcuts).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('overflow-menu')).not.toBeInTheDocument();
   });
 

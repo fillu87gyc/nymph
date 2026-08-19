@@ -49,6 +49,8 @@ interface ToolbarProps {
   onToggleLigatures: () => void;
   onDictSync?: () => void;
   isDictSyncing?: boolean;
+  /** キーボードショートカット一覧を開く（⋯ メニュー内。`?` と同じ）。 */
+  onShowShortcuts: () => void;
   marginCollapse: MarginCollapse;
   onToggleMargin: (side: 'left' | 'right') => void;
   manualWidth: number | null;
@@ -96,6 +98,7 @@ export function Toolbar({
   onToggleLigatures,
   onDictSync,
   isDictSyncing,
+  onShowShortcuts,
   marginCollapse,
   onToggleMargin,
   manualWidth,
@@ -203,6 +206,7 @@ export function Toolbar({
         canExport={canExport}
         onDictSync={onDictSync}
         isDictSyncing={isDictSyncing}
+        onShowShortcuts={onShowShortcuts}
         onClearAll={onClearAll}
       />
     </header>

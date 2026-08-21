@@ -1,6 +1,5 @@
 /* 本文列（.contentGrid の 2 カラム目）に重ねるリサイズハンドル。
-   #content と同じ grid セルを占有し、justify-self で左右いずれかの端に寄せる。
-   ネガティブマージンで本文の端をまたぐように配置し、掴みやすくしている。 */
+   #content と同じ grid セルを占有し、justify-self で左右いずれかの端に寄せる。 */
 .handle {
   grid-row: 1;
   grid-column: 2;
@@ -12,19 +11,23 @@
   height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
   cursor: col-resize;
   touch-action: none;
   /* 既定では透明。ホバー/フォーカス/ドラッグ時のみグリップが浮かぶ。 */
   background: transparent;
 }
+/* 掴む帯は本文列の内側（#content の左右 padding の上）に収め、グリップ線だけを
+   列の端に寄せる。掴める幅は 14px のままで、本文の文字には被らない。
+   ネガティブマージンで列の外へまたがせると、本文列がスクロールコンテナの端に
+   接している状態 — 左右マージンを折りたたんだとき、ビューポートが本文幅より
+   狭いとき — にハンドルの分（7px）だけ横スクロールが生まれてしまう。 */
 .left {
   justify-self: start;
-  margin-left: -7px;
+  justify-content: flex-start;
 }
 .right {
   justify-self: end;
-  margin-right: -7px;
+  justify-content: flex-end;
 }
 .handle::before {
   content: "";

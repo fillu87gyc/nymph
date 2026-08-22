@@ -428,7 +428,10 @@ async function handleDictSync(): Promise<Response> {
       );
       const config = loadConfig(configPath);
       const hash = computeCommandsHash(config);
-      if (!isCommandHashAccepted(hash)) {
+      // 承認は毎回読み直して確認する。起動時に 1 回だけにすると、
+      // レビュー中のブランチ切替で config.yml が差し替わったときに
+      // 未承認のコマンドが走る。
+      if (!isCommandHashAccepted(hash, configPath)) {
         return json(
           {
             error:
@@ -1122,6 +1125,95 @@ function serveStatic(url: URL): Response | null {
 // LAN 共有は認証機構が無い以上意図的に提供しない（意図せず公開されるリスクの方が大きい）。
 export const SERVER_HOSTNAME = '127.0.0.1';
 
+/** ループバックを指すホスト名か（ポートは問わない）。 */
+function isLoopbackHostname(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '[::1]' ||
+    hostname === '::1' ||
+    /^127(\.\d{1,3}){3}$/.test(hostname)
+  );
+}
+
+/** `host` / `origin` ヘッダーの値からホスト名を取り出す。解釈できなければ null。 */
+function hostnameOf(value: string, scheme = 'http://'): string | null {
+  try {
+    const url = new URL(value.includes('://') ? value : scheme + value);
+    return url.hostname;
+  } catch {
+    return null;
+  }
+}
+
+export interface RequestGuardInput {
+  method: string;
+  host: string | null;
+  origin: string | null;
+  secFetchSite: string | null;
+}
+
+export type RequestGuardResult = { ok: true } | { ok: false; reason: string };
+
+/**
+ * ブラウザ経由の到達可能性に対する入口の検査。
+ *
+ * `SERVER_HOSTNAME` をループバックに固定してあるのは「LAN から届かない」
+ * ためであって、「ブラウザから届かない」ためではない。ユーザーが開いている
+ * 任意の Web ページは `http://127.0.0.1:<port>` へリクエストを投げられるし、
+ * ポートは 20 個しか使わないので総当たりも容易。認証を持たない API である
+ * 以上、ここで **どこから来たか** を見るしかない。
+ *
+ * 規則は 3 つ:
+ *
+ * 1. **Host がループバックを指さないリクエストを拒否する**。DNS rebinding
+ *    （攻撃者のドメインを 127.0.0.1 に解決させ、同一オリジンとして読む手口）
+ *    は Host ヘッダーに攻撃者のドメインが残るため、ここで落ちる。
+ * 2. **`Sec-Fetch-Site: cross-site` を拒否する**。メソッドを問わないので、
+ *    Origin を送らない `<img>` や `<form>` 経由の副作用も塞げる。
+ * 3. **状態変更メソッドで Origin がループバック以外なら拒否する**。
+ *    Sec-Fetch-Site を送らない古いブラウザ向けの二重化。fetch / XHR /
+ *    form の cross-origin POST は必ず Origin を送るため、これで CSRF は
+ *    成立しなくなる。
+ *
+ * ヘッダーが無い場合（curl・CLI・E2E の APIRequestContext）は通す。判定材料が
+ * 無いだけで、ブラウザは上記のヘッダーを必ず送るため防御は落ちない。
+ *
+ * dev（Vite）は `localhost:5173` からのプロキシ越しで、Host も Origin も
+ * ループバックのまま届くので通る。
+ */
+export function checkRequestGuard(
+  input: RequestGuardInput,
+): RequestGuardResult {
+  const { method, host, origin, secFetchSite } = input;
+
+  if (host !== null) {
+    const hostname = hostnameOf(host);
+    if (hostname === null || !isLoopbackHostname(hostname)) {
+      return {
+        ok: false,
+        reason: `Host がループバックではありません: ${host}`,
+      };
+    }
+  }
+
+  if (secFetchSite === 'cross-site') {
+    return { ok: false, reason: 'クロスサイトからのリクエストです' };
+  }
+
+  const stateChanging = method !== 'GET' && method !== 'HEAD';
+  if (stateChanging && origin !== null) {
+    const hostname = hostnameOf(origin);
+    if (hostname === null || !isLoopbackHostname(hostname)) {
+      return {
+        ok: false,
+        reason: `Origin がループバックではありません: ${origin}`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 export function createServer(port: number) {
   // 後から `nymph <file>` を実行した CLI が「開くべき URL」を問い合わせられる
   // よう、このインスタンスのフロント URL を /version で公開する。
@@ -1133,6 +1225,14 @@ export function createServer(port: number) {
     fetch(req) {
       const url = new URL(req.url);
       const path = url.pathname;
+
+      const guard = checkRequestGuard({
+        method: req.method,
+        host: req.headers.get('host'),
+        origin: req.headers.get('origin'),
+        secFetchSite: req.headers.get('sec-fetch-site'),
+      });
+      if (!guard.ok) return new Response(guard.reason, { status: 403 });
 
       if (req.method === 'GET') {
         if (path === '/version')
@@ -1148,7 +1248,8 @@ export function createServer(port: number) {
         if (path === '/search') return handleSearch(url);
         if (path === '/tree') return handleTree();
         if (path === '/bookmarks') return handleBookmarks();
-        if (path === '/checkpoint') return handleSetCheckpoint();
+        // チェックポイント設定は副作用（round を進める）を持つため POST のみ。
+        // GET を残すと <img src="…/checkpoint"> だけで叩けてしまう。
         if (path === '/dict') return handleGetDict();
         const staticResp = serveStatic(url);
         if (staticResp) return staticResp;

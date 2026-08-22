@@ -106,6 +106,8 @@ nymph ./           # カレントディレクトリをツリー表示
                        保存済みコメントを CSV にする（-o 省略で標準出力）
   nymph dict build     ユビキタス言語辞書をビルドする
   nymph dict allow     辞書設定に書かれたコマンドを承認する
+                       --list で承認済みの一覧、--revoke で失効
+                       （--all を付けるとすべて失効）
 ```
 
 ```bash
@@ -116,6 +118,8 @@ nymph report.md --export review.html   # レビュー結果を静的 HTML に書
 nymph report.md --export review.html --export-mermaid   # 図も描画できる形で
 nymph report.md --annotate review.md   # コメントを本文へ書き戻す
 nymph export report.md -o review.csv   # コメントを CSV にする
+nymph dict allow --list                # 承認済みのコマンドを確認する
+nymph dict allow --revoke              # このリポジトリの承認を失効させる
 ```
 
 指定したファイル / ディレクトリが存在しない場合は、サーバーを起動せずにそのパスを示して終了します（複数指定のうち一部だけ存在しない場合も、黙って無視せずエラーになります）：

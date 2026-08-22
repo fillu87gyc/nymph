@@ -136,26 +136,71 @@ async function main() {
 
     if (subArgs[0] === 'allow') {
       // nymph dict allow — config.yml のコマンドを承認する（direnv allow 相当）
+      // --list で承認済みの一覧、--revoke で失効。
       let configPath = '.nymph/config.yml';
+      let mode: 'approve' | 'list' | 'revoke' = 'approve';
+      let revokeAll = false;
       for (let i = 1; i < subArgs.length; i++) {
         const arg = subArgs[i];
         if (arg === '--config' || arg === '-c') {
           configPath = requireOptionValue(subArgs, ++i, arg);
+        } else if (arg === '--list') {
+          mode = 'list';
+        } else if (arg === '--revoke') {
+          mode = 'revoke';
+        } else if (arg === '--all') {
+          revokeAll = true;
         }
       }
       try {
         const { loadConfig } = await import('./dict/config.ts');
-        const { computeCommandsHash, saveAcceptedHash } = await import(
-          './dict/consent.ts'
-        );
+        const {
+          computeCommandsHash,
+          listAcceptedEntries,
+          revokeAcceptedEntries,
+          saveAcceptedHash,
+        } = await import('./dict/consent.ts');
+
+        if (mode === 'list') {
+          const entries = listAcceptedEntries();
+          if (entries.length === 0) {
+            console.log('承認済みのコマンドはありません。');
+          } else {
+            console.log('\n承認済みのコマンド:\n');
+            for (const e of entries) {
+              const scope =
+                e.configPath ?? '(旧形式: スコープ不明 — 再承認が必要)';
+              const at = e.approvedAt ? ` — ${e.approvedAt}` : '';
+              console.log(`  ${scope}${at}`);
+              for (const c of e.commands) console.log(`    ${c}`);
+            }
+            console.log();
+          }
+          process.exit(0);
+        }
+
+        if (mode === 'revoke') {
+          const removed = revokeAll
+            ? revokeAcceptedEntries()
+            : revokeAcceptedEntries(configPath);
+          const target = revokeAll ? 'すべての承認' : configPath;
+          console.log(`${target} の承認を ${removed} 件失効しました。`);
+          process.exit(0);
+        }
+
         const { createInterface } = await import('node:readline');
 
         const config = loadConfig(configPath);
+        const commands = (config.sources ?? []).map(
+          (source) => `[${source.name}]  ${source.fetch.cmd.join(' ')}`,
+        );
         console.log(`\n${configPath} に含まれるコマンド:\n`);
-        for (const source of config.sources) {
-          console.log(`  [${source.name}]  ${source.fetch.cmd.join(' ')}`);
-        }
+        for (const line of commands) console.log(`  ${line}`);
         console.log();
+        // 承認がどこまで効くのかを明示する。承認は config ファイル単位で、
+        // 別の場所に置かれた同じ内容の config には効かない。
+        console.log(`この承認は ${configPath} に対してのみ有効です。`);
+        console.log('失効するには: nymph dict allow --revoke\n');
 
         const rl = createInterface({
           input: process.stdin,
@@ -173,7 +218,7 @@ async function main() {
           process.exit(0);
         }
 
-        saveAcceptedHash(computeCommandsHash(config));
+        saveAcceptedHash(computeCommandsHash(config), configPath, commands);
         console.log('承認しました。nymph dict build を実行できます。');
       } catch (err) {
         console.error(
@@ -212,7 +257,7 @@ async function main() {
         // コマンド承認チェック
         const config = loadConfig(configPath);
         const hash = computeCommandsHash(config);
-        if (!isCommandHashAccepted(hash)) {
+        if (!isCommandHashAccepted(hash, configPath)) {
           console.error(`エラー: ${configPath} のコマンドは未承認です。\n`);
           for (const source of config.sources) {
             console.error(`  [${source.name}]  ${source.fetch.cmd.join(' ')}`);

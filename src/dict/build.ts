@@ -47,6 +47,52 @@ function expandGlobArgs(args: string[], cwd: string): string[] {
 }
 
 /**
+ * 外部コマンドへ渡してよい環境変数の名前。
+ *
+ * `.nymph/config.yml` はレビュー対象リポジトリが書ける内容であり、そこに
+ * 書かれたコマンドは nymph が spawn する。既定の spawn は `process.env` を
+ * 丸ごと継承するため、そのままでは `GH_TOKEN` / `AWS_*` / `SSH_AUTH_SOCK`
+ * といった資格情報が外部コマンドに渡る（`gh auth token` を叩かれる余地も
+ * 同じ）。「nymph 自身はトークンを持たない」ことと「子プロセスにトークンが
+ * 渡らない」ことは別問題なので、渡すものを allowlist で決める。
+ *
+ * ここに入っているのはコマンドが動くために要るものだけ——実行ファイルの探索
+ * （PATH ほか）、ホーム、ロケール、一時ディレクトリ。
+ */
+const SPAWN_ENV_ALLOWLIST = [
+  'PATH',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TZ',
+  'TMPDIR',
+  // Windows で実行ファイル探索・一時ディレクトリに要るもの
+  'APPDATA',
+  'COMSPEC',
+  'LOCALAPPDATA',
+  'PATHEXT',
+  'SystemDrive',
+  'SystemRoot',
+  'TEMP',
+  'TMP',
+  'USERPROFILE',
+  'windir',
+] as const;
+
+/** allowlist に載っている環境変数だけを取り出す（未定義のキーは落とす）。 */
+export function spawnEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of SPAWN_ENV_ALLOWLIST) {
+    const value = env[key];
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
+/**
  * spawnSync の結果を検証し、エラーの場合は例外をスローする。
  */
 function assertSpawnResult(
@@ -111,6 +157,7 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
           shell: false,
           encoding: 'utf-8',
           cwd,
+          env: spawnEnv(),
         });
         assertSpawnResult(result, source.name);
         rawParts.push(result.stdout);
@@ -122,6 +169,7 @@ export async function buildDict(options: BuildOptions): Promise<DictFile> {
         shell: false,
         encoding: 'utf-8',
         cwd,
+        env: spawnEnv(),
       });
       assertSpawnResult(result, source.name);
       raw = result.stdout;

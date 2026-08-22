@@ -83,7 +83,7 @@
 | 機能 | 概要 |
 |------|------|
 | `nymph dict build` | `.nymph/config.yml` の各ソースをコマンド実行で取得し、セレクタで用語 / 定義 / エイリアスを抜いて `.nymph/dict.json` を生成。Markdown / JSON アダプタ対応、TTL キャッシュ、`--debug` で中間木とマッチ結果を出力。書式は `src/dict/README.md` |
-| `nymph dict allow` | `config.yml` に書かれた `fetch.cmd` を一覧表示して承認を取る（direnv allow 相当）。コマンドのハッシュを保存し、未承認のまま `dict build` は走らない |
+| `nymph dict allow` | `config.yml` に書かれた `fetch.cmd` を一覧表示して承認を取る（direnv allow 相当）。承認は **コマンドの内容と config ファイルの場所の両方**に紐づき、同じ内容でも別の場所に置かれた config には効かない。未承認のまま `dict build` は走らない。`--list` で一覧、`--revoke` で失効 |
 
 ## Claude Code 連携
 

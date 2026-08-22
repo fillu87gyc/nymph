@@ -60,7 +60,10 @@ test.describe('dict: POST /dict/sync', () => {
       const { computeCommandsHash, saveAcceptedHash } = await import(
         '../../src/dict/consent.ts'
       );
-      saveAcceptedHash(computeCommandsHash(parseConfig(NYMPH_YML)));
+      saveAcceptedHash(
+        computeCommandsHash(parseConfig(NYMPH_YML)),
+        nymphYmlPath,
+      );
     } finally {
       if (origXDG !== undefined) process.env.XDG_DATA_HOME = origXDG;
       else delete process.env.XDG_DATA_HOME;

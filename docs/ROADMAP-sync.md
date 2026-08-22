@@ -3,6 +3,8 @@
 > 本体のロードマップ（[`../ROADMAP.md`](../ROADMAP.md)）とは独立したテーマとして進める。
 > 起票: 2026-08-21
 > スタック前提: Bun · React 19 · TypeScript · Vite 8
+> 脆弱性診断: [`ROADMAP-sync-security.md`](./ROADMAP-sync-security.md)（この設計に対する所見。
+> 着手前に S1〜S4 の対策を仕様へ落とす）
 
 ---
 

@@ -411,38 +411,28 @@ nymphx *.md   # HMR 有効な開発モードで起動
 
 ### リリース
 
-リリースは **バンプ PR → Release ワークフロー** の 2 段階です。バンプを先に PR で入れるのは、`main` がブランチ保護されていてワークフローから直接 push できないためです（保護を緩めるより、タグが必ずバンプ済みコミットを指す性質を優先しています）。
-
-**1. バージョンを上げる PR をマージする**
-
-```bash
-npm pkg set version=1.2.3
-```
-
-これだけをコミットした PR を `main` にマージします（`src/cli.ts` は `package.json` から読むので、直すのはここ一箇所だけです）。
-
-**2. リリースを走らせる**
+入口は Actions タブの **Run workflow** だけです。`package.json` のバンプがまだなら、ワークフローが**バンプ PR を作って止まります**。それをマージしてもう一度 Run workflow すると、今度はリリースが最後まで走ります。
 
 1. Actions タブ → Release → **Run workflow**
-2. `version` に 1 で入れたのと同じバージョンを指定する（例: `1.2.3`、プレリリースなら `1.3.0-rc.1`）
-3. 実行すると以下が自動で行われる
-   - `tsc` / lint / unit test / build / `smoke:pack` による検証
-   - `package.json` が指定バージョンになっているかの確認
+2. `version` にリリースするバージョンを入れる（例: `1.2.3`、プレリリースなら `1.3.0-rc.1`）
+3. `tsc` / lint / unit test / build / `smoke:pack` による検証（`verify` job）
+4. `package.json` が指定バージョンかを見る（`bump` job）
+   - **違う** → `release/v1.2.3` ブランチにバンプだけをコミットした PR を作り、ここで終わり。`release` job は skip され、ワークフロー自体は成功で終わります。**PR をマージして 1 からやり直してください**
+   - **同じ** → そのまま 5 へ
+5. `release` job が走る
    - タグ `v1.2.3` を作成して push
    - npm へ publish（provenance 付き。プレリリースは dist-tag `next`）
    - リリースノート付きの GitHub Release を作成
 
-バンプ PR をマージし忘れたまま実行すると、2 番目の確認が
+つまり新しいバージョンを出すときは Run workflow を 2 回叩くことになります（1 回目でバンプ PR ができ、マージ後の 2 回目で本番）。バンプを PR 経由にしているのは、`main` がブランチ保護されていてワークフローから直接 push できないためです。保護を緩める代わりにこの形にすることで、タグは必ずバンプ済みコミットを指します。
 
-```
-package.json のバージョンは '1.2.2' で、リリース対象の '1.2.3' と一致しません。
-```
+バンプ PR がまだ開いたままの状態で Run workflow をやり直した場合は、PR を作り直さずに既存の PR の URL を案内して終わります。
 
-というエラーで止まります。この時点ではタグも publish も行われていないため、バンプ PR をマージしてから実行し直せばそのまま続けられます。
+`dry_run` を有効にすると、タグ・publish・Release 作成を行わず検証と `npm publish --dry-run` だけを実行します。初回や不安なときの確認用です（バンプ PR も作りません）。
 
-`dry_run` を有効にすると、タグ・publish・Release 作成を行わず検証と `npm publish --dry-run` だけを実行します。初回や不安なときの確認用です（この場合もバンプ済みであることが前提です）。
+ローカルで `git tag v1.2.3 && git push origin v1.2.3` した場合も同じワークフローが走ります（この経路ではタグ作成のステップだけスキップされます）。ただしタグは後から位置を動かせないため、**未バンプのコミットにタグを付けた場合はバンプ PR を作らずエラーで止まります**。その場合は `git push --delete origin v1.2.3` でタグを消してから、Run workflow でやり直してください。
 
-ローカルで `git tag v1.2.3 && git push origin v1.2.3` した場合も同じワークフローが走ります（この経路ではタグ作成のステップだけスキップされます）。バージョンの確認はこの経路でも行われるので、バンプ済みでないコミットにタグを付けると publish されずに止まります。
+> **前提**: バンプ PR の作成には、Settings → Actions → General → Workflow permissions の **「Allow GitHub Actions to create and approve pull requests」** が有効である必要があります。無効だと `bump` job が「GitHub Actions is not permitted to create or approve pull requests」で落ちるので、その場合は設定を有効にするか、`npm pkg set version=1.2.3` だけの PR を手で作ってマージしてください。
 
 publish が失敗して同じバージョンをやり直す場合、タグが同じコミットに残っていればそのまま再実行できます（タグ作成と publish 済みバージョンはスキップされる）。別のコミットに同名タグがある場合はエラーで止まるので、`git push --delete origin v1.2.3` してから実行し直してください。
 

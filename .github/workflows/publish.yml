@@ -6,15 +6,20 @@ name: Release
 # ENEEDAUTH で落ちる。ファイル名を変えたい場合は npmjs 側の
 # Trusted Publisher 設定も同時に更新すること。
 #
-# バージョンのバンプは、このワークフローではなく事前の PR で main に入れる。
-# main はブランチ保護で直接 push できないため（GH006: Changes must be made
-# through a pull request）、ここでは「package.json が既にバンプ済みか」を
-# 検証してタグを打つだけにしている。これでタグは必ずバンプ済みコミットを指す。
+# バージョンのバンプは main へ直接 push できない（ブランチ保護。GH006:
+# Changes must be made through a pull request）ため、PR 経由で入れる。
+# その PR はこのワークフロー自身が作る:
+#   package.json が未バンプ → bump job がバンプ PR を作ってそこで終わる
+#   （release job は skip。落とさないので Actions の表示は成功のまま）
+#   その PR をマージして Run workflow をもう一度 → release job が走る
+# こうするとタグは必ずバンプ済みコミットを指す。
 #
 # リリースは 2 通りの入口がある:
 #   1. Actions タブから「Run workflow」でバージョンを指定する（推奨）
 #   2. ローカルで `git tag v1.2.3 && git push origin v1.2.3` する
 # どちらも同じ job を通り、npm publish と GitHub Release 作成までを行う。
+# ただし 2 はタグの位置を動かせないので、未バンプのコミットに付けた場合は
+# PR を作らずエラーで止まる（タグを打ち直してもらうしかないため）。
 on:
   workflow_dispatch:
     inputs:
@@ -56,13 +61,22 @@ jobs:
       # dist のビルド漏れは、ここでしか見つからない。
       - run: bun run smoke:pack
 
-  release:
-    name: Release
+  # package.json のバンプ担当。未バンプならバンプ PR を作ってここで終わり、
+  # release job は skip される。マージ後にもう一度 Run workflow すると、
+  # 今度は needed=false になって release job まで進む。
+  bump:
+    name: Bump
     needs: verify
     runs-on: ubuntu-latest
     permissions:
-      contents: write # タグと GitHub Release の作成
-      id-token: write # npm provenance / Trusted Publishing
+      contents: write # バンプ用ブランチの push
+      pull-requests: write # バンプ PR の作成
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      npm_tag: ${{ steps.meta.outputs.npm_tag }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      needed: ${{ steps.check.outputs.needed }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -70,10 +84,6 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .tool-versions
-          registry-url: 'https://registry.npmjs.org'
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .tool-versions
 
       - name: バージョンを決める
         id: meta
@@ -109,12 +119,127 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "リリース対象: v$VERSION (npm dist-tag: $NPM_TAG)"
 
+      - name: バンプが要るか確認
+        id: check
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # cli.ts は package.json から読むので、見るのはここ一箇所だけでよい
+          ACTUAL="$(npm pkg get version | tr -d '"')"
+          if [ "$ACTUAL" = "$VERSION" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "package.json は既に $VERSION です"
+            exit 0
+          fi
+
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+          echo "::notice::package.json は '$ACTUAL' でリリース対象の '$VERSION' と違うため、バンプが必要です"
+
+          # タグ push 由来の実行はタグの位置を動かせないので、PR を作っても
+          # このタグは未バンプのコミットを指したまま。ここは直せないので止める。
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            echo "::error::タグ $TAG が指すコミットの package.json は '$ACTUAL' です。" \
+              "\`git push --delete origin $TAG\` でタグを消し、Actions タブの Run workflow から" \
+              "実行し直してください（そちらならバンプ PR が自動で作られます）"
+            exit 1
+          fi
+
+      - name: バンプ PR を作る
+        if: steps.check.outputs.needed == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          BRANCH="release/v$VERSION"
+
+          # 前回の実行で作った PR がまだマージされていないだけ、というのが
+          # いちばん多い再実行なので、作り直さずそれを案内する
+          EXISTING="$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url // empty')"
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::バンプ PR は既にあります: $EXISTING"
+            {
+              echo "### バンプ待ちです"
+              echo ""
+              echo "$EXISTING をマージしてから Run workflow をやり直してください。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # -C にしておくと、同名ブランチが手元にある状態で再実行しても落ちない
+          git switch -C "$BRANCH"
+          npm pkg set version="$VERSION"
+          git add package.json
+          git commit -m "chore(release): v$VERSION"
+          # 閉じた PR のブランチが残っていることがある。bot 専用の使い捨て
+          # ブランチなので上書きしてよい（main には force しない）。
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+
+          BODY="$(mktemp)"
+          {
+            echo "\`v$VERSION\` をリリースするための package.json のバンプです。"
+            echo "Release ワークフロー ([run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})) が自動で作りました。"
+            echo ""
+            echo "この PR をマージしたあと、Actions タブ → Release → Run workflow で"
+            echo "\`version\` に \`$VERSION\` を指定して実行すると、タグ作成・npm publish・GitHub Release まで進みます。"
+          } > "$BODY"
+
+          if ! URL="$(gh pr create --base "${GITHUB_REF_NAME}" --head "$BRANCH" \
+            --title "chore(release): v$VERSION" --body-file "$BODY" 2>&1)"; then
+            echo "$URL"
+            echo "::error::バンプ PR の作成に失敗しました。Settings → Actions → General の" \
+              "「Allow GitHub Actions to create and approve pull requests」が無効だとここで落ちます。" \
+              "有効にするか、\`npm pkg set version=$VERSION\` だけの PR を手で作ってマージしてください"
+            exit 1
+          fi
+
+          echo "::notice::バンプ PR を作りました: $URL"
+          {
+            echo "### バンプ PR を作りました"
+            echo ""
+            echo "$URL をマージしてから Run workflow をやり直すと、リリースが進みます。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: dry_run のときの案内
+        if: steps.check.outputs.needed == 'true' && inputs.dry_run
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          echo "::notice::dry_run のためバンプ PR は作りません。" \
+            "本番実行すると release/v$VERSION ブランチのバンプ PR が作られます"
+
+  release:
+    name: Release
+    needs: [verify, bump]
+    # バンプ PR を作った回はここまで来ない。PR がマージされたあとの
+    # 再実行で needed=false になり、そこで初めてタグと publish に進む。
+    if: needs.bump.outputs.needed == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # タグと GitHub Release の作成
+      id-token: write # npm provenance / Trusted Publishing
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+          registry-url: 'https://registry.npmjs.org'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
       - name: タグの状態を確認
         id: tagstate
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
-          TAG="${{ steps.meta.outputs.tag }}"
+          TAG="${{ needs.bump.outputs.tag }}"
           TAGGED="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || true)"
           if [ -z "$TAGGED" ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -128,29 +253,17 @@ jobs:
             exit 1
           fi
 
-      # バンプは事前の PR でマージ済みのはず。ここで書き換えるのではなく
-      # 検証だけして、食い違っていれば publish の手前で止める。
-      - name: package.json がバンプ済みか確認
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.meta.outputs.version }}"
-          # cli.ts は package.json から読むので、見るのはここ一箇所だけでよい
-          ACTUAL="$(npm pkg get version | tr -d '"')"
-          if [ "$ACTUAL" != "$VERSION" ]; then
-            echo "::error::package.json のバージョンは '$ACTUAL' で、リリース対象の '$VERSION' と一致しません。" \
-              "\`npm pkg set version=$VERSION\` を含む PR を main にマージしてから実行し直してください"
-            exit 1
-          fi
-
       - run: bun install --frozen-lockfile
       - run: bun run build
 
+      # bump job のチェックからここまでの間に main が動いていた場合の砦。
+      # ここを通れば、これから打つタグのコミットは確実にバンプ済み。
       - name: CLI の --version を確認
         run: |
           set -euo pipefail
           ACTUAL="$(bun run src/cli.ts --version)"
-          if [ "$ACTUAL" != "${{ steps.meta.outputs.version }}" ]; then
-            echo "::error::--version が '${{ steps.meta.outputs.version }}' ではなく '$ACTUAL' を返しました"
+          if [ "$ACTUAL" != "${{ needs.bump.outputs.version }}" ]; then
+            echo "::error::--version が '${{ needs.bump.outputs.version }}' ではなく '$ACTUAL' を返しました"
             exit 1
           fi
 
@@ -164,17 +277,17 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.meta.outputs.tag }}" -m "Release ${{ steps.meta.outputs.tag }}"
-          git push origin "${{ steps.meta.outputs.tag }}"
+          git tag -a "${{ needs.bump.outputs.tag }}" -m "Release ${{ needs.bump.outputs.tag }}"
+          git push origin "${{ needs.bump.outputs.tag }}"
 
       - name: npm に publish 済みか確認
         id: published
         run: |
           set -euo pipefail
           NAME="$(npm pkg get name | tr -d '"')"
-          if npm view "$NAME@${{ steps.meta.outputs.version }}" version >/dev/null 2>&1; then
+          if npm view "$NAME@${{ needs.bump.outputs.version }}" version >/dev/null 2>&1; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::$NAME@${{ steps.meta.outputs.version }} は publish 済みのためスキップします"
+            echo "::notice::$NAME@${{ needs.bump.outputs.version }} は publish 済みのためスキップします"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
@@ -189,7 +302,7 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
-          ARGS=(--provenance --access public --tag "${{ steps.meta.outputs.npm_tag }}")
+          ARGS=(--provenance --access public --tag "${{ needs.bump.outputs.npm_tag }}")
           if [ "${DRY_RUN:-false}" = "true" ]; then
             ARGS+=(--dry-run)
           fi
@@ -201,13 +314,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.meta.outputs.tag }}"
+          TAG="${{ needs.bump.outputs.tag }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "::notice::Release $TAG は既に存在するためスキップします"
             exit 0
           fi
           ARGS=(--title "$TAG" --generate-notes)
-          if [ "${{ steps.meta.outputs.prerelease }}" = "true" ]; then
+          if [ "${{ needs.bump.outputs.prerelease }}" = "true" ]; then
             ARGS+=(--prerelease)
           fi
           gh release create "$TAG" "${ARGS[@]}"

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, describe, expect, test } from 'vitest';
-import { buildDict } from '../../../src/dict/build.ts';
+import { buildDict, spawnEnv } from '../../../src/dict/build.ts';
 
 const CWD = process.cwd();
 const CONFIG_PATH = `${CWD}/tests/fixtures/dict/nymph.yml`;
@@ -159,5 +159,78 @@ describe('buildDict', () => {
     const terms = result.entries.map((e) => e.term);
     expect(terms).toContain('集約');
     expect(terms).not.toContain('stale-term');
+  });
+});
+
+// 認証は `gh auth` の管轄、と外注しても、spawn した子プロセスが
+// process.env を丸ごと継承していれば資格情報は渡ってしまう
+// （`GH_TOKEN` を読む、`gh auth token` を叩く、など）。
+// config.yml はレビュー対象リポジトリが書ける内容なので、外部コマンドへ
+// 渡す環境変数は allowlist で絞る。
+describe('spawnEnv', () => {
+  test('allowlist にある変数だけを通す', () => {
+    const env = spawnEnv({
+      PATH: '/usr/bin',
+      HOME: '/home/u',
+      LANG: 'ja_JP.UTF-8',
+      GH_TOKEN: 'ghp_secret',
+      GITHUB_TOKEN: 'ghs_secret',
+      AWS_SECRET_ACCESS_KEY: 'aws_secret',
+      NPM_TOKEN: 'npm_secret',
+      SSH_AUTH_SOCK: '/tmp/agent.sock',
+    });
+
+    expect(env.PATH).toBe('/usr/bin');
+    expect(env.HOME).toBe('/home/u');
+    expect(env.LANG).toBe('ja_JP.UTF-8');
+    expect(env).not.toHaveProperty('GH_TOKEN');
+    expect(env).not.toHaveProperty('GITHUB_TOKEN');
+    expect(env).not.toHaveProperty('AWS_SECRET_ACCESS_KEY');
+    expect(env).not.toHaveProperty('NPM_TOKEN');
+    expect(env).not.toHaveProperty('SSH_AUTH_SOCK');
+  });
+
+  test('未定義の変数はキーごと落とす', () => {
+    const env = spawnEnv({ PATH: '/usr/bin' });
+    expect(env).not.toHaveProperty('HOME');
+    expect(Object.keys(env)).toEqual(['PATH']);
+  });
+});
+
+describe('外部コマンドへの環境変数の受け渡し', () => {
+  function writeConfig(path: string, cmd: string[]): void {
+    writeFileSync(
+      path,
+      `sources:\n  - name: env\n    fetch:\n      cmd: ${JSON.stringify(cmd)}\n    adapter: markdown\n    rules:\n      term: "h3"\n      definition: "term > p"\n`,
+      'utf-8',
+    );
+  }
+
+  test('allowlist 外の環境変数は子プロセスに渡らない', async () => {
+    const tmpConfig = '/tmp/test-nymph-env-secret.yml';
+    writeConfig(tmpConfig, ['printenv', 'NYMPH_TEST_SECRET']);
+    process.env.NYMPH_TEST_SECRET = 'leaked';
+
+    // 子プロセスに見えていなければ printenv は終了コード 1 で落ちる
+    await expect(
+      buildDict({ configPath: tmpConfig, outPath: OUT_PATH, cwd: CWD }),
+    ).rejects.toThrow();
+
+    delete process.env.NYMPH_TEST_SECRET;
+    rmSync(tmpConfig);
+  });
+
+  test('allowlist にある PATH は子プロセスに渡る', async () => {
+    const tmpConfig = '/tmp/test-nymph-env-path.yml';
+    writeConfig(tmpConfig, ['printenv', 'PATH']);
+
+    const result = await buildDict({
+      configPath: tmpConfig,
+      outPath: OUT_PATH,
+      cwd: CWD,
+    });
+    expect(result.version).toBe(1);
+
+    rmSync(tmpConfig);
   });
 });
